@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
 
@@ -120,11 +122,15 @@ fun SignUpScreen(
     onAccountCreated: (String) -> Unit,
     onBack: () -> Unit
 ) {
-
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+
+    val auth = remember { FirebaseAuth.getInstance() }
+    val firestore = remember { FirebaseFirestore.getInstance() }
 
     Column(
         modifier = Modifier
@@ -154,7 +160,7 @@ fun SignUpScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email or Phone") },
+            label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -178,28 +184,101 @@ fun SignUpScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (errorMessage.isNotEmpty()) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         Button(
             onClick = {
-                if (
-                    name.isNotBlank() &&
-                    email.isNotBlank() &&
-                    password.isNotBlank() &&
-                    password == confirmPassword
-                ) {
-                    onAccountCreated(name)
+
+                errorMessage = ""
+
+                when {
+                    name.isBlank() -> {
+                        errorMessage = "Please enter your full name."
+                    }
+
+                    email.isBlank() -> {
+                        errorMessage = "Please enter your email."
+                    }
+
+                    password.length < 6 -> {
+                        errorMessage = "Password must be at least 6 characters."
+                    }
+
+                    password != confirmPassword -> {
+                        errorMessage = "Passwords do not match."
+                    }
+
+                    else -> {
+                        loading = true
+
+                        auth.createUserWithEmailAndPassword(
+                            email.trim(),
+                            password
+                        ).addOnCompleteListener { task ->
+
+                            if (task.isSuccessful) {
+
+                                val user = auth.currentUser
+
+                                if (user != null) {
+
+                                    val profile = hashMapOf(
+                                        "uid" to user.uid,
+                                        "name" to name.trim(),
+                                        "email" to email.trim()
+                                    )
+
+                                    firestore.collection("users")
+                                        .document(user.uid)
+                                        .set(profile)
+                                        .addOnSuccessListener {
+                                            loading = false
+                                            onAccountCreated(name.trim())
+                                        }
+                                        .addOnFailureListener { exception ->
+                                            loading = false
+                                            errorMessage =
+                                                exception.message
+                                                    ?: "Could not save your profile."
+                                        }
+
+                                } else {
+                                    loading = false
+                                    errorMessage = "Account creation failed."
+                                }
+
+                            } else {
+                                loading = false
+                                errorMessage =
+                                    task.exception?.message
+                                        ?: "Could not create account."
+                            }
+                        }
+                    }
                 }
             },
+            enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Create Account")
+            Text(
+                if (loading) "Creating Account..." else "Create Account"
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
             onClick = onBack,
+            enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Back")
