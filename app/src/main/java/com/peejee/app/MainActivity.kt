@@ -1,4 +1,3 @@
-
 package com.peejee.app
 
 import android.os.Bundle
@@ -14,11 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -35,45 +36,155 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PeejeeApp() {
-    MaterialTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+
+    var showSignUp by remember { mutableStateOf(false) }
+
+    if (showSignUp) {
+        SignUpScreen(
+            onBack = {
+                showSignUp = false
+            }
+        )
+    } else {
+        WelcomeScreen(
+            onCreateAccount = {
+                showSignUp = true
+            }
+        )
+    }
+}
+
+@Composable
+fun WelcomeScreen(
+    onCreateAccount: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+
+        Text(
+            text = "Peejee",
+            fontSize = 42.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Connect. Chat. Share.",
+            style = MaterialTheme.typography.bodyLarge
+        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Button(
+            onClick = onCreateAccount,
+            modifier = Modifier.fillMaxWidth()
         ) {
+            Text("Create Account")
+        }
 
-            Text(
-                text = "Peejee",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold
-            )
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = { },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Log In")
+        }
+    }
+}
 
-            Text(
-                text = "Connect. Chat. Share.",
-                style = MaterialTheme.typography.bodyLarge
-            )
+@Composable
+fun SignUpScreen(
+    onBack: () -> Unit
+) {
 
-            Spacer(modifier = Modifier.height(40.dp))
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
-            Button(
-                onClick = { },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Create Account")
-            }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Create Account",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
 
-            OutlinedButton(
-                onClick = { },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Log In")
-            }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = {
+                Text("Full Name")
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = {
+                Text("Email or Phone")
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = {
+                Text("Password")
+            },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = {
+                Text("Confirm Password")
+            },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = { },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Create Account")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Back")
         }
     }
 }
