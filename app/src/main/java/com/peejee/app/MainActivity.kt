@@ -3,23 +3,14 @@ package com.peejee.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
@@ -44,31 +35,25 @@ fun PeejeeApp() {
 
     when (screen) {
 
-        "welcome" -> {
-            WelcomeScreen(
-                onCreateAccount = {
-                    screen = "signup"
-                }
-            )
-        }
+        "welcome" -> WelcomeScreen(
+            onCreateAccount = {
+                screen = "signup"
+            }
+        )
 
-        "signup" -> {
-            SignUpScreen(
-                onAccountCreated = { name ->
-                    userName = name
-                    screen = "home"
-                },
-                onBack = {
-                    screen = "welcome"
-                }
-            )
-        }
+        "signup" -> SignUpScreen(
+            onAccountCreated = { name ->
+                userName = name
+                screen = "home"
+            },
+            onBack = {
+                screen = "welcome"
+            }
+        )
 
-        "home" -> {
-            HomeScreen(
-                name = userName
-            )
-        }
+        "home" -> HomeScreen(
+            name = userName
+        )
     }
 }
 
@@ -76,6 +61,7 @@ fun PeejeeApp() {
 fun WelcomeScreen(
     onCreateAccount: () -> Unit
 ) {
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -94,7 +80,7 @@ fun WelcomeScreen(
 
         Text(
             text = "Connect. Chat. Share.",
-            style = MaterialTheme.typography.bodyLarge
+            fontSize = 18.sp
         )
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -122,15 +108,22 @@ fun SignUpScreen(
     onAccountCreated: (String) -> Unit,
     onBack: () -> Unit
 ) {
+
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+
     var errorMessage by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
 
-    val auth = remember { FirebaseAuth.getInstance() }
-    val firestore = remember { FirebaseFirestore.getInstance() }
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
 
     Column(
         modifier = Modifier
@@ -150,8 +143,12 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it },
-            label = { Text("Full Name") },
+            onValueChange = {
+                name = it
+            },
+            label = {
+                Text("Full Name")
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -159,8 +156,12 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
+            onValueChange = {
+                email = it
+            },
+            label = {
+                Text("Email")
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -168,9 +169,12 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation(),
+            onValueChange = {
+                password = it
+            },
+            label = {
+                Text("Password")
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -178,15 +182,19 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password") },
-            visualTransformation = PasswordVisualTransformation(),
+            onValueChange = {
+                confirmPassword = it
+            },
+            label = {
+                Text("Confirm Password")
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         if (errorMessage.isNotEmpty()) {
+
             Text(
                 text = errorMessage,
                 color = MaterialTheme.colorScheme.error
@@ -201,23 +209,29 @@ fun SignUpScreen(
                 errorMessage = ""
 
                 when {
+
                     name.isBlank() -> {
-                        errorMessage = "Please enter your full name."
+                        errorMessage =
+                            "Please enter your full name."
                     }
 
                     email.isBlank() -> {
-                        errorMessage = "Please enter your email."
+                        errorMessage =
+                            "Please enter your email."
                     }
 
                     password.length < 6 -> {
-                        errorMessage = "Password must be at least 6 characters."
+                        errorMessage =
+                            "Password must be at least 6 characters."
                     }
 
                     password != confirmPassword -> {
-                        errorMessage = "Passwords do not match."
+                        errorMessage =
+                            "Passwords do not match."
                     }
 
                     else -> {
+
                         loading = true
 
                         auth.createUserWithEmailAndPassword(
@@ -237,27 +251,39 @@ fun SignUpScreen(
                                         "email" to email.trim()
                                     )
 
-                                    firestore.collection("users")
+                                    firestore
+                                        .collection("users")
                                         .document(user.uid)
                                         .set(profile)
                                         .addOnSuccessListener {
+
                                             loading = false
-                                            onAccountCreated(name.trim())
+
+                                            onAccountCreated(
+                                                name.trim()
+                                            )
                                         }
                                         .addOnFailureListener { exception ->
+
                                             loading = false
+
                                             errorMessage =
                                                 exception.message
                                                     ?: "Could not save your profile."
                                         }
 
                                 } else {
+
                                     loading = false
-                                    errorMessage = "Account creation failed."
+
+                                    errorMessage =
+                                        "Account creation failed."
                                 }
 
                             } else {
+
                                 loading = false
+
                                 errorMessage =
                                     task.exception?.message
                                         ?: "Could not create account."
@@ -269,8 +295,13 @@ fun SignUpScreen(
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text(
-                if (loading) "Creating Account..." else "Create Account"
+                if (loading) {
+                    "Creating Account..."
+                } else {
+                    "Create Account"
+                }
             )
         }
 
@@ -281,15 +312,234 @@ fun SignUpScreen(
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("Back")
+        }
+    }
+}@Composable
+fun HomeScreen(
+    name: String
+) {    var selectedTab by remember {
+        mutableStateOf(0)
+    }
+
+    Scaffold(
+
+        topBar = {
+
+            CenterAlignedTopAppBar(
+                title = {
+
+                    Text(
+                        text = "Peejee",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            )
+        },
+
+        bottomBar = {
+
+            NavigationBar {
+
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = {
+                        selectedTab = 0
+                    },
+                    icon = {
+                        Text("🏠")
+                    },
+                    label = {
+                        Text("Home")
+                    }
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = {
+                        selectedTab = 1
+                    },
+                    icon = {
+                        Text("🔍")
+                    },
+                    label = {
+                        Text("Search")
+                    }
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = {
+                        selectedTab = 2
+                    },
+                    icon = {
+                        Text("➕")
+                    },
+                    label = {
+                        Text("Post")
+                    }
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == 3,
+                    onClick = {
+                        selectedTab = 3
+                    },
+                    icon = {
+                        Text("💬")
+                    },
+                    label = {
+                        Text("Messages")
+                    }
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = {
+                        selectedTab = 4
+                    },
+                    icon = {
+                        Text("👤")
+                    },
+                    label = {
+                        Text("Profile")
+                    }
+                )
+            }
+        }
+
+    ) { paddingValues ->
+
+        when (selectedTab) {
+
+            0 -> HomeFeed(
+                name = name,
+                paddingValues = paddingValues
+            )
+
+            1 -> SimplePage(
+                title = "Search",
+                message = "Search for people and posts."
+            )
+
+            2 -> SimplePage(
+                title = "Create Post",
+                message = "Create and share your first post."
+            )
+
+            3 -> SimplePage(
+                title = "Messages",
+                message = "Your conversations will appear here."
+            )
+
+            4 -> SimplePage(
+                title = "Profile",
+                message = "Your Peejee profile."
+            )
         }
     }
 }
 
 @Composable
-fun HomeScreen(
-    name: String
+fun HomeFeed(
+    name: String,
+    paddingValues: PaddingValues
 ) {
+
+    val posts = listOf(
+        "Welcome to Peejee! 🎉",
+        "Connect with people, share your moments and chat.",
+        "Your Peejee community starts here."
+    )
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(horizontal = 16.dp)
+    ) {
+
+        item {
+
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
+
+            Text(
+                text = "Welcome, $name 👋",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
+        }
+
+        items(posts) { post ->
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
+            ) {
+
+                Column(
+                    modifier = Modifier.padding(18.dp)
+                ) {
+
+                    Text(
+                        text = name,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(10.dp)
+                    )
+
+                    Text(
+                        text = post,
+                        fontSize = 17.sp
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
+
+                    Row {
+
+                        TextButton(
+                            onClick = { }
+                        ) {
+                            Text("❤️ Like")
+                        }
+
+                        TextButton(
+                            onClick = { }
+                        ) {
+                            Text("💬 Comment")
+                        }
+
+                        TextButton(
+                            onClick = { }
+                        ) {
+                            Text("↗ Share")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SimplePage(
+    title: String,
+    message: String
+) {
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -299,16 +549,18 @@ fun HomeScreen(
     ) {
 
         Text(
-            text = "Welcome to Peejee, $name!",
-            fontSize = 28.sp,
+            text = title,
+            fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         Text(
-            text = "Your Peejee account is ready.",
-            style = MaterialTheme.typography.bodyLarge
+            text = message,
+            fontSize = 17.sp
         )
     }
 }
