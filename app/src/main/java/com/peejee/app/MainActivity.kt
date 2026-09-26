@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
@@ -76,14 +77,18 @@ fun WelcomeScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         Text(
             text = "Connect. Chat. Share.",
             fontSize = 18.sp
         )
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(
+            modifier = Modifier.height(40.dp)
+        )
 
         Button(
             onClick = onCreateAccount,
@@ -92,7 +97,9 @@ fun WelcomeScreen(
             Text("Create Account")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         OutlinedButton(
             onClick = { },
@@ -139,7 +146,9 @@ fun SignUpScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
 
         OutlinedTextField(
             value = name,
@@ -152,7 +161,9 @@ fun SignUpScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = email,
@@ -165,7 +176,9 @@ fun SignUpScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = password,
@@ -175,10 +188,13 @@ fun SignUpScreen(
             label = {
                 Text("Password")
             },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = confirmPassword,
@@ -188,10 +204,13 @@ fun SignUpScreen(
             label = {
                 Text("Confirm Password")
             },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         if (errorMessage.isNotEmpty()) {
 
@@ -200,7 +219,9 @@ fun SignUpScreen(
                 color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
         }
 
         Button(
@@ -305,7 +326,9 @@ fun SignUpScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedButton(
             onClick = onBack,
@@ -316,10 +339,14 @@ fun SignUpScreen(
             Text("Back")
         }
     }
-}@Composable
+}
+
+@Composable
 fun HomeScreen(
     name: String
-) {    var selectedTab by remember {
+) {
+
+    var selectedTab by remember {
         mutableStateOf(0)
     }
 
@@ -327,7 +354,7 @@ fun HomeScreen(
 
         topBar = {
 
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
 
                     Text(
