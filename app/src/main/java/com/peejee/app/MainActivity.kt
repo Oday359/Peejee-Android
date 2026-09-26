@@ -37,20 +37,36 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PeejeeApp() {
 
-    var showSignUp by remember { mutableStateOf(false) }
+    var screen by remember { mutableStateOf("welcome") }
+    var userName by remember { mutableStateOf("") }
 
-    if (showSignUp) {
-        SignUpScreen(
-            onBack = {
-                showSignUp = false
-            }
-        )
-    } else {
-        WelcomeScreen(
-            onCreateAccount = {
-                showSignUp = true
-            }
-        )
+    when (screen) {
+
+        "welcome" -> {
+            WelcomeScreen(
+                onCreateAccount = {
+                    screen = "signup"
+                }
+            )
+        }
+
+        "signup" -> {
+            SignUpScreen(
+                onAccountCreated = { name ->
+                    userName = name
+                    screen = "home"
+                },
+                onBack = {
+                    screen = "welcome"
+                }
+            )
+        }
+
+        "home" -> {
+            HomeScreen(
+                name = userName
+            )
+        }
     }
 }
 
@@ -101,6 +117,7 @@ fun WelcomeScreen(
 
 @Composable
 fun SignUpScreen(
+    onAccountCreated: (String) -> Unit,
     onBack: () -> Unit
 ) {
 
@@ -128,9 +145,7 @@ fun SignUpScreen(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = {
-                Text("Full Name")
-            },
+            label = { Text("Full Name") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -139,9 +154,7 @@ fun SignUpScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = {
-                Text("Email or Phone")
-            },
+            label = { Text("Email or Phone") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -150,9 +163,7 @@ fun SignUpScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = {
-                Text("Password")
-            },
+            label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -162,9 +173,7 @@ fun SignUpScreen(
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = {
-                Text("Confirm Password")
-            },
+            label = { Text("Confirm Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -172,7 +181,16 @@ fun SignUpScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { },
+            onClick = {
+                if (
+                    name.isNotBlank() &&
+                    email.isNotBlank() &&
+                    password.isNotBlank() &&
+                    password == confirmPassword
+                ) {
+                    onAccountCreated(name)
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Create Account")
@@ -186,5 +204,32 @@ fun SignUpScreen(
         ) {
             Text("Back")
         }
+    }
+}
+
+@Composable
+fun HomeScreen(
+    name: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+
+        Text(
+            text = "Welcome to Peejee, $name!",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Your Peejee account is ready.",
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
 }
