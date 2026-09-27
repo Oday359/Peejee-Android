@@ -49,8 +49,53 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PeejeeApp() {
 
-    var screen by remember { mutableStateOf("welcome") }
-    var userName by remember { mutableStateOf("") }
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    var screen by remember {
+        mutableStateOf(
+            if (auth.currentUser != null) {
+                "home"
+            } else {
+                "welcome"
+            }
+        )
+    }
+
+    var userName by remember {
+        mutableStateOf("Peejee User")
+    }
+
+    LaunchedEffect(Unit) {
+
+        val currentUser = auth.currentUser
+
+        if (currentUser != null) {
+
+            firestore
+                .collection("users")
+                .document(currentUser.uid)
+                .get()
+                .addOnSuccessListener { document ->
+
+                    userName =
+                        document.getString("name")
+                            ?: currentUser.displayName
+                            ?: "Peejee User"
+                }
+                .addOnFailureListener {
+
+                    userName =
+                        currentUser.displayName
+                            ?: "Peejee User"
+                }
+        }
+    }
 
     when (screen) {
 
