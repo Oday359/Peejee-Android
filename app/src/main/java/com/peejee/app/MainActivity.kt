@@ -1010,4 +1010,191 @@ fun CreatePostPage(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(20
+        Spacer(modifier = Modifier.height(20.dp))
+
+        OutlinedTextField(
+            value = postText,
+            onValueChange = {
+                postText = it
+            },
+            label = {
+                Text("What's on your mind?")
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+
+                if (postText.isNotBlank()) {
+                    onPostCreated(
+                        postText.trim()
+                    )
+                    postText = ""
+                }
+            },
+            enabled = postText.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Publish Post")
+        }
+    }
+}
+
+@Composable
+fun MessagesPage(
+    name: String,
+    paddingValues: PaddingValues
+) {
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(20.dp)
+    ) {
+
+        Text(
+            text = "Messages",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Column(
+                modifier = Modifier.padding(18.dp)
+            ) {
+
+                Text(
+                    text = "Peejee",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+
+                Spacer(
+                    modifier = Modifier.height(8.dp)
+                )
+
+                Text(
+                    "Welcome $name! Your conversations will appear here."
+                )
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                Button(
+                    onClick = {
+                    }
+                ) {
+                    Text("Start a Chat")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfilePage(
+    name: String,
+    paddingValues: PaddingValues
+) {
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val email =
+        auth.currentUser?.email
+            ?: "No email available"
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        Text(
+            text = "👤",
+            fontSize = 70.sp
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        Text(
+            text = name,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+        Text(
+            text = email,
+            fontSize = 16.sp
+        )
+
+        Spacer(
+            modifier = Modifier.height(30.dp)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Column(
+                modifier = Modifier.padding(18.dp)
+            ) {
+
+                Text(
+                    text = "Account",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
+
+                Text("Name: $name")
+
+                Spacer(
+                    modifier = Modifier.height(8.dp)
+                )
+
+                Text("Email: $email")
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        OutlinedButton(
+            onClick = {
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Edit Profile")
+        }
+    }
+}
