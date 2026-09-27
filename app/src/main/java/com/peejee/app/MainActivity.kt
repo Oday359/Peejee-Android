@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,7 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.activity.compose.rememberLauncherForActivityResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -251,7 +251,8 @@ fun SignUpScreen(
                                     val profile = hashMapOf(
                                         "uid" to user.uid,
                                         "name" to name.trim(),
-                                        "email" to email.trim()
+                                        "email" to email.trim(),
+                                        "bio" to ""
                                     )
 
                                     firestore
@@ -1235,9 +1236,67 @@ fun ProfilePage(
         FirebaseAuth.getInstance()
     }
 
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    val userId = auth.currentUser?.uid
+
+    var bio by remember {
+        mutableStateOf("")
+    }
+
+    var loading by remember {
+        mutableStateOf(true)
+    }
+
+    var showEditDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var editedName by remember {
+        mutableStateOf(name)
+    }
+
+    var editedBio by remember {
+        mutableStateOf("")
+    }
+
     val email =
         auth.currentUser?.email
             ?: "No email available"
+
+    LaunchedEffect(userId) {
+
+        if (userId != null) {
+
+            firestore
+                .collection("users")
+                .document(userId)
+                .get()
+                .addOnSuccessListener { document ->
+
+                    bio =
+                        document.getString("bio")
+                            ?: ""
+
+                    editedBio = bio
+                    editedName =
+                        document.getString("name")
+                            ?: name
+
+                    loading = false
+                }
+                .addOnFailureListener {
+
+                    loading = false
+                }
+
+        } else {
+
+            loading = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1251,13 +1310,24 @@ fun ProfilePage(
             modifier = Modifier.height(20.dp)
         )
 
-        Text(
-            text = "👤",
-            fontSize = 70.sp
-        )
+        Card(
+            modifier = Modifier.size(120.dp)
+        ) {
+
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Text(
+                    text = "👤",
+                    fontSize = 65.sp
+                )
+            }
+        }
 
         Spacer(
-            modifier = Modifier.height(12.dp)
+            modifier = Modifier.height(16.dp)
         )
 
         Text(
@@ -1276,39 +1346,97 @@ fun ProfilePage(
         )
 
         Spacer(
-            modifier = Modifier.height(30.dp)
+            modifier = Modifier.height(16.dp)
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        if (loading) {
 
-            Column(
-                modifier = Modifier.padding(18.dp)
-            ) {
+            CircularProgressIndicator()
+
+        } else {
+
+            if (bio.isBlank()) {
 
                 Text(
-                    text = "Account",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "No bio yet.",
+                    fontSize = 16.sp
                 )
 
-                Spacer(
-                    modifier = Modifier.height(12.dp)
+            } else {
+
+                Text(
+                    text = bio,
+                    fontSize = 16.sp
                 )
-
-                Text("Name: $name")
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
-
-                Text("Email: $email")
             }
         }
 
         Spacer(
-            modifier = Modifier.height(20.dp)
+            modifier = Modifier.height(24.dp)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Text(
+                    text = "0",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text("Posts")
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Text(
+                    text = "0",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text("Followers")
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Text(
+                    text = "0",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text("Following")
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
+
+        Button(
+            onClick = {
+                editedName = name
+                editedBio = bio
+                showEditDialog = true
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Edit Profile")
+        }
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
         )
 
         OutlinedButton(
@@ -1316,7 +1444,95 @@ fun ProfilePage(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Edit Profile")
+            Text("Share Profile")
         }
+    }
+
+    if (showEditDialog) {
+
+        AlertDialog(
+            onDismissRequest = {
+                showEditDialog = false
+            },
+
+            title = {
+                Text("Edit Profile")
+            },
+
+            text = {
+
+                Column {
+
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = {
+                            editedName = it
+                        },
+                        label = {
+                            Text("Name")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = editedBio,
+                        onValueChange = {
+                            editedBio = it
+                        },
+                        label = {
+                            Text("Bio")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+
+            confirmButton = {
+
+                TextButton(
+                    onClick = {
+
+                        if (
+                            userId != null &&
+                            editedName.isNotBlank()
+                        ) {
+
+                            val updates =
+                                hashMapOf<String, Any>(
+                                    "name" to editedName.trim(),
+                                    "bio" to editedBio.trim()
+                                )
+
+                            firestore
+                                .collection("users")
+                                .document(userId)
+                                .update(updates)
+                                .addOnSuccessListener {
+
+                                    bio = editedBio.trim()
+                                    showEditDialog = false
+                                }
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+
+            dismissButton = {
+
+                TextButton(
+                    onClick = {
+                        showEditDialog = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
