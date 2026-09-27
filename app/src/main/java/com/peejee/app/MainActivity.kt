@@ -39,11 +39,24 @@ fun PeejeeApp() {
         "welcome" -> WelcomeScreen(
             onCreateAccount = {
                 screen = "signup"
+            },
+            onLogin = {
+                screen = "login"
             }
         )
 
         "signup" -> SignUpScreen(
             onAccountCreated = { name ->
+                userName = name
+                screen = "home"
+            },
+            onBack = {
+                screen = "welcome"
+            }
+        )
+
+        "login" -> LoginScreen(
+            onLoginSuccess = { name ->
                 userName = name
                 screen = "home"
             },
@@ -60,7 +73,8 @@ fun PeejeeApp() {
 
 @Composable
 fun WelcomeScreen(
-    onCreateAccount: () -> Unit
+    onCreateAccount: () -> Unit,
+    onLogin: () -> Unit
 ) {
 
     Column(
@@ -102,7 +116,7 @@ fun WelcomeScreen(
         )
 
         OutlinedButton(
-            onClick = { },
+            onClick = onLogin,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Log In")
@@ -322,6 +336,191 @@ fun SignUpScreen(
                     "Creating Account..."
                 } else {
                     "Create Account"
+                }
+            )
+        }
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        OutlinedButton(
+            onClick = onBack,
+            enabled = !loading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Text("Back")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LoginScreen(
+    onLoginSuccess: (String) -> Unit,
+    onBack: () -> Unit
+) {
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    var errorMessage by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+
+        Text(
+            text = "Log In",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = {
+                email = it
+            },
+            label = {
+                Text("Email")
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = {
+                password = it
+            },
+            label = {
+                Text("Password")
+            },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
+
+        if (errorMessage.isNotEmpty()) {
+
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error
+            )
+
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+        }
+
+        Button(
+            onClick = {
+
+                errorMessage = ""
+
+                when {
+
+                    email.isBlank() -> {
+                        errorMessage =
+                            "Please enter your email."
+                    }
+
+                    password.isBlank() -> {
+                        errorMessage =
+                            "Please enter your password."
+                    }
+
+                    else -> {
+
+                        loading = true
+
+                        auth.signInWithEmailAndPassword(
+                            email.trim(),
+                            password
+                        ).addOnCompleteListener { task ->
+
+                            if (task.isSuccessful) {
+
+                                val user = auth.currentUser
+
+                                if (user != null) {
+
+                                    firestore
+                                        .collection("users")
+                                        .document(user.uid)
+                                        .get()
+                                        .addOnSuccessListener { document ->
+
+                                            loading = false
+
+                                            val name =
+                                                document.getString("name")
+                                                    ?: "Peejee User"
+
+                                            onLoginSuccess(name)
+                                        }
+                                        .addOnFailureListener {
+
+                                            loading = false
+
+                                            onLoginSuccess(
+                                                "Peejee User"
+                                            )
+                                        }
+
+                                } else {
+
+                                    loading = false
+
+                                    errorMessage =
+                                        "Login failed."
+                                }
+
+                            } else {
+
+                                loading = false
+
+                                errorMessage =
+                                    task.exception?.message
+                                        ?: "Could not log in."
+                            }
+                        }
+                    }
+                }
+            },
+            enabled = !loading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Text(
+                if (loading) {
+                    "Logging In..."
+                } else {
+                    "Log In"
                 }
             )
         }
