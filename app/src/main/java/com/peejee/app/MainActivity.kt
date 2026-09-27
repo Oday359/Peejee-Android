@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -997,6 +999,36 @@ fun CreatePostPage(
         mutableStateOf("")
     }
 
+    var selectedMedia by remember {
+        mutableStateOf<android.net.Uri?>(null)
+    }
+
+    var mediaType by remember {
+        mutableStateOf("")
+    }
+
+    val photoPicker =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri ->
+
+            if (uri != null) {
+                selectedMedia = uri
+                mediaType = "photo"
+            }
+        }
+
+    val videoPicker =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri ->
+
+            if (uri != null) {
+                selectedMedia = uri
+                mediaType = "video"
+            }
+        }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1010,7 +1042,87 @@ fun CreatePostPage(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            Button(
+                onClick = {
+                    photoPicker.launch("image/*")
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("🖼️ Photo")
+            }
+
+            Button(
+                onClick = {
+                    videoPicker.launch("video/*")
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("🎥 Video")
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
+
+        if (selectedMedia != null) {
+
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+
+                    Text(
+                        text =
+                            if (mediaType == "photo") {
+                                "Photo selected"
+                            } else {
+                                "Video selected"
+                            },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(8.dp)
+                    )
+
+                    Text(
+                        text = selectedMedia.toString(),
+                        fontSize = 12.sp
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+
+                    OutlinedButton(
+                        onClick = {
+                            selectedMedia = null
+                            mediaType = ""
+                        }
+                    ) {
+                        Text("Remove")
+                    }
+                }
+            }
+
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
+        }
 
         OutlinedTextField(
             value = postText,
@@ -1025,21 +1137,31 @@ fun CreatePostPage(
                 .height(180.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         Button(
             onClick = {
 
                 if (postText.isNotBlank()) {
+
                     onPostCreated(
                         postText.trim()
                     )
+
                     postText = ""
+                    selectedMedia = null
+                    mediaType = ""
                 }
+
             },
-            enabled = postText.isNotBlank(),
+            enabled =
+                postText.isNotBlank() ||
+                selectedMedia != null,
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("Publish Post")
         }
     }
