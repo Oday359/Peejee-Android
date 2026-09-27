@@ -2,6 +2,7 @@ package com.peejee.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 
 class MainActivity : ComponentActivity() {
 
@@ -163,8 +166,12 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it },
-            label = { Text("Full Name") },
+            onValueChange = {
+                name = it
+            },
+            label = {
+                Text("Full Name")
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -172,8 +179,12 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
+            onValueChange = {
+                email = it
+            },
+            label = {
+                Text("Email")
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -181,8 +192,12 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
+            onValueChange = {
+                password = it
+            },
+            label = {
+                Text("Password")
+            },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -191,8 +206,12 @@ fun SignUpScreen(
 
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password") },
+            onValueChange = {
+                confirmPassword = it
+            },
+            label = {
+                Text("Confirm Password")
+            },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -217,11 +236,13 @@ fun SignUpScreen(
                 when {
 
                     name.isBlank() -> {
-                        errorMessage = "Please enter your full name."
+                        errorMessage =
+                            "Please enter your full name."
                     }
 
                     email.isBlank() -> {
-                        errorMessage = "Please enter your email."
+                        errorMessage =
+                            "Please enter your email."
                     }
 
                     password.length < 6 -> {
@@ -230,7 +251,8 @@ fun SignUpScreen(
                     }
 
                     password != confirmPassword -> {
-                        errorMessage = "Passwords do not match."
+                        errorMessage =
+                            "Passwords do not match."
                     }
 
                     else -> {
@@ -248,12 +270,13 @@ fun SignUpScreen(
 
                                 if (user != null) {
 
-                                    val profile = hashMapOf(
-                                        "uid" to user.uid,
-                                        "name" to name.trim(),
-                                        "email" to email.trim(),
-                                        "bio" to ""
-                                    )
+                                    val profile =
+                                        hashMapOf(
+                                            "uid" to user.uid,
+                                            "name" to name.trim(),
+                                            "email" to email.trim(),
+                                            "bio" to ""
+                                        )
 
                                     firestore
                                         .collection("users")
@@ -279,6 +302,7 @@ fun SignUpScreen(
                                 } else {
 
                                     loading = false
+
                                     errorMessage =
                                         "Account creation failed."
                                 }
@@ -358,8 +382,12 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
+            onValueChange = {
+                email = it
+            },
+            label = {
+                Text("Email")
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -367,8 +395,12 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
+            onValueChange = {
+                password = it
+            },
+            label = {
+                Text("Password")
+            },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -393,11 +425,13 @@ fun LoginScreen(
                 when {
 
                     email.isBlank() -> {
-                        errorMessage = "Please enter your email."
+                        errorMessage =
+                            "Please enter your email."
                     }
 
                     password.isBlank() -> {
-                        errorMessage = "Please enter your password."
+                        errorMessage =
+                            "Please enter your password."
                     }
 
                     else -> {
@@ -441,7 +475,9 @@ fun LoginScreen(
                                 } else {
 
                                     loading = false
-                                    errorMessage = "Login failed."
+
+                                    errorMessage =
+                                        "Login failed."
                                 }
 
                             } else {
@@ -481,6 +517,14 @@ fun LoginScreen(
     }
 }
 
+data class PeejeePost(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val text: String,
+    val timestamp: Long
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -492,46 +536,120 @@ fun HomeScreen(
     }
 
     var posts by remember {
-        mutableStateOf(
-            listOf(
-                "Welcome to Peejee! 🎉",
-                "Connect with people, share your moments and chat.",
-                "Your Peejee community starts here."
-            )
-        )
+        mutableStateOf<List<PeejeePost>>(emptyList())
     }
 
-    var likes by remember {
-        mutableStateOf(
-            List(posts.size) { 0 }
-        )
+    var likedPostIds by remember {
+        mutableStateOf(setOf<String>())
     }
 
-    var liked by remember {
-        mutableStateOf(
-            List(posts.size) { false }
-        )
+    var likeCounts by remember {
+        mutableStateOf<Map<String, Int>>(emptyMap())
     }
 
     var comments by remember {
-        mutableStateOf(
-            List(posts.size) { mutableListOf<String>() }
-        )
+        mutableStateOf<Map<String, List<String>>>(emptyMap())
     }
 
     var showCommentDialog by remember {
         mutableStateOf(false)
     }
 
-    var selectedPost by remember {
-        mutableStateOf(0)
+    var selectedPostId by remember {
+        mutableStateOf("")
     }
 
     var newComment by remember {
         mutableStateOf("")
     }
 
+    var loadingPosts by remember {
+        mutableStateOf(true)
+    }
+
     val context = LocalContext.current
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    DisposableEffect(Unit) {
+
+        val registration: ListenerRegistration =
+            firestore
+                .collection("posts")
+                .orderBy(
+                    "timestamp",
+                    Query.Direction.DESCENDING
+                )
+                .addSnapshotListener { snapshot, error ->
+
+                    if (error != null) {
+
+                        loadingPosts = false
+
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null) {
+
+                        val loadedPosts =
+                            snapshot.documents.mapNotNull { document ->
+
+                                val text =
+                                    document.getString("text")
+                                        ?: return@mapNotNull null
+
+                                val userId =
+                                    document.getString("userId")
+                                        ?: ""
+
+                                val userName =
+                                    document.getString("userName")
+                                        ?: "Peejee User"
+
+                                val timestamp =
+                                    document.getLong("timestamp")
+                                        ?: 0L
+
+                                PeejeePost(
+                                    id = document.id,
+                                    userId = userId,
+                                    userName = userName,
+                                    text = text,
+                                    timestamp = timestamp
+                                )
+                            }
+
+                        posts = loadedPosts
+
+                        val loadedLikes =
+                            mutableMapOf<String, Int>()
+
+                        loadedPosts.forEach { post ->
+
+                            val document =
+                                snapshot.documents.firstOrNull {
+                                    it.id == post.id
+                                }
+
+                            loadedLikes[post.id] =
+                                document
+                                    ?.getLong("likes")
+                                    ?.toInt()
+                                    ?: 0
+                        }
+
+                        likeCounts = loadedLikes
+                    }
+
+                    loadingPosts = false
+                }
+
+        onDispose {
+            registration.remove()
+        }
+    }
 
     Scaffold(
 
@@ -629,40 +747,67 @@ fun HomeScreen(
                 HomeFeed(
                     name = name,
                     posts = posts,
-                    likes = likes,
-                    liked = liked,
-                    onLike = { index ->
+                    likes = likeCounts,
+                    likedPostIds = likedPostIds,
+                    loadingPosts = loadingPosts,
 
-                        val newLiked = liked.toMutableList()
-                        val newLikes = likes.toMutableList()
+                    onLike = { postId ->
 
-                        if (newLiked[index]) {
-                            newLiked[index] = false
-                            newLikes[index] =
-                                (newLikes[index] - 1).coerceAtLeast(0)
+                        val currentlyLiked =
+                            likedPostIds.contains(postId)
+
+                        val newLiked =
+                            likedPostIds.toMutableSet()
+
+                        if (currentlyLiked) {
+                            newLiked.remove(postId)
                         } else {
-                            newLiked[index] = true
-                            newLikes[index] =
-                                newLikes[index] + 1
+                            newLiked.add(postId)
                         }
 
-                        liked = newLiked
-                        likes = newLikes
-                    },
-                    onComment = { index ->
+                        likedPostIds = newLiked
 
-                        selectedPost = index
+                        val currentCount =
+                            likeCounts[postId] ?: 0
+
+                        val newCount =
+                            if (currentlyLiked) {
+                                (currentCount - 1)
+                                    .coerceAtLeast(0)
+                            } else {
+                                currentCount + 1
+                            }
+
+                        likeCounts =
+                            likeCounts.toMutableMap().apply {
+                                this[postId] = newCount
+                            }
+
+                        firestore
+                            .collection("posts")
+                            .document(postId)
+                            .update(
+                                "likes",
+                                newCount
+                            )
+                    },
+
+                    onComment = { postId ->
+
+                        selectedPostId = postId
                         newComment = ""
                         showCommentDialog = true
                     },
-                    onShare = { index ->
+
+                    onShare = { post ->
 
                         val shareText =
-                            "Check this out on Peejee:\n\n${posts[index]}"
+                            "Check this out on Peejee:\n\n${post.text}"
 
                         val shareIntent =
                             Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
+
                                 putExtra(
                                     Intent.EXTRA_TEXT,
                                     shareText
@@ -676,6 +821,7 @@ fun HomeScreen(
                             )
                         )
                     },
+
                     paddingValues = paddingValues
                 )
             }
@@ -686,12 +832,7 @@ fun HomeScreen(
             )
 
             2 -> CreatePostPage(
-                onPostCreated = { post ->
-
-                    posts = posts + post
-                    likes = likes + 0
-                    liked = liked + false
-                    comments = comments + mutableListOf()
+                onPostCreated = {
                     selectedTab = 0
                 },
                 paddingValues = paddingValues
@@ -711,6 +852,9 @@ fun HomeScreen(
 
     if (showCommentDialog) {
 
+        val selectedComments =
+            comments[selectedPostId] ?: emptyList()
+
         AlertDialog(
             onDismissRequest = {
                 showCommentDialog = false
@@ -724,7 +868,7 @@ fun HomeScreen(
 
                 Column {
 
-                    if (comments[selectedPost].isEmpty()) {
+                    if (selectedComments.isEmpty()) {
 
                         Text(
                             "No comments yet. Be the first!"
@@ -732,7 +876,7 @@ fun HomeScreen(
 
                     } else {
 
-                        comments[selectedPost].forEach { comment ->
+                        selectedComments.forEach { comment ->
 
                             Text(
                                 text = comment,
@@ -767,18 +911,26 @@ fun HomeScreen(
 
                         if (newComment.isNotBlank()) {
 
-                            val newComments =
-                                comments.toMutableList()
+                            val updatedComments =
+                                comments.toMutableMap()
 
-                            newComments[selectedPost] =
-                                newComments[selectedPost].toMutableList()
-                                    .apply {
-                                        add(
-                                            "$name: ${newComment.trim()}"
-                                        )
-                                    }
+                            val currentComments =
+                                updatedComments[
+                                    selectedPostId
+                                ]?.toMutableList()
+                                    ?: mutableListOf()
 
-                            comments = newComments
+                            currentComments.add(
+                                "$name: ${newComment.trim()}"
+                            )
+
+                            updatedComments[
+                                selectedPostId
+                            ] = currentComments
+
+                            comments =
+                                updatedComments
+
                             newComment = ""
                         }
                     }
@@ -804,12 +956,13 @@ fun HomeScreen(
 @Composable
 fun HomeFeed(
     name: String,
-    posts: List<String>,
-    likes: List<Int>,
-    liked: List<Boolean>,
-    onLike: (Int) -> Unit,
-    onComment: (Int) -> Unit,
-    onShare: (Int) -> Unit,
+    posts: List<PeejeePost>,
+    likes: Map<String, Int>,
+    likedPostIds: Set<String>,
+    loadingPosts: Boolean,
+    onLike: (String) -> Unit,
+    onComment: (String) -> Unit,
+    onShare: (PeejeePost) -> Unit,
     paddingValues: PaddingValues
 ) {
 
@@ -822,7 +975,9 @@ fun HomeFeed(
 
         item {
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
 
             Text(
                 text = "Welcome, $name 👋",
@@ -830,10 +985,45 @@ fun HomeFeed(
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
+
+            if (loadingPosts) {
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement =
+                        Arrangement.Center
+                ) {
+
+                    CircularProgressIndicator()
+                }
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
+            }
+
+            if (!loadingPosts && posts.isEmpty()) {
+
+                Text(
+                    text = "No posts yet. Create the first post!",
+                    fontSize = 17.sp
+                )
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
+            }
         }
 
-        itemsIndexed(posts) { index, post ->
+        itemsIndexed(
+            posts,
+            key = { _, post ->
+                post.id
+            }
+        ) { _, post ->
 
             Card(
                 modifier = Modifier
@@ -846,20 +1036,24 @@ fun HomeFeed(
                 ) {
 
                     Text(
-                        text = name,
+                        text = post.userName,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.clickable {
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(
+                        modifier = Modifier.height(10.dp)
+                    )
 
                     Text(
-                        text = post,
+                        text = post.text,
                         fontSize = 17.sp
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -869,22 +1063,29 @@ fun HomeFeed(
 
                         TextButton(
                             onClick = {
-                                onLike(index)
+                                onLike(post.id)
                             }
                         ) {
 
+                            val count =
+                                likes[post.id] ?: 0
+
                             Text(
-                                if (liked[index]) {
-                                    "❤️ Liked ${likes[index]}"
+                                if (
+                                    likedPostIds.contains(
+                                        post.id
+                                    )
+                                ) {
+                                    "❤️ Liked $count"
                                 } else {
-                                    "♡ Like ${likes[index]}"
+                                    "♡ Like $count"
                                 }
                             )
                         }
 
                         TextButton(
                             onClick = {
-                                onComment(index)
+                                onComment(post.id)
                             }
                         ) {
                             Text("💬 Comment")
@@ -892,7 +1093,7 @@ fun HomeFeed(
 
                         TextButton(
                             onClick = {
-                                onShare(index)
+                                onShare(post)
                             }
                         ) {
                             Text("↗ Share")
@@ -940,7 +1141,9 @@ fun SearchPage(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         OutlinedTextField(
             value = searchText,
@@ -953,7 +1156,9 @@ fun SearchPage(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
         results.forEach { person ->
 
@@ -967,7 +1172,8 @@ fun SearchPage(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment =
+                        Alignment.CenterVertically
                 ) {
 
                     Text(
@@ -992,7 +1198,7 @@ fun SearchPage(
 
 @Composable
 fun CreatePostPage(
-    onPostCreated: (String) -> Unit,
+    onPostCreated: () -> Unit,
     paddingValues: PaddingValues
 ) {
 
@@ -1001,19 +1207,37 @@ fun CreatePostPage(
     }
 
     var selectedMedia by remember {
-        mutableStateOf<android.net.Uri?>(null)
+        mutableStateOf<Uri?>(null)
     }
 
     var mediaType by remember {
         mutableStateOf("")
     }
 
+    var publishing by remember {
+        mutableStateOf(false)
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
     val photoPicker =
         rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
+            contract =
+                ActivityResultContracts.GetContent()
         ) { uri ->
 
             if (uri != null) {
+
                 selectedMedia = uri
                 mediaType = "photo"
             }
@@ -1021,10 +1245,12 @@ fun CreatePostPage(
 
     val videoPicker =
         rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
+            contract =
+                ActivityResultContracts.GetContent()
         ) { uri ->
 
             if (uri != null) {
+
                 selectedMedia = uri
                 mediaType = "video"
             }
@@ -1049,7 +1275,8 @@ fun CreatePostPage(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement =
+                Arrangement.spacedBy(10.dp)
         ) {
 
             Button(
@@ -1087,12 +1314,15 @@ fun CreatePostPage(
 
                     Text(
                         text =
-                            if (mediaType == "photo") {
+                            if (
+                                mediaType == "photo"
+                            ) {
                                 "Photo selected"
                             } else {
                                 "Video selected"
                             },
-                        fontWeight = FontWeight.Bold,
+                        fontWeight =
+                            FontWeight.Bold,
                         fontSize = 18.sp
                     )
 
@@ -1101,7 +1331,8 @@ fun CreatePostPage(
                     )
 
                     Text(
-                        text = selectedMedia.toString(),
+                        text =
+                            selectedMedia.toString(),
                         fontSize = 12.sp
                     )
 
@@ -1111,6 +1342,7 @@ fun CreatePostPage(
 
                     OutlinedButton(
                         onClick = {
+
                             selectedMedia = null
                             mediaType = ""
                         }
@@ -1142,28 +1374,140 @@ fun CreatePostPage(
             modifier = Modifier.height(16.dp)
         )
 
+        if (errorMessage.isNotEmpty()) {
+
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error
+            )
+
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+        }
+
         Button(
             onClick = {
 
-                if (postText.isNotBlank()) {
+                errorMessage = ""
 
-                    onPostCreated(
-                        postText.trim()
-                    )
+                val currentUser =
+                    auth.currentUser
 
-                    postText = ""
-                    selectedMedia = null
-                    mediaType = ""
+                if (currentUser == null) {
+
+                    errorMessage =
+                        "Please log in again."
+
+                    return@Button
                 }
 
+                if (
+                    postText.isBlank() &&
+                    selectedMedia == null
+                ) {
+
+                    errorMessage =
+                        "Please write something or select media."
+
+                    return@Button
+                }
+
+                publishing = true
+
+                val postId =
+                    firestore
+                        .collection("posts")
+                        .document()
+                        .id
+
+                val postData =
+                    hashMapOf<String, Any>(
+                        "postId" to postId,
+                        "userId" to currentUser.uid,
+                        "userName" to (
+                            currentUser.displayName
+                                ?: "Peejee User"
+                            ),
+                        "text" to postText.trim(),
+                        "likes" to 0,
+                        "timestamp" to
+                            System.currentTimeMillis()
+                    )
+
+                firestore
+                    .collection("users")
+                    .document(currentUser.uid)
+                    .get()
+                    .addOnSuccessListener { userDocument ->
+
+                        val savedName =
+                            userDocument
+                                .getString("name")
+                                ?: "Peejee User"
+
+                        postData["userName"] =
+                            savedName
+
+                        firestore
+                            .collection("posts")
+                            .document(postId)
+                            .set(postData)
+                            .addOnSuccessListener {
+
+                                publishing = false
+                                postText = ""
+                                selectedMedia = null
+                                mediaType = ""
+
+                                onPostCreated()
+                            }
+                            .addOnFailureListener { exception ->
+
+                                publishing = false
+
+                                errorMessage =
+                                    exception.message
+                                        ?: "Could not publish post."
+                            }
+                    }
+                    .addOnFailureListener {
+
+                        firestore
+                            .collection("posts")
+                            .document(postId)
+                            .set(postData)
+                            .addOnSuccessListener {
+
+                                publishing = false
+                                postText = ""
+                                selectedMedia = null
+                                mediaType = ""
+
+                                onPostCreated()
+                            }
+                            .addOnFailureListener { exception ->
+
+                                publishing = false
+
+                                errorMessage =
+                                    exception.message
+                                        ?: "Could not publish post."
+                            }
+                    }
+
             },
-            enabled =
-                postText.isNotBlank() ||
-                selectedMedia != null,
+            enabled = !publishing,
             modifier = Modifier.fillMaxWidth()
         ) {
 
-            Text("Publish Post")
+            Text(
+                if (publishing) {
+                    "Publishing..."
+                } else {
+                    "Publish Post"
+                }
+            )
         }
     }
 }
@@ -1187,7 +1531,9 @@ fun MessagesPage(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
         Card(
             modifier = Modifier.fillMaxWidth()
@@ -1240,10 +1586,15 @@ fun ProfilePage(
         FirebaseFirestore.getInstance()
     }
 
-    val userId = auth.currentUser?.uid
+    val userId =
+        auth.currentUser?.uid
 
     var bio by remember {
         mutableStateOf("")
+    }
+
+    var profileName by remember {
+        mutableStateOf(name)
     }
 
     var loading by remember {
@@ -1260,6 +1611,10 @@ fun ProfilePage(
 
     var editedBio by remember {
         mutableStateOf("")
+    }
+
+    var savingProfile by remember {
+        mutableStateOf(false)
     }
 
     val email =
@@ -1281,9 +1636,13 @@ fun ProfilePage(
                             ?: ""
 
                     editedBio = bio
-                    editedName =
+
+                    profileName =
                         document.getString("name")
                             ?: name
+
+                    editedName =
+                        profileName
 
                     loading = false
                 }
@@ -1303,7 +1662,8 @@ fun ProfilePage(
             .fillMaxSize()
             .padding(paddingValues)
             .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment =
+            Alignment.CenterHorizontally
     ) {
 
         Spacer(
@@ -1316,7 +1676,8 @@ fun ProfilePage(
 
             Box(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                contentAlignment =
+                    Alignment.Center
             ) {
 
                 Text(
@@ -1331,7 +1692,7 @@ fun ProfilePage(
         )
 
         Text(
-            text = name,
+            text = profileName,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1377,11 +1738,13 @@ fun ProfilePage(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement =
+                Arrangement.SpaceEvenly
         ) {
 
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment =
+                    Alignment.CenterHorizontally
             ) {
 
                 Text(
@@ -1394,7 +1757,8 @@ fun ProfilePage(
             }
 
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment =
+                    Alignment.CenterHorizontally
             ) {
 
                 Text(
@@ -1407,7 +1771,8 @@ fun ProfilePage(
             }
 
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment =
+                    Alignment.CenterHorizontally
             ) {
 
                 Text(
@@ -1426,7 +1791,8 @@ fun ProfilePage(
 
         Button(
             onClick = {
-                editedName = name
+
+                editedName = profileName
                 editedBio = bio
                 showEditDialog = true
             },
@@ -1452,7 +1818,10 @@ fun ProfilePage(
 
         AlertDialog(
             onDismissRequest = {
-                showEditDialog = false
+
+                if (!savingProfile) {
+                    showEditDialog = false
+                }
             },
 
             title = {
@@ -1471,11 +1840,13 @@ fun ProfilePage(
                         label = {
                             Text("Name")
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier =
+                            Modifier.fillMaxWidth()
                     )
 
                     Spacer(
-                        modifier = Modifier.height(12.dp)
+                        modifier =
+                            Modifier.height(12.dp)
                     )
 
                     OutlinedTextField(
@@ -1486,7 +1857,8 @@ fun ProfilePage(
                         label = {
                             Text("Bio")
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier =
+                            Modifier.fillMaxWidth()
                     )
                 }
             },
@@ -1494,6 +1866,7 @@ fun ProfilePage(
             confirmButton = {
 
                 TextButton(
+                    enabled = !savingProfile,
                     onClick = {
 
                         if (
@@ -1501,10 +1874,14 @@ fun ProfilePage(
                             editedName.isNotBlank()
                         ) {
 
+                            savingProfile = true
+
                             val updates =
                                 hashMapOf<String, Any>(
-                                    "name" to editedName.trim(),
-                                    "bio" to editedBio.trim()
+                                    "name" to
+                                        editedName.trim(),
+                                    "bio" to
+                                        editedBio.trim()
                                 )
 
                             firestore
@@ -1513,19 +1890,39 @@ fun ProfilePage(
                                 .update(updates)
                                 .addOnSuccessListener {
 
-                                    bio = editedBio.trim()
-                                    showEditDialog = false
+                                    profileName =
+                                        editedName.trim()
+
+                                    bio =
+                                        editedBio.trim()
+
+                                    savingProfile = false
+
+                                    showEditDialog =
+                                        false
+                                }
+                                .addOnFailureListener {
+
+                                    savingProfile = false
                                 }
                         }
                     }
                 ) {
-                    Text("Save")
+
+                    Text(
+                        if (savingProfile) {
+                            "Saving..."
+                        } else {
+                            "Save"
+                        }
+                    )
                 }
             },
 
             dismissButton = {
 
                 TextButton(
+                    enabled = !savingProfile,
                     onClick = {
                         showEditDialog = false
                     }
