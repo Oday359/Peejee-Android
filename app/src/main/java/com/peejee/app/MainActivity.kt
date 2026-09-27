@@ -1,15 +1,18 @@
 package com.peejee.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -91,18 +94,14 @@ fun WelcomeScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = "Connect. Chat. Share.",
             fontSize = 18.sp
         )
 
-        Spacer(
-            modifier = Modifier.height(40.dp)
-        )
+        Spacer(modifier = Modifier.height(40.dp))
 
         Button(
             onClick = onCreateAccount,
@@ -111,9 +110,7 @@ fun WelcomeScreen(
             Text("Create Account")
         }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(
             onClick = onLogin,
@@ -160,71 +157,45 @@ fun SignUpScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
+        Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
             value = name,
-            onValueChange = {
-                name = it
-            },
-            label = {
-                Text("Full Name")
-            },
+            onValueChange = { name = it },
+            label = { Text("Full Name") },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = email,
-            onValueChange = {
-                email = it
-            },
-            label = {
-                Text("Email")
-            },
+            onValueChange = { email = it },
+            label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = {
-                password = it
-            },
-            label = {
-                Text("Password")
-            },
+            onValueChange = { password = it },
+            label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = {
-                confirmPassword = it
-            },
-            label = {
-                Text("Confirm Password")
-            },
+            onValueChange = { confirmPassword = it },
+            label = { Text("Confirm Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         if (errorMessage.isNotEmpty()) {
 
@@ -233,9 +204,7 @@ fun SignUpScreen(
                 color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         Button(
@@ -246,13 +215,11 @@ fun SignUpScreen(
                 when {
 
                     name.isBlank() -> {
-                        errorMessage =
-                            "Please enter your full name."
+                        errorMessage = "Please enter your full name."
                     }
 
                     email.isBlank() -> {
-                        errorMessage =
-                            "Please enter your email."
+                        errorMessage = "Please enter your email."
                     }
 
                     password.length < 6 -> {
@@ -261,8 +228,7 @@ fun SignUpScreen(
                     }
 
                     password != confirmPassword -> {
-                        errorMessage =
-                            "Passwords do not match."
+                        errorMessage = "Passwords do not match."
                     }
 
                     else -> {
@@ -310,7 +276,6 @@ fun SignUpScreen(
                                 } else {
 
                                     loading = false
-
                                     errorMessage =
                                         "Account creation failed."
                                 }
@@ -340,22 +305,18 @@ fun SignUpScreen(
             )
         }
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
             onClick = onBack,
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-
             Text("Back")
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onLoginSuccess: (String) -> Unit,
@@ -390,40 +351,26 @@ fun LoginScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
+        Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
             value = email,
-            onValueChange = {
-                email = it
-            },
-            label = {
-                Text("Email")
-            },
+            onValueChange = { email = it },
+            label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = {
-                password = it
-            },
-            label = {
-                Text("Password")
-            },
+            onValueChange = { password = it },
+            label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         if (errorMessage.isNotEmpty()) {
 
@@ -432,9 +379,7 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         Button(
@@ -445,13 +390,11 @@ fun LoginScreen(
                 when {
 
                     email.isBlank() -> {
-                        errorMessage =
-                            "Please enter your email."
+                        errorMessage = "Please enter your email."
                     }
 
                     password.isBlank() -> {
-                        errorMessage =
-                            "Please enter your password."
+                        errorMessage = "Please enter your password."
                     }
 
                     else -> {
@@ -495,9 +438,7 @@ fun LoginScreen(
                                 } else {
 
                                     loading = false
-
-                                    errorMessage =
-                                        "Login failed."
+                                    errorMessage = "Login failed."
                                 }
 
                             } else {
@@ -525,16 +466,13 @@ fun LoginScreen(
             )
         }
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
             onClick = onBack,
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-
             Text("Back")
         }
     }
@@ -549,6 +487,48 @@ fun HomeScreen(
     var selectedTab by remember {
         mutableStateOf(0)
     }
+
+    var posts by remember {
+        mutableStateOf(
+            listOf(
+                "Welcome to Peejee! 🎉",
+                "Connect with people, share your moments and chat.",
+                "Your Peejee community starts here."
+            )
+        )
+    }
+
+    var likes by remember {
+        mutableStateOf(
+            List(posts.size) { 0 }
+        )
+    }
+
+    var liked by remember {
+        mutableStateOf(
+            List(posts.size) { false }
+        )
+    }
+
+    var comments by remember {
+        mutableStateOf(
+            List(posts.size) { mutableListOf<String>() }
+        )
+    }
+
+    var showCommentDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var selectedPost by remember {
+        mutableStateOf(0)
+    }
+
+    var newComment by remember {
+        mutableStateOf("")
+    }
+
+    val context = LocalContext.current
 
     Scaffold(
 
@@ -641,45 +621,194 @@ fun HomeScreen(
 
         when (selectedTab) {
 
-            0 -> HomeFeed(
+            0 -> {
+
+                HomeFeed(
+                    name = name,
+                    posts = posts,
+                    likes = likes,
+                    liked = liked,
+                    onLike = { index ->
+
+                        val newLiked = liked.toMutableList()
+                        val newLikes = likes.toMutableList()
+
+                        if (newLiked[index]) {
+                            newLiked[index] = false
+                            newLikes[index] =
+                                (newLikes[index] - 1).coerceAtLeast(0)
+                        } else {
+                            newLiked[index] = true
+                            newLikes[index] =
+                                newLikes[index] + 1
+                        }
+
+                        liked = newLiked
+                        likes = newLikes
+                    },
+                    onComment = { index ->
+
+                        selectedPost = index
+                        newComment = ""
+                        showCommentDialog = true
+                    },
+                    onShare = { index ->
+
+                        val shareText =
+                            "Check this out on Peejee:\n\n${posts[index]}"
+
+                        val shareIntent =
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    shareText
+                                )
+                            }
+
+                        context.startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share Peejee post"
+                            )
+                        )
+                    },
+                    paddingValues = paddingValues
+                )
+            }
+
+            1 -> SearchPage(
                 name = name,
                 paddingValues = paddingValues
             )
 
-            1 -> SimplePage(
-                title = "Search",
-                message = "Search for people and posts."
+            2 -> CreatePostPage(
+                onPostCreated = { post ->
+
+                    posts = posts + post
+                    likes = likes + 0
+                    liked = liked + false
+                    comments = comments + mutableListOf()
+                    selectedTab = 0
+                },
+                paddingValues = paddingValues
             )
 
-            2 -> SimplePage(
-                title = "Create Post",
-                message = "Create and share your first post."
+            3 -> MessagesPage(
+                name = name,
+                paddingValues = paddingValues
             )
 
-            3 -> SimplePage(
-                title = "Messages",
-                message = "Your conversations will appear here."
-            )
-
-            4 -> SimplePage(
-                title = "Profile",
-                message = "Your Peejee profile."
+            4 -> ProfilePage(
+                name = name,
+                paddingValues = paddingValues
             )
         }
+    }
+
+    if (showCommentDialog) {
+
+        AlertDialog(
+            onDismissRequest = {
+                showCommentDialog = false
+            },
+
+            title = {
+                Text("Comments")
+            },
+
+            text = {
+
+                Column {
+
+                    if (comments[selectedPost].isEmpty()) {
+
+                        Text(
+                            "No comments yet. Be the first!"
+                        )
+
+                    } else {
+
+                        comments[selectedPost].forEach { comment ->
+
+                            Text(
+                                text = comment,
+                                modifier = Modifier.padding(
+                                    vertical = 5.dp
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = newComment,
+                        onValueChange = {
+                            newComment = it
+                        },
+                        label = {
+                            Text("Write a comment")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+
+            confirmButton = {
+
+                TextButton(
+                    onClick = {
+
+                        if (newComment.isNotBlank()) {
+
+                            val newComments =
+                                comments.toMutableList()
+
+                            newComments[selectedPost] =
+                                newComments[selectedPost].toMutableList()
+                                    .apply {
+                                        add(
+                                            "$name: ${newComment.trim()}"
+                                        )
+                                    }
+
+                            comments = newComments
+                            newComment = ""
+                        }
+                    }
+                ) {
+                    Text("Comment")
+                }
+            },
+
+            dismissButton = {
+
+                TextButton(
+                    onClick = {
+                        showCommentDialog = false
+                    }
+                ) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 
 @Composable
 fun HomeFeed(
     name: String,
+    posts: List<String>,
+    likes: List<Int>,
+    liked: List<Boolean>,
+    onLike: (Int) -> Unit,
+    onComment: (Int) -> Unit,
+    onShare: (Int) -> Unit,
     paddingValues: PaddingValues
 ) {
-
-    val posts = listOf(
-        "Welcome to Peejee! 🎉",
-        "Connect with people, share your moments and chat.",
-        "Your Peejee community starts here."
-    )
 
     LazyColumn(
         modifier = Modifier
@@ -690,9 +819,7 @@ fun HomeFeed(
 
         item {
 
-            Spacer(
-                modifier = Modifier.height(20.dp)
-            )
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = "Welcome, $name 👋",
@@ -700,12 +827,10 @@ fun HomeFeed(
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(
-                modifier = Modifier.height(20.dp)
-            )
+            Spacer(modifier = Modifier.height(20.dp))
         }
 
-        items(posts) { post ->
+        itemsIndexed(posts) { index, post ->
 
             Card(
                 modifier = Modifier
@@ -719,38 +844,53 @@ fun HomeFeed(
 
                     Text(
                         text = name,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable {
+                        }
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(10.dp)
-                    )
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
                         text = post,
                         fontSize = 17.sp
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(14.dp)
-                    )
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    Row {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween
+                    ) {
 
                         TextButton(
-                            onClick = { }
+                            onClick = {
+                                onLike(index)
+                            }
                         ) {
-                            Text("❤️ Like")
+
+                            Text(
+                                if (liked[index]) {
+                                    "❤️ Liked ${likes[index]}"
+                                } else {
+                                    "♡ Like ${likes[index]}"
+                                }
+                            )
                         }
 
                         TextButton(
-                            onClick = { }
+                            onClick = {
+                                onComment(index)
+                            }
                         ) {
                             Text("💬 Comment")
                         }
 
                         TextButton(
-                            onClick = { }
+                            onClick = {
+                                onShare(index)
+                            }
                         ) {
                             Text("↗ Share")
                         }
@@ -762,32 +902,112 @@ fun HomeFeed(
 }
 
 @Composable
-fun SimplePage(
-    title: String,
-    message: String
+fun SearchPage(
+    name: String,
+    paddingValues: PaddingValues
 ) {
+
+    var searchText by remember {
+        mutableStateOf("")
+    }
+
+    val people = listOf(
+        name,
+        "Peejee User",
+        "New Friend"
+    )
+
+    val results = people.filter {
+        it.contains(
+            searchText,
+            ignoreCase = true
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(paddingValues)
+            .padding(20.dp)
     ) {
 
         Text(
-            text = title,
+            text = "Search",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = searchText,
+            onValueChange = {
+                searchText = it
+            },
+            label = {
+                Text("Search people")
+            },
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Text(
-            text = message,
-            fontSize = 17.sp
-        )
+        Spacer(modifier = Modifier.height(20.dp))
+
+        results.forEach { person ->
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp)
+            ) {
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Text(
+                        text = "👤",
+                        fontSize = 28.sp
+                    )
+
+                    Spacer(
+                        modifier = Modifier.width(14.dp)
+                    )
+
+                    Text(
+                        text = person,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
     }
 }
+
+@Composable
+fun CreatePostPage(
+    onPostCreated: (String) -> Unit,
+    paddingValues: PaddingValues
+) {
+
+    var postText by remember {
+        mutableStateOf("")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(20.dp)
+    ) {
+
+        Text(
+            text = "Create Post",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(20
