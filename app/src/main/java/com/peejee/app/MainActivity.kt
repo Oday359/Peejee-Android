@@ -3,18 +3,25 @@ package com.peejee.app
 import android.content.Intent
 import android.os.Bundle
 import android.net.Uri
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -24,6 +31,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -1578,6 +1587,8 @@ fun ProfilePage(
     paddingValues: PaddingValues
 ) {
 
+    val context = LocalContext.current
+
     val auth = remember {
         FirebaseAuth.getInstance()
     }
@@ -1617,9 +1628,61 @@ fun ProfilePage(
         mutableStateOf(false)
     }
 
+    var selectedProfilePhotoUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
+    var profileBitmap by remember {
+        mutableStateOf<Bitmap?>(null)
+    }
+
     val email =
         auth.currentUser?.email
             ?: "No email available"
+
+    val profilePhotoPicker =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts.GetContent()
+        ) { uri ->
+
+            if (uri != null) {
+
+                selectedProfilePhotoUri = uri
+            }
+        }
+
+    LaunchedEffect(selectedProfilePhotoUri) {
+
+        val uri = selectedProfilePhotoUri
+
+        if (uri == null) {
+
+            profileBitmap = null
+
+        } else {
+
+            profileBitmap =
+                withContext(Dispatchers.IO) {
+
+                    try {
+
+                        context
+                            .contentResolver
+                            .openInputStream(uri)
+                            ?.use { inputStream ->
+
+                                BitmapFactory
+                                    .decodeStream(inputStream)
+                            }
+
+                    } catch (exception: Exception) {
+
+                        null
+                    }
+                }
+        }
+    }
 
     LaunchedEffect(userId) {
 
@@ -1671,7 +1734,9 @@ fun ProfilePage(
         )
 
         Card(
-            modifier = Modifier.size(120.dp)
+            modifier = Modifier
+                .size(120.dp)
+                .clip(CircleShape)
         ) {
 
             Box(
@@ -1680,10 +1745,27 @@ fun ProfilePage(
                     Alignment.Center
             ) {
 
-                Text(
-                    text = "👤",
-                    fontSize = 65.sp
-                )
+                if (profileBitmap != null) {
+
+                    Image(
+                        bitmap =
+                            profileBitmap!!.asImageBitmap(),
+                        contentDescription =
+                            "Profile photo",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale =
+                            ContentScale.Crop
+                    )
+
+                } else {
+
+                    Text(
+                        text = "👤",
+                        fontSize = 65.sp
+                    )
+                }
             }
         }
 
@@ -1795,6 +1877,7 @@ fun ProfilePage(
                 editedName = profileName
                 editedBio = bio
                 showEditDialog = true
+
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1860,6 +1943,48 @@ fun ProfilePage(
                         modifier =
                             Modifier.fillMaxWidth()
                     )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(16.dp)
+                    )
+
+                    Button(
+                        onClick = {
+
+                            profilePhotoPicker.launch(
+                                "image/*"
+                            )
+
+                        },
+                        enabled = !savingProfile,
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    ) {
+
+                        Text(
+                            if (selectedProfilePhotoUri == null) {
+                                "🖼️ Choose Profile Photo"
+                            } else {
+                                "🖼️ Change Profile Photo"
+                            }
+                        )
+                    }
+
+                    if (selectedProfilePhotoUri != null) {
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(8.dp)
+                        )
+
+                        Text(
+                            text = "Photo selected",
+                            fontSize = 14.sp,
+                            fontWeight =
+                                FontWeight.Bold
+                        )
+                    }
                 }
             },
 
