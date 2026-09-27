@@ -10,18 +10,21 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -87,12 +90,16 @@ fun PeejeeApp() {
                         document.getString("name")
                             ?: currentUser.displayName
                             ?: "Peejee User"
+
+                    screen = "home"
                 }
                 .addOnFailureListener {
 
                     userName =
                         currentUser.displayName
                             ?: "Peejee User"
+
+                    screen = "home"
                 }
         }
     }
@@ -577,7 +584,9 @@ data class PeejeePost(
     val userId: String,
     val userName: String,
     val text: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val mediaUrl: String = "",
+    val mediaType: String = ""
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -600,6 +609,10 @@ fun HomeScreen(
 
     var likeCounts by remember {
         mutableStateOf<Map<String, Int>>(emptyMap())
+    }
+
+    var followedUserIds by remember {
+        mutableStateOf(setOf<String>())
     }
 
     var comments by remember {
@@ -653,7 +666,7 @@ fun HomeScreen(
 
                                 val text =
                                     document.getString("text")
-                                        ?: return@mapNotNull null
+                                        ?: ""
 
                                 val userId =
                                     document.getString("userId")
@@ -667,12 +680,22 @@ fun HomeScreen(
                                     document.getLong("timestamp")
                                         ?: 0L
 
+                                val mediaUrl =
+                                    document.getString("mediaUrl")
+                                        ?: ""
+
+                                val mediaType =
+                                    document.getString("mediaType")
+                                        ?: ""
+
                                 PeejeePost(
                                     id = document.id,
                                     userId = userId,
                                     userName = userName,
                                     text = text,
-                                    timestamp = timestamp
+                                    timestamp = timestamp,
+                                    mediaUrl = mediaUrl,
+                                    mediaType = mediaType
                                 )
                             }
 
@@ -804,6 +827,7 @@ fun HomeScreen(
                     posts = posts,
                     likes = likeCounts,
                     likedPostIds = likedPostIds,
+                    followedUserIds = followedUserIds,
                     loadingPosts = loadingPosts,
 
                     onLike = { postId ->
@@ -845,6 +869,25 @@ fun HomeScreen(
                                 "likes",
                                 newCount
                             )
+                    },
+
+                    onFollow = { userId ->
+
+                        val newFollowing =
+                            followedUserIds.toMutableSet()
+
+                        if (
+                            newFollowing.contains(
+                                userId
+                            )
+                        ) {
+                            newFollowing.remove(userId)
+                        } else {
+                            newFollowing.add(userId)
+                        }
+
+                        followedUserIds =
+                            newFollowing
                     },
 
                     onComment = { postId ->
@@ -1014,8 +1057,10 @@ fun HomeFeed(
     posts: List<PeejeePost>,
     likes: Map<String, Int>,
     likedPostIds: Set<String>,
+    followedUserIds: Set<String>,
     loadingPosts: Boolean,
     onLike: (String) -> Unit,
+    onFollow: (String) -> Unit,
     onComment: (String) -> Unit,
     onShare: (PeejeePost) -> Unit,
     paddingValues: PaddingValues
@@ -1033,19 +1078,21 @@ fun HomeFeed(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(horizontal = 16.dp)
     ) {
 
         item {
 
             Spacer(
-                modifier = Modifier.height(20.dp)
+                modifier = Modifier.height(16.dp)
             )
 
             Text(
                 text = "Welcome, $name 👋",
                 fontSize = 25.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(
+                    horizontal = 16.dp
+                )
             )
 
             Spacer(
@@ -1055,7 +1102,10 @@ fun HomeFeed(
             Text(
                 text = "🔴 Live Now",
                 fontSize = 21.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(
+                    horizontal = 16.dp
+                )
             )
 
             Spacer(
@@ -1064,6 +1114,9 @@ fun HomeFeed(
 
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(
+                    horizontal = 16.dp
+                ),
                 horizontalArrangement =
                     Arrangement.spacedBy(12.dp)
             ) {
@@ -1157,25 +1210,48 @@ fun HomeFeed(
             if (loadingPosts) {
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
                     horizontalArrangement =
                         Arrangement.Center
                 ) {
 
                     CircularProgressIndicator()
                 }
-
-                Spacer(
-                    modifier = Modifier.height(20.dp)
-                )
             }
 
             if (!loadingPosts && posts.isEmpty()) {
 
-                Text(
-                    text = "No posts yet. Create the first post!",
-                    fontSize = 17.sp
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 16.dp
+                        )
+                ) {
+
+                    Column(
+                        modifier = Modifier.padding(20.dp)
+                    ) {
+
+                        Text(
+                            text = "No posts yet.",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(8.dp)
+                        )
+
+                        Text(
+                            text =
+                                "Create the first post on Peejee!"
+                        )
+                    }
+                }
 
                 Spacer(
                     modifier = Modifier.height(20.dp)
@@ -1190,22 +1266,339 @@ fun HomeFeed(
             }
         ) { _, post ->
 
-            Card(
+            TikTokStylePost(
+                post = post,
+                likeCount =
+                    likes[post.id] ?: 0,
+                isLiked =
+                    likedPostIds.contains(
+                        post.id
+                    ),
+                isFollowing =
+                    followedUserIds.contains(
+                        post.userId
+                    ),
+                currentUserName = name,
+                onLike = {
+                    onLike(post.id)
+                },
+                onFollow = {
+                    onFollow(post.userId)
+                },
+                onComment = {
+                    onComment(post.id)
+                },
+                onShare = {
+                    onShare(post)
+                }
+            )
+        }
+
+        item {
+
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TikTokStylePost(
+    post: PeejeePost,
+    likeCount: Int,
+    isLiked: Boolean,
+    isFollowing: Boolean,
+    currentUserName: String,
+    onLike: () -> Unit,
+    onFollow: () -> Unit,
+    onComment: () -> Unit,
+    onShare: () -> Unit
+) {
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = 8.dp,
+                vertical = 8.dp
+            ),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 14.dp)
             ) {
 
-                Column(
-                    modifier = Modifier.padding(18.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = 14.dp,
+                            top = 14.dp,
+                            end = 14.dp
+                        ),
+                    verticalAlignment =
+                        Alignment.CenterVertically
                 ) {
 
-                    Text(
-                        text = post.userName,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable {
-                        }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .surfaceVariant
+                            ),
+                        contentAlignment =
+                            Alignment.Center
+                    ) {
+
+                        Text(
+                            text = "👤",
+                            fontSize = 28.sp
+                        )
+                    }
+
+                    Spacer(
+                        modifier = Modifier.width(10.dp)
                     )
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+
+                        Text(
+                            text = post.userName,
+                            fontSize = 17.sp,
+                            fontWeight =
+                                FontWeight.Bold
+                        )
+
+                        Text(
+                            text = "@${post.userName.replace(" ", "").lowercase()}",
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    if (
+                        post.userId.isNotEmpty() &&
+                        post.userName != currentUserName
+                    ) {
+
+                        OutlinedButton(
+                            onClick = onFollow,
+                            contentPadding =
+                                PaddingValues(
+                                    horizontal = 12.dp,
+                                    vertical = 0.dp
+                                ),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+
+                            Text(
+                                if (isFollowing) {
+                                    "Following"
+                                } else {
+                                    "Follow"
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
+
+                if (post.mediaUrl.isNotBlank()) {
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(420.dp)
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .surfaceVariant
+                            ),
+                        contentAlignment =
+                            Alignment.Center
+                    ) {
+
+                        if (
+                            post.mediaType
+                                .lowercase()
+                                .contains("image")
+                        ) {
+
+                            Text(
+                                text = "🖼️",
+                                fontSize = 70.sp
+                            )
+
+                        } else {
+
+                            Column(
+                                horizontalAlignment =
+                                    Alignment.CenterHorizontally
+                            ) {
+
+                                Text(
+                                    text = "▶",
+                                    fontSize = 70.sp
+                                )
+
+                                Text(
+                                    text =
+                                        "Video post",
+                                    fontSize = 18.sp,
+                                    fontWeight =
+                                        FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                } else {
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .surfaceVariant
+                            ),
+                        contentAlignment =
+                            Alignment.Center
+                    ) {
+
+                        Column(
+                            horizontalAlignment =
+                                Alignment.CenterHorizontally
+                        ) {
+
+                            Text(
+                                text = "Peejee",
+                                fontSize = 34.sp,
+                                fontWeight =
+                                    FontWeight.Bold
+                            )
+
+                            Spacer(
+                                modifier =
+                                    Modifier.height(8.dp)
+                            )
+
+                            Text(
+                                text = "Post",
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = 14.dp,
+                            end = 14.dp,
+                            top = 10.dp
+                        ),
+                    horizontalArrangement =
+                        Arrangement.SpaceEvenly
+                ) {
+
+                    Column(
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable {
+                            onLike()
+                        }
+                    ) {
+
+                        Text(
+                            text = if (isLiked) {
+                                "❤️"
+                            } else {
+                                "♡"
+                            },
+                            fontSize = 30.sp
+                        )
+
+                        Text(
+                            text = likeCount.toString(),
+                            fontSize = 12.sp,
+                            fontWeight =
+                                FontWeight.Bold
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable {
+                            onComment()
+                        }
+                    ) {
+
+                        Text(
+                            text = "💬",
+                            fontSize = 28.sp
+                        )
+
+                        Text(
+                            text = "Comment",
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable {
+                            onShare()
+                        }
+                    ) {
+
+                        Text(
+                            text = "↗️",
+                            fontSize = 28.sp
+                        )
+
+                        Text(
+                            text = "Share",
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally
+                    ) {
+
+                        Text(
+                            text = "🔊",
+                            fontSize = 28.sp
+                        )
+
+                        Text(
+                            text = "Sound",
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                if (post.text.isNotBlank()) {
 
                     Spacer(
                         modifier = Modifier.height(10.dp)
@@ -1213,60 +1606,108 @@ fun HomeFeed(
 
                     Text(
                         text = post.text,
-                        fontSize = 17.sp
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp
+                        )
                     )
-
-                    Spacer(
-                        modifier = Modifier.height(14.dp)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement =
-                            Arrangement.SpaceBetween
-                    ) {
-
-                        TextButton(
-                            onClick = {
-                                onLike(post.id)
-                            }
-                        ) {
-
-                            val count =
-                                likes[post.id] ?: 0
-
-                            Text(
-                                if (
-                                    likedPostIds.contains(
-                                        post.id
-                                    )
-                                ) {
-                                    "❤️ Liked $count"
-                                } else {
-                                    "♡ Like $count"
-                                }
-                            )
-                        }
-
-                        TextButton(
-                            onClick = {
-                                onComment(post.id)
-                            }
-                        ) {
-                            Text("💬 Comment")
-                        }
-
-                        TextButton(
-                            onClick = {
-                                onShare(post)
-                            }
-                        ) {
-                            Text("↗ Share")
-                        }
-                    }
                 }
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 8.dp),
+                horizontalAlignment =
+                    Alignment.CenterHorizontally
+            ) {
+
+                ActionCircle(
+                    icon = if (isLiked) "❤️" else "♡",
+                    label = likeCount.toString(),
+                    onClick = onLike
+                )
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                ActionCircle(
+                    icon = "💬",
+                    label = "Comment",
+                    onClick = onComment
+                )
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                ActionCircle(
+                    icon = "↗️",
+                    label = "Share",
+                    onClick = onShare
+                )
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                ActionCircle(
+                    icon = "🔊",
+                    label = "Sound",
+                    onClick = {
+                    }
+                )
             }
         }
+    }
+}
+
+@Composable
+fun ActionCircle(
+    icon: String,
+    label: String,
+    onClick: () -> Unit
+) {
+
+    Column(
+        horizontalAlignment =
+            Alignment.CenterHorizontally,
+        modifier = Modifier.clickable {
+            onClick()
+        }
+    ) {
+
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(
+                    Color.Black.copy(alpha = 0.55f)
+                ),
+            contentAlignment =
+                Alignment.Center
+        ) {
+
+            Text(
+                text = icon,
+                fontSize = 25.sp
+            )
+        }
+
+        Spacer(
+            modifier = Modifier.height(3.dp)
+        )
+
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -1599,6 +2040,16 @@ fun CreatePostPage(
                         "timestamp" to
                             System.currentTimeMillis()
                     )
+
+                if (mediaType.isNotBlank()) {
+
+                    postData["mediaType"] =
+                        mediaType
+
+                    postData["mediaUrl"] =
+                        selectedMedia?.toString()
+                            ?: ""
+                }
 
                 firestore
                     .collection("users")
@@ -2046,6 +2497,27 @@ fun ProfilePage(
 
         OutlinedButton(
             onClick = {
+
+                val shareText =
+                    "Check out my profile on Peejee: $profileName"
+
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            shareText
+                        )
+                    }
+
+                context.startActivity(
+                    Intent.createChooser(
+                        shareIntent,
+                        "Share Profile"
+                    )
+                )
+
             },
             modifier = Modifier.fillMaxWidth()
         ) {
