@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -975,6 +976,14 @@ fun HomeFeed(
     paddingValues: PaddingValues
 ) {
 
+    val liveUsers = listOf(
+        "Peejee Live",
+        "David",
+        "Sarah",
+        "Mike",
+        "Blessing"
+    )
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -993,6 +1002,108 @@ fun HomeFeed(
                 fontSize = 25.sp,
                 fontWeight = FontWeight.Bold
             )
+
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
+
+            Text(
+                text = "🔴 Live Now",
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.spacedBy(12.dp)
+            ) {
+
+                itemsIndexed(
+                    liveUsers
+                ) { _, liveUser ->
+
+                    Card(
+                        modifier = Modifier
+                            .width(135.dp)
+                            .height(165.dp)
+                    ) {
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(12.dp),
+                            horizontalAlignment =
+                                Alignment.CenterHorizontally
+                        ) {
+
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape),
+                                contentAlignment =
+                                    Alignment.Center
+                            ) {
+
+                                Text(
+                                    text = "👤",
+                                    fontSize = 45.sp
+                                )
+                            }
+
+                            Spacer(
+                                modifier =
+                                    Modifier.height(8.dp)
+                            )
+
+                            Text(
+                                text = liveUser,
+                                fontSize = 15.sp,
+                                fontWeight =
+                                    FontWeight.Bold
+                            )
+
+                            Spacer(
+                                modifier =
+                                    Modifier.height(6.dp)
+                            )
+
+                            Surface(
+                                shape = MaterialTheme
+                                    .shapes
+                                    .small
+                            ) {
+
+                                Text(
+                                    text = "🔴 LIVE",
+                                    fontSize = 12.sp,
+                                    fontWeight =
+                                        FontWeight.Bold,
+                                    modifier =
+                                        Modifier.padding(
+                                            horizontal = 8.dp,
+                                            vertical = 4.dp
+                                        )
+                                )
+                            }
+
+                            Spacer(
+                                modifier =
+                                    Modifier.height(6.dp)
+                            )
+
+                            Text(
+                                text = "👁 0 viewers",
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(
                 modifier = Modifier.height(20.dp)
