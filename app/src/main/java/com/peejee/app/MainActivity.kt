@@ -202,7 +202,9 @@ data class PeejeePost(
     val mediaUrl: String = "",
     val mediaType: String = "",
     val likeCount: Int = 0,
-    val likedBy: Map<String, Boolean> = emptyMap()
+    val likedBy: Map<String, Boolean> = emptyMap(),
+    val commentCount: Int = 0,
+    val shareCount: Int = 0
 )
 
 data class PeejeeComment(
@@ -803,7 +805,15 @@ fun HomeScreen(
                                             ?.toInt()
                                             ?: 0,
                                     likedBy =
-                                        getLikedBy(document)
+                                        getLikedBy(document),
+                                    commentCount =
+                                        document.getLong("commentCount")
+                                            ?.toInt()
+                                            ?: 0,
+                                    shareCount =
+                                        document.getLong("shareCount")
+                                            ?.toInt()
+                                            ?: 0
                                 )
                             }
                     }
@@ -1211,24 +1221,49 @@ fun HomeScreen(
 
                 onShare = { post ->
 
-                    val shareText =
-                        "Check this out on Peejee:\n\n${post.text}"
+                    val postRef =
+                        firestore
+                            .collection("posts")
+                            .document(post.id)
 
-                    val shareIntent =
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                shareText
-                            )
-                        }
+                    firestore.runTransaction { transaction ->
 
-                    context.startActivity(
-                        Intent.createChooser(
-                            shareIntent,
-                            "Share Peejee post"
+                        val snapshot =
+                            transaction.get(postRef)
+
+                        val currentShares =
+                            snapshot.getLong("shareCount")
+                                ?.toInt()
+                                ?: 0
+
+                        transaction.update(
+                            postRef,
+                            "shareCount",
+                            currentShares + 1
                         )
-                    )
+
+                        null
+                    }.addOnSuccessListener {
+
+                        val shareText =
+                            "Check this out on Peejee:\n\n${post.text}"
+
+                        val shareIntent =
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    shareText
+                                )
+                            }
+
+                        context.startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share Peejee post"
+                            )
+                        )
+                    }
                 },
 
                 paddingValues = paddingValues
@@ -1395,6 +1430,11 @@ fun HomeScreen(
                                         .collection("comments")
                                         .document()
 
+                                val postReference =
+                                    firestore
+                                        .collection("posts")
+                                        .document(selectedPostId)
+
                                 val commentData =
                                     hashMapOf<String, Any>(
                                         "commentId" to
@@ -1411,21 +1451,43 @@ fun HomeScreen(
                                             System.currentTimeMillis()
                                     )
 
-                                commentReference
-                                    .set(commentData)
-                                    .addOnSuccessListener {
+                                firestore.runTransaction { transaction ->
 
-                                        sendingComment = false
-                                        newComment = ""
-                                    }
-                                    .addOnFailureListener { exception ->
+                                    val postSnapshot =
+                                        transaction.get(postReference)
 
-                                        sendingComment = false
+                                    val currentCommentCount =
+                                        postSnapshot
+                                            .getLong("commentCount")
+                                            ?.toInt()
+                                            ?: 0
 
-                                        commentError =
-                                            exception.message
-                                                ?: "Could not post comment."
-                                    }
+                                    transaction.set(
+                                        commentReference,
+                                        commentData
+                                    )
+
+                                    transaction.update(
+                                        postReference,
+                                        "commentCount",
+                                        currentCommentCount + 1
+                                    )
+
+                                    null
+
+                                }.addOnSuccessListener {
+
+                                    sendingComment = false
+                                    newComment = ""
+
+                                }.addOnFailureListener { exception ->
+
+                                    sendingComment = false
+
+                                    commentError =
+                                        exception.message
+                                            ?: "Could not post comment."
+                                }
                             }
                             .addOnFailureListener { exception ->
 
@@ -1647,6 +1709,8 @@ fun HomeFeed(
                 isFollowing =
                     followedUserIds.contains(post.userId),
                 currentUserId = currentUserId,
+                commentCount = post.commentCount,
+                shareCount = post.shareCount,
                 onLike = {
                     onLike(post.id)
                 },
@@ -1675,6 +1739,8 @@ fun TikTokStylePost(
     isLiked: Boolean,
     isFollowing: Boolean,
     currentUserId: String,
+    commentCount: Int,
+    shareCount: Int,
     onLike: () -> Unit,
     onFollow: () -> Unit,
     onComment: () -> Unit,
@@ -1863,6 +1929,7 @@ fun TikTokStylePost(
                     Alignment.CenterHorizontally
             ) {
 
+                // LIKE — LEFT EXACTLY AS IT WAS
                 ActionCircle(
                     icon =
                         if (isLiked) "❤️" else "♡",
@@ -1872,25 +1939,28 @@ fun TikTokStylePost(
 
                 Spacer(Modifier.height(14.dp))
 
+                // COMMENT — ICON + REAL COUNT
                 ActionCircle(
                     icon = "💬",
-                    label = "Comment",
+                    label = commentCount.toString(),
                     onClick = onComment
                 )
 
                 Spacer(Modifier.height(14.dp))
 
+                // SHARE — ICON + REAL COUNT
                 ActionCircle(
                     icon = "↗️",
-                    label = "Share",
+                    label = shareCount.toString(),
                     onClick = onShare
                 )
 
                 Spacer(Modifier.height(14.dp))
 
+                // SOUND — ICON ONLY
                 ActionCircle(
                     icon = "🔊",
-                    label = "Sound",
+                    label = "",
                     onClick = {}
                 )
             }
@@ -1928,13 +1998,16 @@ fun ActionCircle(
             )
         }
 
-        Spacer(Modifier.height(3.dp))
+        if (label.isNotBlank()) {
 
-        Text(
-            label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold
-        )
+            Spacer(Modifier.height(3.dp))
+
+            Text(
+                label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -2224,6 +2297,8 @@ fun CreatePostPage(
                         "likes" to 0,
                         "likedBy" to
                             emptyMap<String, Boolean>(),
+                        "commentCount" to 0,
+                        "shareCount" to 0,
                         "timestamp" to
                             System.currentTimeMillis()
                     )
@@ -2662,7 +2737,17 @@ fun ProfilePage(
                                                 )?.toInt() ?: 0,
 
                                             likedBy =
-                                                getLikedBy(document)
+                                                getLikedBy(document),
+
+                                            commentCount =
+                                                document.getLong(
+                                                    "commentCount"
+                                                )?.toInt() ?: 0,
+
+                                            shareCount =
+                                                document.getLong(
+                                                    "shareCount"
+                                                )?.toInt() ?: 0
                                         )
                                     }
                                     .sortedByDescending {
