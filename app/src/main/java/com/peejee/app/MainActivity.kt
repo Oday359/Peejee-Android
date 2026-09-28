@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,21 @@ class MainActivity : ComponentActivity() {
             PeejeeApp()
         }
     }
+}
+
+@Composable
+fun PeejeeLogo(
+    modifier: Modifier = Modifier,
+    size: Int = 70
+) {
+    Image(
+        painter = painterResource(
+            id = com.peejee.app.R.drawable.peejee_app_icon_512
+        ),
+        contentDescription = "Peejee",
+        modifier = modifier.size(size.dp),
+        contentScale = ContentScale.Fit
+    )
 }
 
 @Composable
@@ -162,10 +178,8 @@ fun WelcomeScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        Text(
-            text = "Peejee",
-            fontSize = 42.sp,
-            fontWeight = FontWeight.Bold
+        PeejeeLogo(
+            size = 130
         )
 
         Spacer(
@@ -246,6 +260,14 @@ fun SignUpScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+
+        PeejeeLogo(
+            size = 90
+        )
+
+        Spacer(
+            modifier = Modifier.height(10.dp)
+        )
 
         Text(
             text = "Create Account",
@@ -489,6 +511,14 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+
+        PeejeeLogo(
+            size = 90
+        )
+
+        Spacer(
+            modifier = Modifier.height(10.dp)
+        )
 
         Text(
             text = "Log In",
@@ -932,10 +962,8 @@ fun HomeScreen(
 
                 title = {
 
-                    Text(
-                        text = "Peejee",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
+                    PeejeeLogo(
+                        size = 48
                     )
                 }
             )
@@ -1118,8 +1146,6 @@ fun HomeScreen(
                                 null
 
                             }.addOnFailureListener {
-                                // Keep Firestore data unchanged
-                                // if the transaction fails.
                             }
                         }
                     },
@@ -1469,7 +1495,7 @@ fun HomeFeed(
 ) {
 
     val liveUsers = listOf(
-        "Peejee Live",
+        "Live",
         "David",
         "Sarah",
         "Mike",
@@ -1549,10 +1575,19 @@ fun HomeFeed(
                                     Alignment.Center
                             ) {
 
-                                Text(
-                                    text = "👤",
-                                    fontSize = 45.sp
-                                )
+                                if (liveUser == "Live") {
+
+                                    PeejeeLogo(
+                                        size = 60
+                                    )
+
+                                } else {
+
+                                    Text(
+                                        text = "👤",
+                                        fontSize = 45.sp
+                                    )
+                                }
                             }
 
                             Spacer(
@@ -1634,14 +1669,13 @@ fun HomeFeed(
                 ) {
 
                     Column(
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally
                     ) {
 
-                        Text(
-                            text = "No posts yet.",
-                            fontSize = 20.sp,
-                            fontWeight =
-                                FontWeight.Bold
+                        PeejeeLogo(
+                            size = 75
                         )
 
                         Spacer(
@@ -1649,8 +1683,8 @@ fun HomeFeed(
                         )
 
                         Text(
-                            text =
-                                "Create the first post on Peejee!"
+                            text = "Post",
+                            fontSize = 16.sp
                         )
                     }
                 }
@@ -1889,11 +1923,8 @@ fun TikTokStylePost(
                                 Alignment.CenterHorizontally
                         ) {
 
-                            Text(
-                                text = "Peejee",
-                                fontSize = 34.sp,
-                                fontWeight =
-                                    FontWeight.Bold
+                            PeejeeLogo(
+                                size = 90
                             )
 
                             Spacer(
@@ -2058,6 +2089,14 @@ fun SearchPage(
             .padding(20.dp)
     ) {
 
+        PeejeeLogo(
+            size = 65
+        )
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
         Text(
             text = "Search",
             fontSize = 30.sp,
@@ -2186,6 +2225,14 @@ fun CreatePostPage(
             .padding(paddingValues)
             .padding(20.dp)
     ) {
+
+        PeejeeLogo(
+            size = 65
+        )
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
 
         Text(
             text = "Create Post",
@@ -2475,6 +2522,14 @@ fun MessagesPage(
             .padding(20.dp)
     ) {
 
+        PeejeeLogo(
+            size = 70
+        )
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
         Text(
             text = "Messages",
             fontSize = 30.sp,
@@ -2490,13 +2545,13 @@ fun MessagesPage(
         ) {
 
             Column(
-                modifier = Modifier.padding(18.dp)
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment =
+                    Alignment.CenterHorizontally
             ) {
 
-                Text(
-                    text = "Peejee",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                PeejeeLogo(
+                    size = 70
                 )
 
                 Spacer(
@@ -2706,9 +2761,8 @@ fun ProfilePage(
 
                 } else {
 
-                    Text(
-                        text = "👤",
-                        fontSize = 65.sp
+                    PeejeeLogo(
+                        size = 80
                     )
                 }
             }
