@@ -40,15 +40,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -97,42 +102,30 @@ fun DefaultProfileIcon(
 }
 
 fun bitmapToBase64(bitmap: Bitmap): String {
-
     return try {
-
-        val maxSize = 600
+        val maxSize = 400
 
         val width = bitmap.width
         val height = bitmap.height
 
-        val scale =
-            minOf(
-                1f,
-                maxSize.toFloat() /
-                    maxOf(width, height)
-            )
+        val scale = minOf(
+            1f,
+            maxSize.toFloat() / maxOf(width, height)
+        )
 
         val resizedBitmap =
             if (scale < 1f) {
-
                 Bitmap.createScaledBitmap(
                     bitmap,
-                    (width * scale)
-                        .toInt()
-                        .coerceAtLeast(1),
-                    (height * scale)
-                        .toInt()
-                        .coerceAtLeast(1),
+                    (width * scale).toInt().coerceAtLeast(1),
+                    (height * scale).toInt().coerceAtLeast(1),
                     true
                 )
-
             } else {
-
                 bitmap
             }
 
-        val outputStream =
-            ByteArrayOutputStream()
+        val outputStream = ByteArrayOutputStream()
 
         resizedBitmap.compress(
             Bitmap.CompressFormat.JPEG,
@@ -140,39 +133,28 @@ fun bitmapToBase64(bitmap: Bitmap): String {
             outputStream
         )
 
-        val imageBytes =
-            outputStream.toByteArray()
-
         if (resizedBitmap !== bitmap) {
             resizedBitmap.recycle()
         }
 
         Base64.encodeToString(
-            imageBytes,
+            outputStream.toByteArray(),
             Base64.NO_WRAP
         )
-
     } catch (exception: Exception) {
-
         ""
     }
 }
 
-fun base64ToBitmap(
-    base64: String
-): Bitmap? {
-
+fun base64ToBitmap(base64: String): Bitmap? {
     return try {
-
         if (base64.isBlank()) {
             null
         } else {
-
-            val imageBytes =
-                Base64.decode(
-                    base64,
-                    Base64.DEFAULT
-                )
+            val imageBytes = Base64.decode(
+                base64,
+                Base64.DEFAULT
+            )
 
             BitmapFactory.decodeByteArray(
                 imageBytes,
@@ -180,12 +162,48 @@ fun base64ToBitmap(
                 imageBytes.size
             )
         }
-
     } catch (exception: Exception) {
-
         null
     }
 }
+
+fun formatPostTime(timestamp: Long): String {
+    if (timestamp <= 0L) return ""
+
+    return try {
+        SimpleDateFormat(
+            "dd MMM yyyy, HH:mm",
+            Locale.getDefault()
+        ).format(Date(timestamp))
+    } catch (exception: Exception) {
+        ""
+    }
+}
+
+data class PeejeePost(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val text: String,
+    val timestamp: Long,
+    val mediaUrl: String = "",
+    val mediaType: String = "",
+    val likeCount: Int = 0,
+    val likedBy: Map<String, Boolean> = emptyMap()
+)
+
+data class PeejeeComment(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val text: String,
+    val timestamp: Long
+)
+
+data class PeejeePerson(
+    val uid: String,
+    val name: String
+)
 
 @Composable
 fun PeejeeApp() {
@@ -274,7 +292,14 @@ fun PeejeeApp() {
         )
 
         "home" -> HomeScreen(
-            name = userName
+            name = userName,
+            onProfileNameChanged = {
+                userName = it
+            },
+            onLoggedOut = {
+                userName = "Peejee User"
+                screen = "welcome"
+            }
         )
     }
 }
@@ -293,9 +318,7 @@ fun WelcomeScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        PeejeeLogo(
-            size = 130
-        )
+        PeejeeLogo(size = 130)
 
         Spacer(
             modifier = Modifier.height(12.dp)
@@ -336,29 +359,12 @@ fun SignUpScreen(
     onBack: () -> Unit
 ) {
 
-    var name by remember {
-        mutableStateOf("")
-    }
-
-    var email by remember {
-        mutableStateOf("")
-    }
-
-    var password by remember {
-        mutableStateOf("")
-    }
-
-    var confirmPassword by remember {
-        mutableStateOf("")
-    }
-
-    var errorMessage by remember {
-        mutableStateOf("")
-    }
-
-    var loading by remember {
-        mutableStateOf(false)
-    }
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
 
     val auth = remember {
         FirebaseAuth.getInstance()
@@ -376,9 +382,7 @@ fun SignUpScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        PeejeeLogo(
-            size = 90
-        )
+        PeejeeLogo(size = 90)
 
         Spacer(
             modifier = Modifier.height(10.dp)
@@ -513,12 +517,14 @@ fun SignUpScreen(
                                 if (user != null) {
 
                                     val profile =
-                                        hashMapOf(
+                                        hashMapOf<String, Any>(
                                             "uid" to user.uid,
                                             "name" to name.trim(),
                                             "email" to email.trim(),
                                             "bio" to "",
-                                            "profilePhoto" to ""
+                                            "profilePhoto" to "",
+                                            "followersCount" to 0,
+                                            "followingCount" to 0
                                         )
 
                                     firestore
@@ -584,7 +590,6 @@ fun SignUpScreen(
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-
             Text("Back")
         }
     }
@@ -596,21 +601,10 @@ fun LoginScreen(
     onBack: () -> Unit
 ) {
 
-    var email by remember {
-        mutableStateOf("")
-    }
-
-    var password by remember {
-        mutableStateOf("")
-    }
-
-    var errorMessage by remember {
-        mutableStateOf("")
-    }
-
-    var loading by remember {
-        mutableStateOf(false)
-    }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
 
     val auth = remember {
         FirebaseAuth.getInstance()
@@ -628,9 +622,7 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        PeejeeLogo(
-            size = 90
-        )
+        PeejeeLogo(size = 90)
 
         Spacer(
             modifier = Modifier.height(10.dp)
@@ -787,36 +779,17 @@ fun LoginScreen(
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-
             Text("Back")
         }
     }
 }
 
-data class PeejeePost(
-    val id: String,
-    val userId: String,
-    val userName: String,
-    val text: String,
-    val timestamp: Long,
-    val mediaUrl: String = "",
-    val mediaType: String = "",
-    val likeCount: Int = 0,
-    val likedBy: Map<String, Boolean> = emptyMap()
-)
-
-data class PeejeeComment(
-    val id: String,
-    val userId: String,
-    val userName: String,
-    val text: String,
-    val timestamp: Long
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    name: String
+    name: String,
+    onProfileNameChanged: (String) -> Unit,
+    onLoggedOut: () -> Unit
 ) {
 
     var selectedTab by remember {
@@ -878,7 +851,7 @@ fun HomeScreen(
 
     DisposableEffect(Unit) {
 
-        val registration: ListenerRegistration =
+        val registration =
             firestore
                 .collection("posts")
                 .orderBy(
@@ -888,15 +861,13 @@ fun HomeScreen(
                 .addSnapshotListener { snapshot, error ->
 
                     if (error != null) {
-
                         loadingPosts = false
-
                         return@addSnapshotListener
                     }
 
                     if (snapshot != null) {
 
-                        val loadedPosts =
+                        posts =
                             snapshot.documents.mapNotNull { document ->
 
                                 val text =
@@ -934,8 +905,7 @@ fun HomeScreen(
                                 val likedBy =
                                     if (likedByRaw is Map<*, *>) {
 
-                                        likedByRaw
-                                            .entries
+                                        likedByRaw.entries
                                             .mapNotNull { entry ->
 
                                                 val key =
@@ -971,8 +941,6 @@ fun HomeScreen(
                                     likedBy = likedBy
                                 )
                             }
-
-                        posts = loadedPosts
                     }
 
                     loadingPosts = false
@@ -980,6 +948,42 @@ fun HomeScreen(
 
         onDispose {
             registration.remove()
+        }
+    }
+
+    DisposableEffect(currentUserId) {
+
+        if (currentUserId.isBlank()) {
+
+            followedUserIds = emptySet()
+
+            onDispose { }
+
+        } else {
+
+            val registration =
+                firestore
+                    .collection("users")
+                    .document(currentUserId)
+                    .collection("following")
+                    .addSnapshotListener { snapshot, error ->
+
+                        if (
+                            error == null &&
+                            snapshot != null
+                        ) {
+                            followedUserIds =
+                                snapshot.documents
+                                    .map {
+                                        it.id
+                                    }
+                                    .toSet()
+                        }
+                    }
+
+            onDispose {
+                registration.remove()
+            }
         }
     }
 
@@ -1004,7 +1008,7 @@ fun HomeScreen(
             loadingComments = true
             commentError = ""
 
-            val commentRegistration =
+            val registration =
                 firestore
                     .collection("posts")
                     .document(selectedPostId)
@@ -1031,31 +1035,28 @@ fun HomeScreen(
                             selectedComments =
                                 snapshot.documents.mapNotNull { document ->
 
-                                    val userId =
-                                        document.getString("userId")
-                                            ?: ""
-
-                                    val userName =
-                                        document.getString("userName")
-                                            ?: "Peejee User"
-
                                     val text =
                                         document.getString("text")
                                             ?: ""
-
-                                    val timestamp =
-                                        document.getLong("timestamp")
-                                            ?: 0L
 
                                     if (text.isBlank()) {
                                         null
                                     } else {
                                         PeejeeComment(
                                             id = document.id,
-                                            userId = userId,
-                                            userName = userName,
+                                            userId =
+                                                document.getString(
+                                                    "userId"
+                                                ) ?: "",
+                                            userName =
+                                                document.getString(
+                                                    "userName"
+                                                ) ?: "Peejee User",
                                             text = text,
-                                            timestamp = timestamp
+                                            timestamp =
+                                                document.getLong(
+                                                    "timestamp"
+                                                ) ?: 0L
                                         )
                                     }
                                 }
@@ -1065,7 +1066,7 @@ fun HomeScreen(
                     }
 
             onDispose {
-                commentRegistration.remove()
+                registration.remove()
             }
         }
     }
@@ -1073,14 +1074,9 @@ fun HomeScreen(
     Scaffold(
 
         topBar = {
-
             TopAppBar(
-
                 title = {
-
-                    PeejeeLogo(
-                        size = 48
-                    )
+                    PeejeeLogo(size = 48)
                 }
             )
         },
@@ -1160,167 +1156,261 @@ fun HomeScreen(
 
         when (selectedTab) {
 
-            0 -> {
+            0 -> HomeFeed(
+                name = name,
+                currentUserId = currentUserId,
+                posts = posts,
+                followedUserIds = followedUserIds,
+                loadingPosts = loadingPosts,
 
-                HomeFeed(
-                    name = name,
-                    currentUserId = currentUserId,
-                    posts = posts,
-                    followedUserIds = followedUserIds,
-                    loadingPosts = loadingPosts,
+                onLike = { postId ->
 
-                    onLike = { postId ->
+                    val userId =
+                        auth.currentUser?.uid
 
-                        val userId =
-                            auth.currentUser?.uid
+                    if (userId != null) {
 
-                        if (userId != null) {
+                        val postRef =
+                            firestore
+                                .collection("posts")
+                                .document(postId)
 
-                            val postRef =
-                                firestore
-                                    .collection("posts")
-                                    .document(postId)
+                        firestore.runTransaction { transaction ->
 
-                            firestore.runTransaction { transaction ->
+                            val snapshot =
+                                transaction.get(postRef)
 
-                                val snapshot =
-                                    transaction.get(postRef)
+                            val currentLikes =
+                                snapshot.getLong("likes")
+                                    ?.toInt()
+                                    ?: 0
 
-                                val currentLikes =
-                                    snapshot
-                                        .getLong("likes")
-                                        ?.toInt()
-                                        ?: 0
+                            val currentLikedBy =
+                                mutableMapOf<String, Boolean>()
 
-                                val currentLikedBy =
-                                    mutableMapOf<String, Boolean>()
+                            val rawLikedBy =
+                                snapshot.get("likedBy")
 
-                                val rawLikedBy =
-                                    snapshot.get("likedBy")
+                            if (rawLikedBy is Map<*, *>) {
 
-                                if (rawLikedBy is Map<*, *>) {
+                                rawLikedBy.entries.forEach { entry ->
 
-                                    for (entry in rawLikedBy.entries) {
+                                    val key =
+                                        entry.key as? String
 
-                                        val key =
-                                            entry.key as? String
+                                    val value =
+                                        entry.value as? Boolean
 
-                                        val value =
-                                            entry.value as? Boolean
-
-                                        if (
-                                            key != null &&
-                                            value != null
-                                        ) {
-
-                                            currentLikedBy[key] =
-                                                value
-                                        }
+                                    if (
+                                        key != null &&
+                                        value != null
+                                    ) {
+                                        currentLikedBy[key] =
+                                            value
                                     }
                                 }
-
-                                val alreadyLiked =
-                                    currentLikedBy[userId] == true
-
-                                if (alreadyLiked) {
-
-                                    currentLikedBy.remove(
-                                        userId
-                                    )
-
-                                    transaction.update(
-                                        postRef,
-                                        "likes",
-                                        (currentLikes - 1)
-                                            .coerceAtLeast(0)
-                                    )
-
-                                    transaction.update(
-                                        postRef,
-                                        "likedBy",
-                                        currentLikedBy
-                                    )
-
-                                } else {
-
-                                    currentLikedBy[userId] =
-                                        true
-
-                                    transaction.update(
-                                        postRef,
-                                        "likes",
-                                        currentLikes + 1
-                                    )
-
-                                    transaction.update(
-                                        postRef,
-                                        "likedBy",
-                                        currentLikedBy
-                                    )
-                                }
-
-                                null
-
-                            }.addOnFailureListener {
                             }
-                        }
-                    },
 
-                    onFollow = { userId ->
+                            val alreadyLiked =
+                                currentLikedBy[userId] == true
 
-                        val newFollowing =
-                            followedUserIds.toMutableSet()
+                            if (alreadyLiked) {
 
-                        if (
-                            newFollowing.contains(userId)
-                        ) {
+                                currentLikedBy.remove(userId)
 
-                            newFollowing.remove(userId)
+                                transaction.update(
+                                    postRef,
+                                    "likes",
+                                    (currentLikes - 1)
+                                        .coerceAtLeast(0)
+                                )
 
-                        } else {
+                            } else {
 
-                            newFollowing.add(userId)
-                        }
+                                currentLikedBy[userId] = true
 
-                        followedUserIds =
-                            newFollowing
-                    },
-
-                    onComment = { postId ->
-
-                        selectedPostId = postId
-                        newComment = ""
-                        commentError = ""
-                        showCommentDialog = true
-                    },
-
-                    onShare = { post ->
-
-                        val shareText =
-                            "Check this out on Peejee:\n\n${post.text}"
-
-                        val shareIntent =
-                            Intent(Intent.ACTION_SEND).apply {
-
-                                type = "text/plain"
-
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    shareText
+                                transaction.update(
+                                    postRef,
+                                    "likes",
+                                    currentLikes + 1
                                 )
                             }
 
-                        context.startActivity(
-                            Intent.createChooser(
-                                shareIntent,
-                                "Share Peejee post"
+                            transaction.update(
+                                postRef,
+                                "likedBy",
+                                currentLikedBy
                             )
-                        )
-                    },
 
-                    paddingValues = paddingValues
-                )
-            }
+                            null
+
+                        }
+                    }
+                },
+
+                onFollow = { targetUserId ->
+
+                    val currentUser =
+                        auth.currentUser
+
+                    if (
+                        currentUser == null ||
+                        targetUserId.isBlank() ||
+                        targetUserId == currentUser.uid
+                    ) {
+                        return@HomeFeed
+                    }
+
+                    val currentUserRef =
+                        firestore
+                            .collection("users")
+                            .document(currentUser.uid)
+
+                    val targetUserRef =
+                        firestore
+                            .collection("users")
+                            .document(targetUserId)
+
+                    val followingRef =
+                        currentUserRef
+                            .collection("following")
+                            .document(targetUserId)
+
+                    val followerRef =
+                        targetUserRef
+                            .collection("followers")
+                            .document(currentUser.uid)
+
+                    firestore.runTransaction { transaction ->
+
+                        val followingSnapshot =
+                            transaction.get(followingRef)
+
+                        val currentUserSnapshot =
+                            transaction.get(currentUserRef)
+
+                        val targetUserSnapshot =
+                            transaction.get(targetUserRef)
+
+                        val currentFollowingCount =
+                            currentUserSnapshot
+                                .getLong("followingCount")
+                                ?.toInt()
+                                ?: 0
+
+                        val targetFollowersCount =
+                            targetUserSnapshot
+                                .getLong("followersCount")
+                                ?.toInt()
+                                ?: 0
+
+                        if (followingSnapshot.exists()) {
+
+                            transaction.delete(followingRef)
+                            transaction.delete(followerRef)
+
+                            transaction.set(
+                                currentUserRef,
+                                mapOf(
+                                    "followingCount" to
+                                        (currentFollowingCount - 1)
+                                            .coerceAtLeast(0)
+                                ),
+                                SetOptions.merge()
+                            )
+
+                            transaction.set(
+                                targetUserRef,
+                                mapOf(
+                                    "followersCount" to
+                                        (targetFollowersCount - 1)
+                                            .coerceAtLeast(0)
+                                ),
+                                SetOptions.merge()
+                            )
+
+                        } else {
+
+                            val followerData =
+                                hashMapOf<String, Any>(
+                                    "uid" to currentUser.uid,
+                                    "name" to name,
+                                    "timestamp" to
+                                        System.currentTimeMillis()
+                                )
+
+                            val followingData =
+                                hashMapOf<String, Any>(
+                                    "uid" to targetUserId,
+                                    "timestamp" to
+                                        System.currentTimeMillis()
+                                )
+
+                            transaction.set(
+                                followingRef,
+                                followingData
+                            )
+
+                            transaction.set(
+                                followerRef,
+                                followerData
+                            )
+
+                            transaction.set(
+                                currentUserRef,
+                                mapOf(
+                                    "followingCount" to
+                                        currentFollowingCount + 1
+                                ),
+                                SetOptions.merge()
+                            )
+
+                            transaction.set(
+                                targetUserRef,
+                                mapOf(
+                                    "followersCount" to
+                                        targetFollowersCount + 1
+                                ),
+                                SetOptions.merge()
+                            )
+                        }
+
+                        null
+                    }
+                },
+
+                onComment = { postId ->
+
+                    selectedPostId = postId
+                    newComment = ""
+                    commentError = ""
+                    showCommentDialog = true
+                },
+
+                onShare = { post ->
+
+                    val shareText =
+                        "Check this out on Peejee:\n\n${post.text}"
+
+                    val shareIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                shareText
+                            )
+                        }
+
+                    context.startActivity(
+                        Intent.createChooser(
+                            shareIntent,
+                            "Share Peejee post"
+                        )
+                    )
+                },
+
+                paddingValues = paddingValues
+            )
 
             1 -> SearchPage(
                 name = name,
@@ -1341,7 +1431,9 @@ fun HomeScreen(
 
             4 -> ProfilePage(
                 name = name,
-                paddingValues = paddingValues
+                paddingValues = paddingValues,
+                onProfileNameChanged = onProfileNameChanged,
+                onLoggedOut = onLoggedOut
             )
         }
     }
@@ -1351,7 +1443,6 @@ fun HomeScreen(
         AlertDialog(
 
             onDismissRequest = {
-
                 if (!sendingComment) {
                     showCommentDialog = false
                 }
@@ -1372,13 +1463,10 @@ fun HomeScreen(
                             horizontalArrangement =
                                 Arrangement.Center
                         ) {
-
                             CircularProgressIndicator()
                         }
 
-                    } else if (
-                        selectedComments.isEmpty()
-                    ) {
+                    } else if (selectedComments.isEmpty()) {
 
                         Text(
                             "No comments yet. Be the first!"
@@ -1389,9 +1477,7 @@ fun HomeScreen(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(
-                                    max = 260.dp
-                                )
+                                .heightIn(max = 260.dp)
                         ) {
 
                             itemsIndexed(
@@ -1413,11 +1499,6 @@ fun HomeScreen(
                                         fontSize = 14.sp
                                     )
 
-                                    Spacer(
-                                        modifier =
-                                            Modifier.height(2.dp)
-                                    )
-
                                     Text(
                                         text = comment.text,
                                         fontSize = 15.sp
@@ -1430,8 +1511,7 @@ fun HomeScreen(
                     if (commentError.isNotEmpty()) {
 
                         Spacer(
-                            modifier =
-                                Modifier.height(8.dp)
+                            modifier = Modifier.height(8.dp)
                         )
 
                         Text(
@@ -1445,8 +1525,7 @@ fun HomeScreen(
                     }
 
                     Spacer(
-                        modifier =
-                            Modifier.height(12.dp)
+                        modifier = Modifier.height(12.dp)
                     )
 
                     OutlinedTextField(
@@ -1459,8 +1538,7 @@ fun HomeScreen(
                             Text("Write a comment")
                         },
                         enabled = !sendingComment,
-                        modifier =
-                            Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             },
@@ -1468,7 +1546,6 @@ fun HomeScreen(
             confirmButton = {
 
                 TextButton(
-
                     enabled =
                         !sendingComment &&
                         newComment.isNotBlank(),
@@ -1486,14 +1563,6 @@ fun HomeScreen(
                             return@TextButton
                         }
 
-                        if (selectedPostId.isBlank()) {
-
-                            commentError =
-                                "Post not found."
-
-                            return@TextButton
-                        }
-
                         sendingComment = true
                         commentError = ""
 
@@ -1504,38 +1573,28 @@ fun HomeScreen(
                             .addOnSuccessListener { userDocument ->
 
                                 val savedUserName =
-                                    userDocument
-                                        .getString("name")
-                                        ?: currentUser.displayName
+                                    userDocument.getString("name")
                                         ?: "Peejee User"
 
                                 val commentReference =
                                     firestore
                                         .collection("posts")
-                                        .document(
-                                            selectedPostId
-                                        )
+                                        .document(selectedPostId)
                                         .collection("comments")
                                         .document()
 
                                 val commentData =
                                     hashMapOf<String, Any>(
-
                                         "commentId" to
                                             commentReference.id,
-
                                         "postId" to
                                             selectedPostId,
-
                                         "userId" to
                                             currentUser.uid,
-
                                         "userName" to
                                             savedUserName,
-
                                         "text" to
                                             newComment.trim(),
-
                                         "timestamp" to
                                             System.currentTimeMillis()
                                     )
@@ -1580,15 +1639,11 @@ fun HomeScreen(
             dismissButton = {
 
                 TextButton(
-
                     enabled = !sendingComment,
-
                     onClick = {
                         showCommentDialog = false
                     }
-
                 ) {
-
                     Text("Close")
                 }
             }
@@ -1665,9 +1720,7 @@ fun HomeFeed(
                     Arrangement.spacedBy(12.dp)
             ) {
 
-                itemsIndexed(
-                    liveUsers
-                ) { _, liveUser ->
+                itemsIndexed(liveUsers) { _, liveUser ->
 
                     Card(
                         modifier = Modifier
@@ -1692,16 +1745,9 @@ fun HomeFeed(
                             ) {
 
                                 if (liveUser == "Live") {
-
-                                    PeejeeLogo(
-                                        size = 60
-                                    )
-
+                                    PeejeeLogo(size = 60)
                                 } else {
-
-                                    DefaultProfileIcon(
-                                        size = 60
-                                    )
+                                    DefaultProfileIcon(size = 60)
                                 }
                             }
 
@@ -1709,24 +1755,16 @@ fun HomeFeed(
                                 modifier = Modifier.height(8.dp)
                             )
 
-                            if (liveUser == "Live") {
-
-                                Text(
-                                    text = "Peejee Live",
-                                    fontSize = 15.sp,
-                                    fontWeight =
-                                        FontWeight.Bold
-                                )
-
-                            } else {
-
-                                Text(
-                                    text = liveUser,
-                                    fontSize = 15.sp,
-                                    fontWeight =
-                                        FontWeight.Bold
-                                )
-                            }
+                            Text(
+                                text =
+                                    if (liveUser == "Live") {
+                                        "Peejee Live"
+                                    } else {
+                                        liveUser
+                                    },
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
 
                             Spacer(
                                 modifier = Modifier.height(6.dp)
@@ -1777,22 +1815,16 @@ fun HomeFeed(
                     horizontalArrangement =
                         Arrangement.Center
                 ) {
-
                     CircularProgressIndicator()
                 }
             }
 
-            if (
-                !loadingPosts &&
-                posts.isEmpty()
-            ) {
+            if (!loadingPosts && posts.isEmpty()) {
 
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(
-                            horizontal = 16.dp
-                        )
+                        .padding(horizontal = 16.dp)
                 ) {
 
                     Column(
@@ -1801,16 +1833,14 @@ fun HomeFeed(
                             Alignment.CenterHorizontally
                     ) {
 
-                        PeejeeLogo(
-                            size = 75
-                        )
+                        PeejeeLogo(size = 75)
 
                         Spacer(
                             modifier = Modifier.height(8.dp)
                         )
 
                         Text(
-                            text = "Post",
+                            text = "No posts yet",
                             fontSize = 16.sp
                         )
                     }
@@ -1824,9 +1854,7 @@ fun HomeFeed(
 
         itemsIndexed(
             posts,
-            key = { _, post ->
-                post.id
-            }
+            key = { _, post -> post.id }
         ) { _, post ->
 
             TikTokStylePost(
@@ -1835,23 +1863,17 @@ fun HomeFeed(
                 isLiked =
                     post.likedBy[currentUserId] == true,
                 isFollowing =
-                    followedUserIds.contains(
-                        post.userId
-                    ),
+                    followedUserIds.contains(post.userId),
                 currentUserName = name,
-
                 onLike = {
                     onLike(post.id)
                 },
-
                 onFollow = {
                     onFollow(post.userId)
                 },
-
                 onComment = {
                     onComment(post.id)
                 },
-
                 onShare = {
                     onShare(post)
                 }
@@ -1859,7 +1881,6 @@ fun HomeFeed(
         }
 
         item {
-
             Spacer(
                 modifier = Modifier.height(30.dp)
             )
@@ -1910,9 +1931,7 @@ fun TikTokStylePost(
                         Alignment.CenterVertically
                 ) {
 
-                    DefaultProfileIcon(
-                        size = 48
-                    )
+                    DefaultProfileIcon(size = 48)
 
                     Spacer(
                         modifier = Modifier.width(10.dp)
@@ -1925,13 +1944,14 @@ fun TikTokStylePost(
                         Text(
                             text = post.userName,
                             fontSize = 17.sp,
-                            fontWeight =
-                                FontWeight.Bold
+                            fontWeight = FontWeight.Bold
                         )
 
                         Text(
                             text =
-                                "@${post.userName.replace(" ", "").lowercase()}",
+                                "@${post.userName
+                                    .replace(" ", "")
+                                    .lowercase()}",
                             fontSize = 12.sp
                         )
                     }
@@ -1985,7 +2005,9 @@ fun TikTokStylePost(
                         if (
                             post.mediaType
                                 .lowercase()
-                                .contains("image")
+                                .contains("image") ||
+                            post.mediaType
+                                .lowercase() == "photo"
                         ) {
 
                             Text(
@@ -2035,13 +2057,10 @@ fun TikTokStylePost(
                                 Alignment.CenterHorizontally
                         ) {
 
-                            PeejeeLogo(
-                                size = 90
-                            )
+                            PeejeeLogo(size = 90)
 
                             Spacer(
-                                modifier =
-                                    Modifier.height(8.dp)
+                                modifier = Modifier.height(8.dp)
                             )
 
                             Text(
@@ -2082,11 +2101,7 @@ fun TikTokStylePost(
 
                 ActionCircle(
                     icon =
-                        if (isLiked) {
-                            "❤️"
-                        } else {
-                            "♡"
-                        },
+                        if (isLiked) "❤️" else "♡",
                     label = likeCount.toString(),
                     onClick = onLike
                 )
@@ -2118,8 +2133,7 @@ fun TikTokStylePost(
                 ActionCircle(
                     icon = "🔊",
                     label = "Sound",
-                    onClick = {
-                    }
+                    onClick = {}
                 )
             }
         }
@@ -2201,9 +2215,7 @@ fun SearchPage(
             .padding(20.dp)
     ) {
 
-        PeejeeLogo(
-            size = 65
-        )
+        PeejeeLogo(size = 65)
 
         Spacer(
             modifier = Modifier.height(8.dp)
@@ -2250,9 +2262,7 @@ fun SearchPage(
                         Alignment.CenterVertically
                 ) {
 
-                    DefaultProfileIcon(
-                        size = 45
-                    )
+                    DefaultProfileIcon(size = 45)
 
                     Spacer(
                         modifier = Modifier.width(14.dp)
@@ -2261,8 +2271,7 @@ fun SearchPage(
                     Text(
                         text = person,
                         fontSize = 18.sp,
-                        fontWeight =
-                            FontWeight.Bold
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -2311,7 +2320,6 @@ fun CreatePostPage(
         ) { uri ->
 
             if (uri != null) {
-
                 selectedMedia = uri
                 mediaType = "photo"
             }
@@ -2324,7 +2332,6 @@ fun CreatePostPage(
         ) { uri ->
 
             if (uri != null) {
-
                 selectedMedia = uri
                 mediaType = "video"
             }
@@ -2337,9 +2344,7 @@ fun CreatePostPage(
             .padding(20.dp)
     ) {
 
-        PeejeeLogo(
-            size = 65
-        )
+        PeejeeLogo(size = 65)
 
         Spacer(
             modifier = Modifier.height(8.dp)
@@ -2367,7 +2372,6 @@ fun CreatePostPage(
                 },
                 modifier = Modifier.weight(1f)
             ) {
-
                 Text("🖼️ Photo")
             }
 
@@ -2377,7 +2381,6 @@ fun CreatePostPage(
                 },
                 modifier = Modifier.weight(1f)
             ) {
-
                 Text("🎥 Video")
             }
         }
@@ -2398,15 +2401,12 @@ fun CreatePostPage(
 
                     Text(
                         text =
-                            if (
-                                mediaType == "photo"
-                            ) {
+                            if (mediaType == "photo") {
                                 "Photo selected"
                             } else {
                                 "Video selected"
                             },
-                        fontWeight =
-                            FontWeight.Bold,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
 
@@ -2415,8 +2415,7 @@ fun CreatePostPage(
                     )
 
                     Text(
-                        text =
-                            selectedMedia.toString(),
+                        text = selectedMedia.toString(),
                         fontSize = 12.sp
                     )
 
@@ -2426,12 +2425,10 @@ fun CreatePostPage(
 
                     OutlinedButton(
                         onClick = {
-
                             selectedMedia = null
                             mediaType = ""
                         }
                     ) {
-
                         Text("Remove")
                     }
                 }
@@ -2506,33 +2503,20 @@ fun CreatePostPage(
                         .collection("posts")
                         .document()
 
-                val postId =
-                    postReference.id
-
                 val postData =
                     hashMapOf<String, Any>(
-
                         "postId" to
-                            postId,
-
+                            postReference.id,
                         "userId" to
                             currentUser.uid,
-
                         "userName" to
-                            (
-                                currentUser.displayName
-                                    ?: "Peejee User"
-                            ),
-
+                            "Peejee User",
                         "text" to
                             postText.trim(),
-
                         "likes" to
                             0,
-
                         "likedBy" to
                             emptyMap<String, Boolean>(),
-
                         "timestamp" to
                             System.currentTimeMillis()
                     )
@@ -2553,13 +2537,9 @@ fun CreatePostPage(
                     .get()
                     .addOnSuccessListener { userDocument ->
 
-                        val savedName =
-                            userDocument
-                                .getString("name")
-                                ?: "Peejee User"
-
                         postData["userName"] =
-                            savedName
+                            userDocument.getString("name")
+                                ?: "Peejee User"
 
                         postReference
                             .set(postData)
@@ -2633,9 +2613,7 @@ fun MessagesPage(
             .padding(20.dp)
     ) {
 
-        PeejeeLogo(
-            size = 70
-        )
+        PeejeeLogo(size = 70)
 
         Spacer(
             modifier = Modifier.height(8.dp)
@@ -2661,9 +2639,7 @@ fun MessagesPage(
                     Alignment.CenterHorizontally
             ) {
 
-                PeejeeLogo(
-                    size = 70
-                )
+                PeejeeLogo(size = 70)
 
                 Spacer(
                     modifier = Modifier.height(8.dp)
@@ -2678,10 +2654,8 @@ fun MessagesPage(
                 )
 
                 Button(
-                    onClick = {
-                    }
+                    onClick = {}
                 ) {
-
                     Text("Start a Chat")
                 }
             }
@@ -2692,7 +2666,9 @@ fun MessagesPage(
 @Composable
 fun ProfilePage(
     name: String,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    onProfileNameChanged: (String) -> Unit,
+    onLoggedOut: () -> Unit
 ) {
 
     val context = LocalContext.current
@@ -2726,6 +2702,22 @@ fun ProfilePage(
         mutableStateOf(false)
     }
 
+    var showSettings by remember {
+        mutableStateOf(false)
+    }
+
+    var showLogoutDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showFollowersDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showFollowingDialog by remember {
+        mutableStateOf(false)
+    }
+
     var editedName by remember {
         mutableStateOf(name)
     }
@@ -2754,6 +2746,26 @@ fun ProfilePage(
         mutableStateOf("")
     }
 
+    var followersCount by remember {
+        mutableStateOf(0)
+    }
+
+    var followingCount by remember {
+        mutableStateOf(0)
+    }
+
+    var profilePosts by remember {
+        mutableStateOf<List<PeejeePost>>(emptyList())
+    }
+
+    var followers by remember {
+        mutableStateOf<List<PeejeePerson>>(emptyList())
+    }
+
+    var following by remember {
+        mutableStateOf<List<PeejeePerson>>(emptyList())
+    }
+
     val email =
         auth.currentUser?.email
             ?: "No email available"
@@ -2771,324 +2783,637 @@ fun ProfilePage(
             }
         }
 
-    /*
-     * Show the newly selected photo immediately.
-     */
-    LaunchedEffect(selectedProfilePhotoUri) {
+    LaunchedEffect(
+        selectedProfilePhotoUri,
+        savedProfilePhoto
+    ) {
 
-        val uri = selectedProfilePhotoUri
+        val selectedUri =
+            selectedProfilePhotoUri
 
-        if (uri != null) {
+        profileBitmap =
+            withContext(Dispatchers.IO) {
 
-            profileBitmap =
-                withContext(Dispatchers.IO) {
+                if (selectedUri != null) {
 
                     try {
 
                         context
                             .contentResolver
-                            .openInputStream(uri)
+                            .openInputStream(selectedUri)
                             ?.use { inputStream ->
-
-                                BitmapFactory
-                                    .decodeStream(
-                                        inputStream
-                                    )
+                                BitmapFactory.decodeStream(
+                                    inputStream
+                                )
                             }
 
                     } catch (exception: Exception) {
-
                         null
                     }
-                }
-        }
-    }
 
-    /*
-     * Load the saved profile photo from Firestore.
-     */
-    LaunchedEffect(savedProfilePhoto) {
-
-        if (
-            selectedProfilePhotoUri == null
-        ) {
-
-            profileBitmap =
-                withContext(Dispatchers.IO) {
+                } else {
 
                     base64ToBitmap(
                         savedProfilePhoto
                     )
                 }
-        }
+            }
     }
 
-    /*
-     * Load profile information from Firestore.
-     */
-    LaunchedEffect(userId) {
+    DisposableEffect(userId) {
 
-        if (userId != null) {
+        if (userId == null) {
 
-            loading = true
+            loading = false
 
-            firestore
-                .collection("users")
-                .document(userId)
-                .get()
-                .addOnSuccessListener { document ->
-
-                    bio =
-                        document.getString("bio")
-                            ?: ""
-
-                    editedBio = bio
-
-                    profileName =
-                        document.getString("name")
-                            ?: name
-
-                    editedName =
-                        profileName
-
-                    savedProfilePhoto =
-                        document.getString(
-                            "profilePhoto"
-                        ) ?: ""
-
-                    loading = false
-                }
-                .addOnFailureListener {
-
-                    loading = false
-
-                    profileError =
-                        "Could not load your profile."
-                }
+            onDispose { }
 
         } else {
 
-            loading = false
+            loading = true
+
+            val registration =
+                firestore
+                    .collection("users")
+                    .document(userId)
+                    .addSnapshotListener { document, error ->
+
+                        if (error != null) {
+
+                            loading = false
+
+                            profileError =
+                                error.message
+                                    ?: "Could not load your profile."
+
+                            return@addSnapshotListener
+                        }
+
+                        if (document != null &&
+                            document.exists()
+                        ) {
+
+                            val savedName =
+                                document.getString("name")
+                                    ?: name
+
+                            val savedBio =
+                                document.getString("bio")
+                                    ?: ""
+
+                            profileName =
+                                savedName
+
+                            bio =
+                                savedBio
+
+                            editedName =
+                                savedName
+
+                            editedBio =
+                                savedBio
+
+                            savedProfilePhoto =
+                                document.getString(
+                                    "profilePhoto"
+                                ) ?: ""
+
+                            followersCount =
+                                document
+                                    .getLong(
+                                        "followersCount"
+                                    )
+                                    ?.toInt()
+                                    ?: 0
+
+                            followingCount =
+                                document
+                                    .getLong(
+                                        "followingCount"
+                                    )
+                                    ?.toInt()
+                                    ?: 0
+
+                            loading = false
+                        } else {
+
+                            loading = false
+                        }
+                    }
+
+            onDispose {
+                registration.remove()
+            }
         }
+    }
+
+    DisposableEffect(userId) {
+
+        if (userId == null) {
+
+            profilePosts = emptyList()
+
+            onDispose { }
+
+        } else {
+
+            val registration =
+                firestore
+                    .collection("posts")
+                    .whereEqualTo(
+                        "userId",
+                        userId
+                    )
+                    .addSnapshotListener { snapshot, error ->
+
+                        if (
+                            error == null &&
+                            snapshot != null
+                        ) {
+
+                            profilePosts =
+                                snapshot.documents
+                                    .mapNotNull { document ->
+
+                                        val postUserId =
+                                            document.getString(
+                                                "userId"
+                                            ) ?: ""
+
+                                        val postText =
+                                            document.getString(
+                                                "text"
+                                            ) ?: ""
+
+                                        PeejeePost(
+                                            id = document.id,
+                                            userId = postUserId,
+                                            userName =
+                                                document.getString(
+                                                    "userName"
+                                                ) ?: profileName,
+                                            text = postText,
+                                            timestamp =
+                                                document.getLong(
+                                                    "timestamp"
+                                                ) ?: 0L,
+                                            mediaUrl =
+                                                document.getString(
+                                                    "mediaUrl"
+                                                ) ?: "",
+                                            mediaType =
+                                                document.getString(
+                                                    "mediaType"
+                                                ) ?: "",
+                                            likeCount =
+                                                document.getLong(
+                                                    "likes"
+                                                )?.toInt() ?: 0
+                                        )
+                                    }
+                                    .sortedByDescending {
+                                        it.timestamp
+                                    }
+                        }
+                    }
+
+            onDispose {
+                registration.remove()
+            }
+        }
+    }
+
+    DisposableEffect(
+        userId,
+        showFollowersDialog
+    ) {
+
+        if (
+            userId == null ||
+            !showFollowersDialog
+        ) {
+
+            followers = emptyList()
+
+            onDispose { }
+
+        } else {
+
+            val registration =
+                firestore
+                    .collection("users")
+                    .document(userId)
+                    .collection("followers")
+                    .orderBy(
+                        "timestamp",
+                        Query.Direction.DESCENDING
+                    )
+                    .addSnapshotListener { snapshot, error ->
+
+                        if (
+                            error == null &&
+                            snapshot != null
+                        ) {
+
+                            followers =
+                                snapshot.documents.mapNotNull { document ->
+
+                                    val uid =
+                                        document.getString("uid")
+                                            ?: document.id
+
+                                    val savedName =
+                                        document.getString("name")
+                                            ?: "Peejee User"
+
+                                    PeejeePerson(
+                                        uid = uid,
+                                        name = savedName
+                                    )
+                                }
+                        }
+                    }
+
+            onDispose {
+                registration.remove()
+            }
+        }
+    }
+
+    DisposableEffect(
+        userId,
+        showFollowingDialog
+    ) {
+
+        if (
+            userId == null ||
+            !showFollowingDialog
+        ) {
+
+            following = emptyList()
+
+            onDispose { }
+
+        } else {
+
+            val registration =
+                firestore
+                    .collection("users")
+                    .document(userId)
+                    .collection("following")
+                    .orderBy(
+                        "timestamp",
+                        Query.Direction.DESCENDING
+                    )
+                    .addSnapshotListener { snapshot, error ->
+
+                        if (
+                            error == null &&
+                            snapshot != null
+                        ) {
+
+                            following =
+                                snapshot.documents.mapNotNull { document ->
+
+                                    val uid =
+                                        document.getString("uid")
+                                            ?: document.id
+
+                                    PeejeePerson(
+                                        uid = uid,
+                                        name =
+                                            document.getString(
+                                                "name"
+                                            )
+                                                ?: "Peejee User"
+                                    )
+                                }
+                        }
+                    }
+
+            onDispose {
+                registration.remove()
+            }
+        }
+    }
+
+    if (showSettings) {
+
+        SettingsPage(
+            email = email,
+            paddingValues = paddingValues,
+            onBack = {
+                showSettings = false
+            }
+        )
+
+        return
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(20.dp),
+            .padding(
+                horizontal = 20.dp
+            ),
         horizontalAlignment =
             Alignment.CenterHorizontally
     ) {
 
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
-
-        Card(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment =
+                Alignment.CenterHorizontally
         ) {
 
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment =
-                    Alignment.Center
-            ) {
+            item {
 
-                if (profileBitmap != null) {
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
 
-                    Image(
-                        bitmap =
-                            profileBitmap!!
-                                .asImageBitmap(),
-                        contentDescription =
-                            "Profile photo",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale =
-                            ContentScale.Crop
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    if (profileBitmap != null) {
+
+                        Image(
+                            bitmap =
+                                profileBitmap!!
+                                    .asImageBitmap(),
+                            contentDescription =
+                                "Profile photo",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale =
+                                ContentScale.Crop
+                        )
+
+                    } else {
+
+                        DefaultProfileIcon(size = 90)
+                    }
+                }
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                Text(
+                    text = profileName,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(
+                    modifier = Modifier.height(8.dp)
+                )
+
+                Text(
+                    text = email,
+                    fontSize = 16.sp
+                )
+
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
+
+                if (loading) {
+
+                    CircularProgressIndicator()
+
+                } else if (bio.isBlank()) {
+
+                    Text(
+                        text = "No bio yet.",
+                        fontSize = 16.sp
                     )
 
                 } else {
 
-                    DefaultProfileIcon(
-                        size = 90
+                    Text(
+                        text = bio,
+                        fontSize = 16.sp
                     )
                 }
-            }
-        }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+                if (profileError.isNotEmpty()) {
 
-        Text(
-            text = profileName,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
-        )
+                    Spacer(
+                        modifier = Modifier.height(8.dp)
+                    )
 
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
+                    Text(
+                        text = profileError,
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .error,
+                        fontSize = 13.sp
+                    )
+                }
 
-        Text(
-            text = email,
-            fontSize = 16.sp
-        )
-
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
-
-        if (loading) {
-
-            CircularProgressIndicator()
-
-        } else {
-
-            if (bio.isBlank()) {
-
-                Text(
-                    text = "No bio yet.",
-                    fontSize = 16.sp
+                Spacer(
+                    modifier = Modifier.height(24.dp)
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement =
+                        Arrangement.SpaceEvenly
+                ) {
+
+                    ProfileStat(
+                        count = profilePosts.size,
+                        label = "Posts"
+                    )
+
+                    ProfileStat(
+                        count = followersCount,
+                        label = "Followers",
+                        onClick = {
+                            showFollowersDialog = true
+                        }
+                    )
+
+                    ProfileStat(
+                        count = followingCount,
+                        label = "Following",
+                        onClick = {
+                            showFollowingDialog = true
+                        }
+                    )
+                }
+
+                Spacer(
+                    modifier = Modifier.height(24.dp)
+                )
+
+                Button(
+                    onClick = {
+
+                        editedName = profileName
+                        editedBio = bio
+                        profileError = ""
+                        selectedProfilePhotoUri = null
+                        showEditDialog = true
+
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("✏️ Edit Profile")
+                }
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                OutlinedButton(
+                    onClick = {
+                        showSettings = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("🔒 Account Settings")
+                }
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                OutlinedButton(
+                    onClick = {
+
+                        val shareText =
+                            "Check out my profile on Peejee: $profileName"
+
+                        val shareIntent =
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    shareText
+                                )
+                            }
+
+                        context.startActivity(
+                            Intent.createChooser(
+                                shareIntent,
+                                "Share Profile"
+                            )
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("↗️ Share Profile")
+                }
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                OutlinedButton(
+                    onClick = {
+                        showLogoutDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("🚪 Log Out")
+                }
+
+                Spacer(
+                    modifier = Modifier.height(28.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment =
+                        Alignment.CenterVertically
+                ) {
+
+                    Text(
+                        text = "My Posts",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(
+                        modifier = Modifier.width(8.dp)
+                    )
+
+                    Text(
+                        text = "(${profilePosts.size})",
+                        fontSize = 18.sp
+                    )
+                }
+
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
+            }
+
+            if (profilePosts.isEmpty()) {
+
+                item {
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                vertical = 8.dp
+                            )
+                    ) {
+
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(25.dp),
+                            horizontalAlignment =
+                                Alignment.CenterHorizontally
+                        ) {
+
+                            PeejeeLogo(size = 70)
+
+                            Spacer(
+                                modifier =
+                                    Modifier.height(8.dp)
+                            )
+
+                            Text(
+                                text =
+                                    "You haven't posted yet."
+                            )
+                        }
+                    }
+                }
 
             } else {
 
-                Text(
-                    text = bio,
-                    fontSize = 16.sp
-                )
-            }
-        }
-
-        if (profileError.isNotEmpty()) {
-
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
-
-            Text(
-                text = profileError,
-                color =
-                    MaterialTheme.colorScheme.error,
-                fontSize = 13.sp
-            )
-        }
-
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement =
-                Arrangement.SpaceEvenly
-        ) {
-
-            Column(
-                horizontalAlignment =
-                    Alignment.CenterHorizontally
-            ) {
-
-                Text(
-                    text = "0",
-                    fontSize = 22.sp,
-                    fontWeight =
-                        FontWeight.Bold
-                )
-
-                Text("Posts")
-            }
-
-            Column(
-                horizontalAlignment =
-                    Alignment.CenterHorizontally
-            ) {
-
-                Text(
-                    text = "0",
-                    fontSize = 22.sp,
-                    fontWeight =
-                        FontWeight.Bold
-                )
-
-                Text("Followers")
-            }
-
-            Column(
-                horizontalAlignment =
-                    Alignment.CenterHorizontally
-            ) {
-
-                Text(
-                    text = "0",
-                    fontSize = 22.sp,
-                    fontWeight =
-                        FontWeight.Bold
-                )
-
-                Text("Following")
-            }
-        }
-
-        Spacer(
-            modifier = Modifier.height(28.dp)
-        )
-
-        Button(
-            onClick = {
-
-                editedName = profileName
-                editedBio = bio
-                profileError = ""
-                selectedProfilePhotoUri = null
-                showEditDialog = true
-
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-
-            Text("Edit Profile")
-        }
-
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
-
-        OutlinedButton(
-            onClick = {
-
-                val shareText =
-                    "Check out my profile on Peejee: $profileName"
-
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-
-                        type = "text/plain"
-
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            shareText
-                        )
+                itemsIndexed(
+                    profilePosts,
+                    key = { _, post ->
+                        post.id
                     }
+                ) { _, post ->
 
-                context.startActivity(
-                    Intent.createChooser(
-                        shareIntent,
-                        "Share Profile"
-                    )
+                    ProfilePostCard(post)
+                }
+            }
+
+            item {
+
+                Spacer(
+                    modifier = Modifier.height(30.dp)
                 )
-
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-
-            Text("Share Profile")
+            }
         }
     }
 
@@ -3128,8 +3453,7 @@ fun ProfilePage(
                     )
 
                     Spacer(
-                        modifier =
-                            Modifier.height(12.dp)
+                        modifier = Modifier.height(12.dp)
                     )
 
                     OutlinedTextField(
@@ -3146,17 +3470,14 @@ fun ProfilePage(
                     )
 
                     Spacer(
-                        modifier =
-                            Modifier.height(16.dp)
+                        modifier = Modifier.height(16.dp)
                     )
 
                     Button(
                         onClick = {
-
                             profilePhotoPicker.launch(
                                 "image/*"
                             )
-
                         },
                         enabled = !savingProfile,
                         modifier =
@@ -3165,14 +3486,10 @@ fun ProfilePage(
 
                         Text(
                             if (
-                                selectedProfilePhotoUri ==
-                                null
+                                selectedProfilePhotoUri == null
                             ) {
-
                                 "🖼️ Choose Profile Photo"
-
                             } else {
-
                                 "🖼️ Change Profile Photo"
                             }
                         )
@@ -3183,13 +3500,11 @@ fun ProfilePage(
                     ) {
 
                         Spacer(
-                            modifier =
-                                Modifier.height(8.dp)
+                            modifier = Modifier.height(8.dp)
                         )
 
                         Text(
                             text = "Photo selected",
-                            fontSize = 14.sp,
                             fontWeight =
                                 FontWeight.Bold
                         )
@@ -3198,8 +3513,7 @@ fun ProfilePage(
                     if (profileError.isNotEmpty()) {
 
                         Spacer(
-                            modifier =
-                                Modifier.height(8.dp)
+                            modifier = Modifier.height(8.dp)
                         )
 
                         Text(
@@ -3207,8 +3521,7 @@ fun ProfilePage(
                             color =
                                 MaterialTheme
                                     .colorScheme
-                                    .error,
-                            fontSize = 13.sp
+                                    .error
                         )
                     }
                 }
@@ -3248,11 +3561,6 @@ fun ProfilePage(
 
                             try {
 
-                                /*
-                                 * Convert selected image to
-                                 * compressed Base64 off the
-                                 * main UI thread.
-                                 */
                                 val photoBase64 =
                                     if (selectedUri != null) {
 
@@ -3262,44 +3570,37 @@ fun ProfilePage(
 
                                             try {
 
-                                                val inputStream =
+                                                val bitmap =
                                                     context
                                                         .contentResolver
                                                         .openInputStream(
                                                             selectedUri
                                                         )
-
-                                                val bitmap =
-                                                    inputStream?.use {
-                                                        BitmapFactory
-                                                            .decodeStream(
-                                                                it
-                                                            )
-                                                    }
+                                                        ?.use {
+                                                            BitmapFactory
+                                                                .decodeStream(
+                                                                    it
+                                                                )
+                                                        }
 
                                                 if (
                                                     bitmap != null
                                                 ) {
-
                                                     bitmapToBase64(
                                                         bitmap
                                                     )
-
                                                 } else {
-
                                                     ""
                                                 }
 
                                             } catch (
                                                 exception: Exception
                                             ) {
-
                                                 ""
                                             }
                                         }
 
                                     } else {
-
                                         savedProfilePhoto
                                     }
 
@@ -3318,18 +3619,21 @@ fun ProfilePage(
 
                                 val updates =
                                     hashMapOf<String, Any>(
-                                        "name" to
-                                            newName,
-                                        "bio" to
-                                            newBio,
+                                        "name" to newName,
+                                        "bio" to newBio,
                                         "profilePhoto" to
-                                            photoBase64
+                                            photoBase64,
+                                        "updatedAt" to
+                                            System.currentTimeMillis()
                                     )
 
                                 firestore
                                     .collection("users")
                                     .document(userId)
-                                    .update(updates)
+                                    .set(
+                                        updates,
+                                        SetOptions.merge()
+                                    )
                                     .addOnSuccessListener {
 
                                         profileName =
@@ -3341,6 +3645,12 @@ fun ProfilePage(
                                         savedProfilePhoto =
                                             photoBase64
 
+                                        editedName =
+                                            newName
+
+                                        editedBio =
+                                            newBio
+
                                         selectedProfilePhotoUri =
                                             null
 
@@ -3348,6 +3658,10 @@ fun ProfilePage(
 
                                         showEditDialog =
                                             false
+
+                                        onProfileNameChanged(
+                                            newName
+                                        )
                                     }
                                     .addOnFailureListener { exception ->
 
@@ -3391,10 +3705,434 @@ fun ProfilePage(
                         showEditDialog = false
                     }
                 ) {
-
                     Text("Cancel")
                 }
             }
         )
+    }
+
+    if (showLogoutDialog) {
+
+        AlertDialog(
+
+            onDismissRequest = {
+                showLogoutDialog = false
+            },
+
+            title = {
+                Text("Log Out?")
+            },
+
+            text = {
+                Text(
+                    "Are you sure you want to log out of Peejee?"
+                )
+            },
+
+            confirmButton = {
+
+                TextButton(
+                    onClick = {
+
+                        showLogoutDialog = false
+
+                        auth.signOut()
+
+                        onLoggedOut()
+                    }
+                ) {
+                    Text("Log Out")
+                }
+            },
+
+            dismissButton = {
+
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showFollowersDialog) {
+
+        PersonListDialog(
+            title = "Followers",
+            people = followers,
+            onDismiss = {
+                showFollowersDialog = false
+            }
+        )
+    }
+
+    if (showFollowingDialog) {
+
+        PersonListDialog(
+            title = "Following",
+            people = following,
+            onDismiss = {
+                showFollowingDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun ProfileStat(
+    count: Int,
+    label: String,
+    onClick: (() -> Unit)? = null
+) {
+
+    Column(
+        horizontalAlignment =
+            Alignment.CenterHorizontally,
+        modifier =
+            if (onClick != null) {
+                Modifier.clickable {
+                    onClick()
+                }
+            } else {
+                Modifier
+            }
+    ) {
+
+        Text(
+            text = count.toString(),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(label)
+    }
+}
+
+@Composable
+fun ProfilePostCard(
+    post: PeejeePost
+) {
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                vertical = 6.dp
+            )
+    ) {
+
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+
+            if (post.text.isNotBlank()) {
+
+                Text(
+                    text = post.text,
+                    fontSize = 17.sp
+                )
+            }
+
+            if (post.mediaType.isNotBlank()) {
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                Text(
+                    text =
+                        if (
+                            post.mediaType
+                                .lowercase()
+                                .contains("image") ||
+                            post.mediaType
+                                .lowercase() == "photo"
+                        ) {
+                            "🖼️ Photo post"
+                        } else {
+                            "🎥 Video post"
+                        },
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+
+            Text(
+                text =
+                    formatPostTime(
+                        post.timestamp
+                    ),
+                fontSize = 12.sp
+            )
+
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+
+            Text(
+                text =
+                    "❤️ ${post.likeCount} likes",
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun PersonListDialog(
+    title: String,
+    people: List<PeejeePerson>,
+    onDismiss: () -> Unit
+) {
+
+    AlertDialog(
+
+        onDismissRequest = onDismiss,
+
+        title = {
+            Text(title)
+        },
+
+        text = {
+
+            if (people.isEmpty()) {
+
+                Text(
+                    if (title == "Followers") {
+                        "No followers yet."
+                    } else {
+                        "You are not following anyone yet."
+                    }
+                )
+
+            } else {
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(
+                            max = 350.dp
+                        )
+                ) {
+
+                    itemsIndexed(
+                        people
+                    ) { _, person ->
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    vertical = 8.dp
+                                ),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+
+                            DefaultProfileIcon(
+                                size = 45
+                            )
+
+                            Spacer(
+                                modifier =
+                                    Modifier.width(12.dp)
+                            )
+
+                            Text(
+                                text = person.name,
+                                fontSize = 17.sp,
+                                fontWeight =
+                                    FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        },
+
+        confirmButton = {
+
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
+fun SettingsPage(
+    email: String,
+    paddingValues: PaddingValues,
+    onBack: () -> Unit
+) {
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    var message by remember {
+        mutableStateOf("")
+    }
+
+    var sending by remember {
+        mutableStateOf(false)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(20.dp)
+    ) {
+
+        Text(
+            text = "Account Settings",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Column(
+                modifier = Modifier.padding(18.dp)
+            ) {
+
+                Text(
+                    text = "Account Email",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                )
+
+                Spacer(
+                    modifier = Modifier.height(6.dp)
+                )
+
+                Text(
+                    text = email,
+                    fontSize = 16.sp
+                )
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(18.dp)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            Column(
+                modifier = Modifier.padding(18.dp)
+            ) {
+
+                Text(
+                    text = "Password",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+
+                Spacer(
+                    modifier = Modifier.height(6.dp)
+                )
+
+                Text(
+                    text =
+                        "Send a password-reset email to your account."
+                )
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                Button(
+                    onClick = {
+
+                        val currentEmail =
+                            auth.currentUser?.email
+
+                        if (currentEmail.isNullOrBlank()) {
+
+                            message =
+                                "No email address is available."
+
+                        } else {
+
+                            sending = true
+                            message = ""
+
+                            auth.sendPasswordResetEmail(
+                                currentEmail
+                            )
+                                .addOnSuccessListener {
+
+                                    sending = false
+
+                                    message =
+                                        "Password reset email sent."
+                                }
+                                .addOnFailureListener { exception ->
+
+                                    sending = false
+
+                                    message =
+                                        exception.message
+                                            ?: "Could not send reset email."
+                                }
+                        }
+                    },
+                    enabled = !sending,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Text(
+                        if (sending) {
+                            "Sending..."
+                        } else {
+                            "Send Password Reset Email"
+                        }
+                    )
+                }
+            }
+        }
+
+        if (message.isNotEmpty()) {
+
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
+
+            Text(
+                text = message,
+                color =
+                    MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
+
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("← Back to Profile")
+        }
     }
 }
