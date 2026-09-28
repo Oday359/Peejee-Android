@@ -924,6 +924,7 @@ fun HomeScreen(
 
                 HomeFeed(
                     name = name,
+                    currentUserId = currentUserId,
                     posts = posts,
                     followedUserIds = followedUserIds,
                     loadingPosts = loadingPosts,
@@ -1024,9 +1025,8 @@ fun HomeScreen(
                             null
 
                         }.addOnFailureListener {
-                            // Firestore listener will keep the
-                            // displayed data unchanged if the
-                            // operation fails.
+                            // Keep Firestore data unchanged
+                            // if the transaction fails.
                         }
                     },
 
@@ -1217,6 +1217,7 @@ fun HomeScreen(
 @Composable
 fun HomeFeed(
     name: String,
+    currentUserId: String,
     posts: List<PeejeePost>,
     followedUserIds: Set<String>,
     loadingPosts: Boolean,
@@ -1428,9 +1429,7 @@ fun HomeFeed(
                 post = post,
                 likeCount = post.likeCount,
                 isLiked =
-                    post.likedBy.values.any {
-                        it
-                    },
+                    post.likedBy[currentUserId] == true,
                 isFollowing =
                     followedUserIds.contains(
                         post.userId
