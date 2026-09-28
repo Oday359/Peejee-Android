@@ -782,6 +782,7 @@ fun HomeScreen(
                                     if (likedByRaw is Map<*, *>) {
 
                                         likedByRaw
+                                            .entries
                                             .mapNotNull { entry ->
 
                                                 val key =
@@ -934,99 +935,97 @@ fun HomeScreen(
                         val userId =
                             auth.currentUser?.uid
 
-                        if (userId == null) {
-                            return@HomeFeed
-                        }
+                        if (userId != null) {
 
-                        val postRef =
-                            firestore
-                                .collection("posts")
-                                .document(postId)
+                            val postRef =
+                                firestore
+                                    .collection("posts")
+                                    .document(postId)
 
-                        firestore.runTransaction { transaction ->
+                            firestore.runTransaction { transaction ->
 
-                            val snapshot =
-                                transaction.get(postRef)
+                                val snapshot =
+                                    transaction.get(postRef)
 
-                            val currentLikes =
-                                snapshot
-                                    .getLong("likes")
-                                    ?.toInt()
-                                    ?: 0
+                                val currentLikes =
+                                    snapshot
+                                        .getLong("likes")
+                                        ?.toInt()
+                                        ?: 0
 
-                            val rawLikedBy =
-                                snapshot.get("likedBy")
+                                val currentLikedBy =
+                                    mutableMapOf<String, Boolean>()
 
-                            val currentLikedBy =
+                                val rawLikedBy =
+                                    snapshot.get("likedBy")
+
                                 if (rawLikedBy is Map<*, *>) {
 
-                                    rawLikedBy
-                                        .mapNotNull { entry ->
+                                    for (entry in rawLikedBy.entries) {
 
-                                            val key =
-                                                entry.key as? String
+                                        val key =
+                                            entry.key as? String
 
-                                            val value =
-                                                entry.value as? Boolean
+                                        val value =
+                                            entry.value as? Boolean
 
-                                            if (
-                                                key != null &&
-                                                value != null
-                                            ) {
-                                                key to value
-                                            } else {
-                                                null
-                                            }
+                                        if (
+                                            key != null &&
+                                            value != null
+                                        ) {
+
+                                            currentLikedBy[key] =
+                                                value
                                         }
-                                        .toMutableMap()
-
-                                } else {
-                                    mutableMapOf()
+                                    }
                                 }
 
-                            val alreadyLiked =
-                                currentLikedBy[userId] == true
+                                val alreadyLiked =
+                                    currentLikedBy[userId] == true
 
-                            if (alreadyLiked) {
+                                if (alreadyLiked) {
 
-                                currentLikedBy.remove(userId)
+                                    currentLikedBy.remove(
+                                        userId
+                                    )
 
-                                transaction.update(
-                                    postRef,
-                                    "likes",
-                                    (currentLikes - 1)
-                                        .coerceAtLeast(0)
-                                )
+                                    transaction.update(
+                                        postRef,
+                                        "likes",
+                                        (currentLikes - 1)
+                                            .coerceAtLeast(0)
+                                    )
 
-                                transaction.update(
-                                    postRef,
-                                    "likedBy",
-                                    currentLikedBy
-                                )
+                                    transaction.update(
+                                        postRef,
+                                        "likedBy",
+                                        currentLikedBy
+                                    )
 
-                            } else {
+                                } else {
 
-                                currentLikedBy[userId] =
-                                    true
+                                    currentLikedBy[userId] =
+                                        true
 
-                                transaction.update(
-                                    postRef,
-                                    "likes",
-                                    currentLikes + 1
-                                )
+                                    transaction.update(
+                                        postRef,
+                                        "likes",
+                                        currentLikes + 1
+                                    )
 
-                                transaction.update(
-                                    postRef,
-                                    "likedBy",
-                                    currentLikedBy
-                                )
+                                    transaction.update(
+                                        postRef,
+                                        "likedBy",
+                                        currentLikedBy
+                                    )
+                                }
+
+                                null
+
+                            }.addOnFailureListener {
+                                // Keep Firestore data unchanged
+                                // if the transaction fails.
                             }
-
-                            null
-
-                        }.addOnFailureListener {
-                            // Keep Firestore data unchanged
-                            // if the transaction fails.
                         }
                     },
 
