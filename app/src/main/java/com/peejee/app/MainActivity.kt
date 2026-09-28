@@ -1,10 +1,10 @@
 package com.peejee.app
 
 import android.content.Intent
-import android.os.Bundle
-import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Bundle
 import android.util.Base64
 
 import androidx.activity.ComponentActivity
@@ -21,16 +21,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-
 import androidx.compose.material3.*
-
 import androidx.compose.runtime.*
-
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -40,9 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 
@@ -72,9 +67,7 @@ fun PeejeeLogo(
     size: Int = 70
 ) {
     Image(
-        painter = painterResource(
-            id = R.drawable.peejee_app_icon_512
-        ),
+        painter = painterResource(R.drawable.peejee_app_icon_512),
         contentDescription = "Peejee",
         modifier = modifier.size(size.dp),
         contentScale = ContentScale.Fit
@@ -82,16 +75,12 @@ fun PeejeeLogo(
 }
 
 @Composable
-fun DefaultProfileIcon(
-    size: Int = 65
-) {
+fun DefaultProfileIcon(size: Int = 65) {
     Box(
         modifier = Modifier
             .size(size.dp)
             .clip(CircleShape)
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant
-            ),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -104,7 +93,6 @@ fun DefaultProfileIcon(
 fun bitmapToBase64(bitmap: Bitmap): String {
     return try {
         val maxSize = 400
-
         val width = bitmap.width
         val height = bitmap.height
 
@@ -177,6 +165,31 @@ fun formatPostTime(timestamp: Long): String {
         ).format(Date(timestamp))
     } catch (exception: Exception) {
         ""
+    }
+}
+
+fun getLikedBy(
+    document: com.google.firebase.firestore.DocumentSnapshot
+): Map<String, Boolean> {
+
+    val raw = document.get("likedBy")
+
+    return if (raw is Map<*, *>) {
+
+        raw.entries.mapNotNull { entry ->
+
+            val key = entry.key as? String
+            val value = entry.value as? Boolean
+
+            if (key != null && value != null) {
+                key to value
+            } else {
+                null
+            }
+        }.toMap()
+
+    } else {
+        emptyMap()
     }
 }
 
@@ -309,7 +322,6 @@ fun WelcomeScreen(
     onCreateAccount: () -> Unit,
     onLogin: () -> Unit
 ) {
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -320,18 +332,14 @@ fun WelcomeScreen(
 
         PeejeeLogo(size = 130)
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(Modifier.height(12.dp))
 
         Text(
-            text = "Connect. Chat. Share.",
+            "Connect. Chat. Share.",
             fontSize = 18.sp
         )
 
-        Spacer(
-            modifier = Modifier.height(40.dp)
-        )
+        Spacer(Modifier.height(40.dp))
 
         Button(
             onClick = onCreateAccount,
@@ -340,9 +348,7 @@ fun WelcomeScreen(
             Text("Create Account")
         }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(Modifier.height(16.dp))
 
         OutlinedButton(
             onClick = onLogin,
@@ -384,94 +390,62 @@ fun SignUpScreen(
 
         PeejeeLogo(size = 90)
 
-        Spacer(
-            modifier = Modifier.height(10.dp)
-        )
+        Spacer(Modifier.height(10.dp))
 
         Text(
-            text = "Create Account",
+            "Create Account",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
+        Spacer(Modifier.height(24.dp))
 
         OutlinedTextField(
             value = name,
-            onValueChange = {
-                name = it
-            },
-            label = {
-                Text("Full Name")
-            },
+            onValueChange = { name = it },
+            label = { Text("Full Name") },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(Modifier.height(12.dp))
 
         OutlinedTextField(
             value = email,
-            onValueChange = {
-                email = it
-            },
-            label = {
-                Text("Email")
-            },
+            onValueChange = { email = it },
+            label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(Modifier.height(12.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = {
-                password = it
-            },
-            label = {
-                Text("Password")
-            },
-            visualTransformation =
-                PasswordVisualTransformation(),
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(Modifier.height(12.dp))
 
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = {
-                confirmPassword = it
-            },
-            label = {
-                Text("Confirm Password")
-            },
-            visualTransformation =
-                PasswordVisualTransformation(),
+            onValueChange = { confirmPassword = it },
+            label = { Text("Confirm Password") },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(Modifier.height(16.dp))
 
         if (errorMessage.isNotEmpty()) {
 
             Text(
-                text = errorMessage,
+                errorMessage,
                 color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(Modifier.height(12.dp))
         }
 
         Button(
@@ -481,25 +455,21 @@ fun SignUpScreen(
 
                 when {
 
-                    name.isBlank() -> {
+                    name.isBlank() ->
                         errorMessage =
                             "Please enter your full name."
-                    }
 
-                    email.isBlank() -> {
+                    email.isBlank() ->
                         errorMessage =
                             "Please enter your email."
-                    }
 
-                    password.length < 6 -> {
+                    password.length < 6 ->
                         errorMessage =
                             "Password must be at least 6 characters."
-                    }
 
-                    password != confirmPassword -> {
+                    password != confirmPassword ->
                         errorMessage =
                             "Passwords do not match."
-                    }
 
                     else -> {
 
@@ -524,7 +494,9 @@ fun SignUpScreen(
                                             "bio" to "",
                                             "profilePhoto" to "",
                                             "followersCount" to 0,
-                                            "followingCount" to 0
+                                            "followingCount" to 0,
+                                            "updatedAt" to
+                                                System.currentTimeMillis()
                                         )
 
                                     firestore
@@ -571,7 +543,6 @@ fun SignUpScreen(
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-
             Text(
                 if (loading) {
                     "Creating Account..."
@@ -581,9 +552,7 @@ fun SignUpScreen(
             )
         }
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(Modifier.height(12.dp))
 
         OutlinedButton(
             onClick = onBack,
@@ -624,62 +593,43 @@ fun LoginScreen(
 
         PeejeeLogo(size = 90)
 
-        Spacer(
-            modifier = Modifier.height(10.dp)
-        )
+        Spacer(Modifier.height(10.dp))
 
         Text(
-            text = "Log In",
+            "Log In",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
+        Spacer(Modifier.height(24.dp))
 
         OutlinedTextField(
             value = email,
-            onValueChange = {
-                email = it
-            },
-            label = {
-                Text("Email")
-            },
+            onValueChange = { email = it },
+            label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(Modifier.height(12.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = {
-                password = it
-            },
-            label = {
-                Text("Password")
-            },
-            visualTransformation =
-                PasswordVisualTransformation(),
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(Modifier.height(16.dp))
 
         if (errorMessage.isNotEmpty()) {
 
             Text(
-                text = errorMessage,
+                errorMessage,
                 color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(Modifier.height(12.dp))
         }
 
         Button(
@@ -689,15 +639,13 @@ fun LoginScreen(
 
                 when {
 
-                    email.isBlank() -> {
+                    email.isBlank() ->
                         errorMessage =
                             "Please enter your email."
-                    }
 
-                    password.isBlank() -> {
+                    password.isBlank() ->
                         errorMessage =
                             "Please enter your password."
-                    }
 
                     else -> {
 
@@ -722,27 +670,21 @@ fun LoginScreen(
 
                                             loading = false
 
-                                            val name =
+                                            onLoginSuccess(
                                                 document.getString("name")
                                                     ?: "Peejee User"
-
-                                            onLoginSuccess(name)
+                                            )
                                         }
                                         .addOnFailureListener {
 
                                             loading = false
-
-                                            onLoginSuccess(
-                                                "Peejee User"
-                                            )
+                                            onLoginSuccess("Peejee User")
                                         }
 
                                 } else {
 
                                     loading = false
-
-                                    errorMessage =
-                                        "Login failed."
+                                    errorMessage = "Login failed."
                                 }
 
                             } else {
@@ -762,17 +704,11 @@ fun LoginScreen(
         ) {
 
             Text(
-                if (loading) {
-                    "Logging In..."
-                } else {
-                    "Log In"
-                }
+                if (loading) "Logging In..." else "Log In"
             )
         }
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(Modifier.height(12.dp))
 
         OutlinedButton(
             onClick = onBack,
@@ -792,49 +728,21 @@ fun HomeScreen(
     onLoggedOut: () -> Unit
 ) {
 
-    var selectedTab by remember {
-        mutableStateOf(0)
-    }
-
-    var posts by remember {
-        mutableStateOf<List<PeejeePost>>(emptyList())
-    }
-
-    var followedUserIds by remember {
-        mutableStateOf(setOf<String>())
-    }
+    var selectedTab by remember { mutableStateOf(0) }
+    var posts by remember { mutableStateOf<List<PeejeePost>>(emptyList()) }
+    var followedUserIds by remember { mutableStateOf(setOf<String>()) }
 
     var selectedComments by remember {
         mutableStateOf<List<PeejeeComment>>(emptyList())
     }
 
-    var showCommentDialog by remember {
-        mutableStateOf(false)
-    }
-
-    var selectedPostId by remember {
-        mutableStateOf("")
-    }
-
-    var newComment by remember {
-        mutableStateOf("")
-    }
-
-    var loadingPosts by remember {
-        mutableStateOf(true)
-    }
-
-    var loadingComments by remember {
-        mutableStateOf(false)
-    }
-
-    var sendingComment by remember {
-        mutableStateOf(false)
-    }
-
-    var commentError by remember {
-        mutableStateOf("")
-    }
+    var showCommentDialog by remember { mutableStateOf(false) }
+    var selectedPostId by remember { mutableStateOf("") }
+    var newComment by remember { mutableStateOf("") }
+    var loadingPosts by remember { mutableStateOf(true) }
+    var loadingComments by remember { mutableStateOf(false) }
+    var sendingComment by remember { mutableStateOf(false) }
+    var commentError by remember { mutableStateOf("") }
 
     val context = LocalContext.current
 
@@ -870,75 +778,32 @@ fun HomeScreen(
                         posts =
                             snapshot.documents.mapNotNull { document ->
 
-                                val text =
-                                    document.getString("text")
-                                        ?: ""
-
-                                val userId =
-                                    document.getString("userId")
-                                        ?: ""
-
-                                val userName =
-                                    document.getString("userName")
-                                        ?: "Peejee User"
-
-                                val timestamp =
-                                    document.getLong("timestamp")
-                                        ?: 0L
-
-                                val mediaUrl =
-                                    document.getString("mediaUrl")
-                                        ?: ""
-
-                                val mediaType =
-                                    document.getString("mediaType")
-                                        ?: ""
-
-                                val likeCount =
-                                    document.getLong("likes")
-                                        ?.toInt()
-                                        ?: 0
-
-                                val likedByRaw =
-                                    document.get("likedBy")
-
-                                val likedBy =
-                                    if (likedByRaw is Map<*, *>) {
-
-                                        likedByRaw.entries
-                                            .mapNotNull { entry ->
-
-                                                val key =
-                                                    entry.key as? String
-
-                                                val value =
-                                                    entry.value as? Boolean
-
-                                                if (
-                                                    key != null &&
-                                                    value != null
-                                                ) {
-                                                    key to value
-                                                } else {
-                                                    null
-                                                }
-                                            }
-                                            .toMap()
-
-                                    } else {
-                                        emptyMap()
-                                    }
-
                                 PeejeePost(
                                     id = document.id,
-                                    userId = userId,
-                                    userName = userName,
-                                    text = text,
-                                    timestamp = timestamp,
-                                    mediaUrl = mediaUrl,
-                                    mediaType = mediaType,
-                                    likeCount = likeCount,
-                                    likedBy = likedBy
+                                    userId =
+                                        document.getString("userId")
+                                            ?: "",
+                                    userName =
+                                        document.getString("userName")
+                                            ?: "Peejee User",
+                                    text =
+                                        document.getString("text")
+                                            ?: "",
+                                    timestamp =
+                                        document.getLong("timestamp")
+                                            ?: 0L,
+                                    mediaUrl =
+                                        document.getString("mediaUrl")
+                                            ?: "",
+                                    mediaType =
+                                        document.getString("mediaType")
+                                            ?: "",
+                                    likeCount =
+                                        document.getLong("likes")
+                                            ?.toInt()
+                                            ?: 0,
+                                    likedBy =
+                                        getLikedBy(document)
                                 )
                             }
                     }
@@ -972,11 +837,10 @@ fun HomeScreen(
                             error == null &&
                             snapshot != null
                         ) {
+
                             followedUserIds =
                                 snapshot.documents
-                                    .map {
-                                        it.id
-                                    }
+                                    .map { it.id }
                                     .toSet()
                         }
                     }
@@ -1045,18 +909,15 @@ fun HomeScreen(
                                         PeejeeComment(
                                             id = document.id,
                                             userId =
-                                                document.getString(
-                                                    "userId"
-                                                ) ?: "",
+                                                document.getString("userId")
+                                                    ?: "",
                                             userName =
-                                                document.getString(
-                                                    "userName"
-                                                ) ?: "Peejee User",
+                                                document.getString("userName")
+                                                    ?: "Peejee User",
                                             text = text,
                                             timestamp =
-                                                document.getLong(
-                                                    "timestamp"
-                                                ) ?: 0L
+                                                document.getLong("timestamp")
+                                                    ?: 0L
                                         )
                                     }
                                 }
@@ -1087,67 +948,37 @@ fun HomeScreen(
 
                 NavigationBarItem(
                     selected = selectedTab == 0,
-                    onClick = {
-                        selectedTab = 0
-                    },
-                    icon = {
-                        Text("🏠")
-                    },
-                    label = {
-                        Text("Home")
-                    }
+                    onClick = { selectedTab = 0 },
+                    icon = { Text("🏠") },
+                    label = { Text("Home") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 1,
-                    onClick = {
-                        selectedTab = 1
-                    },
-                    icon = {
-                        Text("🔍")
-                    },
-                    label = {
-                        Text("Search")
-                    }
+                    onClick = { selectedTab = 1 },
+                    icon = { Text("🔍") },
+                    label = { Text("Search") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 2,
-                    onClick = {
-                        selectedTab = 2
-                    },
-                    icon = {
-                        Text("➕")
-                    },
-                    label = {
-                        Text("Post")
-                    }
+                    onClick = { selectedTab = 2 },
+                    icon = { Text("➕") },
+                    label = { Text("Post") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 3,
-                    onClick = {
-                        selectedTab = 3
-                    },
-                    icon = {
-                        Text("💬")
-                    },
-                    label = {
-                        Text("Messages")
-                    }
+                    onClick = { selectedTab = 3 },
+                    icon = { Text("💬") },
+                    label = { Text("Messages") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 4,
-                    onClick = {
-                        selectedTab = 4
-                    },
-                    icon = {
-                        Text("👤")
-                    },
-                    label = {
-                        Text("Profile")
-                    }
+                    onClick = { selectedTab = 4 },
+                    icon = { Text("👤") },
+                    label = { Text("Profile") }
                 )
             }
         }
@@ -1186,30 +1017,7 @@ fun HomeScreen(
                                     ?: 0
 
                             val currentLikedBy =
-                                mutableMapOf<String, Boolean>()
-
-                            val rawLikedBy =
-                                snapshot.get("likedBy")
-
-                            if (rawLikedBy is Map<*, *>) {
-
-                                rawLikedBy.entries.forEach { entry ->
-
-                                    val key =
-                                        entry.key as? String
-
-                                    val value =
-                                        entry.value as? Boolean
-
-                                    if (
-                                        key != null &&
-                                        value != null
-                                    ) {
-                                        currentLikedBy[key] =
-                                            value
-                                    }
-                                }
-                            }
+                                getLikedBy(snapshot).toMutableMap()
 
                             val alreadyLiked =
                                 currentLikedBy[userId] == true
@@ -1243,7 +1051,6 @@ fun HomeScreen(
                             )
 
                             null
-
                         }
                     }
                 },
@@ -1331,19 +1138,35 @@ fun HomeScreen(
 
                         } else {
 
+                            val currentUserName =
+                                currentUserSnapshot
+                                    .getString("name")
+                                    ?.trim()
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: name
+
+                            val targetUserName =
+                                targetUserSnapshot
+                                    .getString("name")
+                                    ?.trim()
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: "Peejee User"
+
+                            val now =
+                                System.currentTimeMillis()
+
                             val followerData =
                                 hashMapOf<String, Any>(
                                     "uid" to currentUser.uid,
-                                    "name" to name,
-                                    "timestamp" to
-                                        System.currentTimeMillis()
+                                    "name" to currentUserName,
+                                    "timestamp" to now
                                 )
 
                             val followingData =
                                 hashMapOf<String, Any>(
                                     "uid" to targetUserId,
-                                    "timestamp" to
-                                        System.currentTimeMillis()
+                                    "name" to targetUserName,
+                                    "timestamp" to now
                                 )
 
                             transaction.set(
@@ -1380,7 +1203,6 @@ fun HomeScreen(
                 },
 
                 onComment = { postId ->
-
                     selectedPostId = postId
                     newComment = ""
                     commentError = ""
@@ -1487,20 +1309,17 @@ fun HomeScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(
-                                            vertical = 6.dp
-                                        )
+                                        .padding(vertical = 6.dp)
                                 ) {
 
                                     Text(
-                                        text = comment.userName,
-                                        fontWeight =
-                                            FontWeight.Bold,
+                                        comment.userName,
+                                        fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp
                                     )
 
                                     Text(
-                                        text = comment.text,
+                                        comment.text,
                                         fontSize = 15.sp
                                     )
                                 }
@@ -1510,23 +1329,16 @@ fun HomeScreen(
 
                     if (commentError.isNotEmpty()) {
 
-                        Spacer(
-                            modifier = Modifier.height(8.dp)
-                        )
+                        Spacer(Modifier.height(8.dp))
 
                         Text(
-                            text = commentError,
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .error,
+                            commentError,
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 13.sp
                         )
                     }
 
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
+                    Spacer(Modifier.height(12.dp))
 
                     OutlinedTextField(
                         value = newComment,
@@ -1681,41 +1493,30 @@ fun HomeFeed(
 
         item {
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(Modifier.height(16.dp))
 
             Text(
-                text = "Welcome, $name 👋",
+                "Welcome, $name 👋",
                 fontSize = 25.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(
-                    horizontal = 16.dp
-                )
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(Modifier.height(16.dp))
 
             Text(
-                text = "🔴 Live Now",
+                "🔴 Live Now",
                 fontSize = 21.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(
-                    horizontal = 16.dp
-                )
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(Modifier.height(12.dp))
 
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    horizontal = 16.dp
-                ),
+                contentPadding =
+                    PaddingValues(horizontal = 16.dp),
                 horizontalArrangement =
                     Arrangement.spacedBy(12.dp)
             ) {
@@ -1751,50 +1552,40 @@ fun HomeFeed(
                                 }
                             }
 
-                            Spacer(
-                                modifier = Modifier.height(8.dp)
-                            )
+                            Spacer(Modifier.height(8.dp))
 
                             Text(
-                                text =
-                                    if (liveUser == "Live") {
-                                        "Peejee Live"
-                                    } else {
-                                        liveUser
-                                    },
+                                if (liveUser == "Live") {
+                                    "Peejee Live"
+                                } else {
+                                    liveUser
+                                },
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
 
-                            Spacer(
-                                modifier = Modifier.height(6.dp)
-                            )
+                            Spacer(Modifier.height(6.dp))
 
                             Surface(
-                                shape = MaterialTheme
-                                    .shapes
-                                    .small
+                                shape =
+                                    MaterialTheme.shapes.small
                             ) {
 
                                 Text(
-                                    text = "🔴 LIVE",
+                                    "🔴 LIVE",
                                     fontSize = 12.sp,
-                                    fontWeight =
-                                        FontWeight.Bold,
-                                    modifier =
-                                        Modifier.padding(
-                                            horizontal = 8.dp,
-                                            vertical = 4.dp
-                                        )
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(
+                                        horizontal = 8.dp,
+                                        vertical = 4.dp
+                                    )
                                 )
                             }
 
-                            Spacer(
-                                modifier = Modifier.height(6.dp)
-                            )
+                            Spacer(Modifier.height(6.dp))
 
                             Text(
-                                text = "👁 0 viewers",
+                                "👁 0 viewers",
                                 fontSize = 12.sp
                             )
                         }
@@ -1802,9 +1593,7 @@ fun HomeFeed(
                 }
             }
 
-            Spacer(
-                modifier = Modifier.height(20.dp)
-            )
+            Spacer(Modifier.height(20.dp))
 
             if (loadingPosts) {
 
@@ -1835,20 +1624,13 @@ fun HomeFeed(
 
                         PeejeeLogo(size = 75)
 
-                        Spacer(
-                            modifier = Modifier.height(8.dp)
-                        )
+                        Spacer(Modifier.height(8.dp))
 
-                        Text(
-                            text = "No posts yet",
-                            fontSize = 16.sp
-                        )
+                        Text("No posts yet")
                     }
                 }
 
-                Spacer(
-                    modifier = Modifier.height(20.dp)
-                )
+                Spacer(Modifier.height(20.dp))
             }
         }
 
@@ -1864,7 +1646,7 @@ fun HomeFeed(
                     post.likedBy[currentUserId] == true,
                 isFollowing =
                     followedUserIds.contains(post.userId),
-                currentUserName = name,
+                currentUserId = currentUserId,
                 onLike = {
                     onLike(post.id)
                 },
@@ -1881,9 +1663,7 @@ fun HomeFeed(
         }
 
         item {
-            Spacer(
-                modifier = Modifier.height(30.dp)
-            )
+            Spacer(Modifier.height(30.dp))
         }
     }
 }
@@ -1894,7 +1674,7 @@ fun TikTokStylePost(
     likeCount: Int,
     isLiked: Boolean,
     isFollowing: Boolean,
-    currentUserName: String,
+    currentUserId: String,
     onLike: () -> Unit,
     onFollow: () -> Unit,
     onComment: () -> Unit,
@@ -1933,32 +1713,29 @@ fun TikTokStylePost(
 
                     DefaultProfileIcon(size = 48)
 
-                    Spacer(
-                        modifier = Modifier.width(10.dp)
-                    )
+                    Spacer(Modifier.width(10.dp))
 
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
 
                         Text(
-                            text = post.userName,
+                            post.userName,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
                         )
 
                         Text(
-                            text =
-                                "@${post.userName
-                                    .replace(" ", "")
-                                    .lowercase()}",
+                            "@${post.userName
+                                .replace(" ", "")
+                                .lowercase()}",
                             fontSize = 12.sp
                         )
                     }
 
                     if (
                         post.userId.isNotEmpty() &&
-                        post.userName != currentUserName
+                        post.userId != currentUserId
                     ) {
 
                         OutlinedButton(
@@ -1968,8 +1745,7 @@ fun TikTokStylePost(
                                     horizontal = 12.dp,
                                     vertical = 0.dp
                                 ),
-                            modifier =
-                                Modifier.height(36.dp)
+                            modifier = Modifier.height(36.dp)
                         ) {
 
                             Text(
@@ -1983,9 +1759,7 @@ fun TikTokStylePost(
                     }
                 }
 
-                Spacer(
-                    modifier = Modifier.height(12.dp)
-                )
+                Spacer(Modifier.height(12.dp))
 
                 if (post.mediaUrl.isNotBlank()) {
 
@@ -2011,7 +1785,7 @@ fun TikTokStylePost(
                         ) {
 
                             Text(
-                                text = "🖼️",
+                                "🖼️",
                                 fontSize = 70.sp
                             )
 
@@ -2023,15 +1797,14 @@ fun TikTokStylePost(
                             ) {
 
                                 Text(
-                                    text = "▶",
+                                    "▶",
                                     fontSize = 70.sp
                                 )
 
                                 Text(
-                                    text = "Video post",
+                                    "Video post",
                                     fontSize = 18.sp,
-                                    fontWeight =
-                                        FontWeight.Bold
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -2059,26 +1832,19 @@ fun TikTokStylePost(
 
                             PeejeeLogo(size = 90)
 
-                            Spacer(
-                                modifier = Modifier.height(8.dp)
-                            )
+                            Spacer(Modifier.height(8.dp))
 
-                            Text(
-                                text = "Post",
-                                fontSize = 16.sp
-                            )
+                            Text("Post")
                         }
                     }
                 }
 
                 if (post.text.isNotBlank()) {
 
-                    Spacer(
-                        modifier = Modifier.height(10.dp)
-                    )
+                    Spacer(Modifier.height(10.dp))
 
                     Text(
-                        text = post.text,
+                        post.text,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(
                             horizontal = 16.dp
@@ -2086,9 +1852,7 @@ fun TikTokStylePost(
                     )
                 }
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                Spacer(Modifier.height(14.dp))
             }
 
             Column(
@@ -2106,9 +1870,7 @@ fun TikTokStylePost(
                     onClick = onLike
                 )
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                Spacer(Modifier.height(14.dp))
 
                 ActionCircle(
                     icon = "💬",
@@ -2116,9 +1878,7 @@ fun TikTokStylePost(
                     onClick = onComment
                 )
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                Spacer(Modifier.height(14.dp))
 
                 ActionCircle(
                     icon = "↗️",
@@ -2126,9 +1886,7 @@ fun TikTokStylePost(
                     onClick = onShare
                 )
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                Spacer(Modifier.height(14.dp))
 
                 ActionCircle(
                     icon = "🔊",
@@ -2148,8 +1906,7 @@ fun ActionCircle(
 ) {
 
     Column(
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable {
             onClick()
         }
@@ -2162,22 +1919,19 @@ fun ActionCircle(
                 .background(
                     Color.Black.copy(alpha = 0.55f)
                 ),
-            contentAlignment =
-                Alignment.Center
+            contentAlignment = Alignment.Center
         ) {
 
             Text(
-                text = icon,
+                icon,
                 fontSize = 25.sp
             )
         }
 
-        Spacer(
-            modifier = Modifier.height(3.dp)
-        )
+        Spacer(Modifier.height(3.dp))
 
         Text(
-            text = label,
+            label,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
@@ -2217,19 +1971,15 @@ fun SearchPage(
 
         PeejeeLogo(size = 65)
 
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
+        Spacer(Modifier.height(8.dp))
 
         Text(
-            text = "Search",
+            "Search",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(Modifier.height(16.dp))
 
         OutlinedTextField(
             value = searchText,
@@ -2242,9 +1992,7 @@ fun SearchPage(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
+        Spacer(Modifier.height(20.dp))
 
         results.forEach { person ->
 
@@ -2264,12 +2012,10 @@ fun SearchPage(
 
                     DefaultProfileIcon(size = 45)
 
-                    Spacer(
-                        modifier = Modifier.width(14.dp)
-                    )
+                    Spacer(Modifier.width(14.dp))
 
                     Text(
-                        text = person,
+                        person,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -2285,25 +2031,11 @@ fun CreatePostPage(
     paddingValues: PaddingValues
 ) {
 
-    var postText by remember {
-        mutableStateOf("")
-    }
-
-    var selectedMedia by remember {
-        mutableStateOf<Uri?>(null)
-    }
-
-    var mediaType by remember {
-        mutableStateOf("")
-    }
-
-    var publishing by remember {
-        mutableStateOf(false)
-    }
-
-    var errorMessage by remember {
-        mutableStateOf("")
-    }
+    var postText by remember { mutableStateOf("") }
+    var selectedMedia by remember { mutableStateOf<Uri?>(null) }
+    var mediaType by remember { mutableStateOf("") }
+    var publishing by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
     val firestore = remember {
         FirebaseFirestore.getInstance()
@@ -2315,8 +2047,7 @@ fun CreatePostPage(
 
     val photoPicker =
         rememberLauncherForActivityResult(
-            contract =
-                ActivityResultContracts.GetContent()
+            ActivityResultContracts.GetContent()
         ) { uri ->
 
             if (uri != null) {
@@ -2327,8 +2058,7 @@ fun CreatePostPage(
 
     val videoPicker =
         rememberLauncherForActivityResult(
-            contract =
-                ActivityResultContracts.GetContent()
+            ActivityResultContracts.GetContent()
         ) { uri ->
 
             if (uri != null) {
@@ -2346,19 +2076,15 @@ fun CreatePostPage(
 
         PeejeeLogo(size = 65)
 
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
+        Spacer(Modifier.height(8.dp))
 
         Text(
-            text = "Create Post",
+            "Create Post",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
+        Spacer(Modifier.height(20.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2385,9 +2111,7 @@ fun CreatePostPage(
             }
         }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(Modifier.height(16.dp))
 
         if (selectedMedia != null) {
 
@@ -2400,28 +2124,23 @@ fun CreatePostPage(
                 ) {
 
                     Text(
-                        text =
-                            if (mediaType == "photo") {
-                                "Photo selected"
-                            } else {
-                                "Video selected"
-                            },
+                        if (mediaType == "photo") {
+                            "Photo selected"
+                        } else {
+                            "Video selected"
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(8.dp)
-                    )
+                    Spacer(Modifier.height(8.dp))
 
                     Text(
-                        text = selectedMedia.toString(),
+                        selectedMedia.toString(),
                         fontSize = 12.sp
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
+                    Spacer(Modifier.height(12.dp))
 
                     OutlinedButton(
                         onClick = {
@@ -2434,9 +2153,7 @@ fun CreatePostPage(
                 }
             }
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(Modifier.height(16.dp))
         }
 
         OutlinedTextField(
@@ -2452,21 +2169,16 @@ fun CreatePostPage(
                 .height(180.dp)
         )
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(Modifier.height(16.dp))
 
         if (errorMessage.isNotEmpty()) {
 
             Text(
-                text = errorMessage,
-                color =
-                    MaterialTheme.colorScheme.error
+                errorMessage,
+                color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(Modifier.height(12.dp))
         }
 
         Button(
@@ -2505,16 +2217,11 @@ fun CreatePostPage(
 
                 val postData =
                     hashMapOf<String, Any>(
-                        "postId" to
-                            postReference.id,
-                        "userId" to
-                            currentUser.uid,
-                        "userName" to
-                            "Peejee User",
-                        "text" to
-                            postText.trim(),
-                        "likes" to
-                            0,
+                        "postId" to postReference.id,
+                        "userId" to currentUser.uid,
+                        "userName" to "Peejee User",
+                        "text" to postText.trim(),
+                        "likes" to 0,
                         "likedBy" to
                             emptyMap<String, Boolean>(),
                         "timestamp" to
@@ -2527,8 +2234,7 @@ fun CreatePostPage(
                         mediaType
 
                     postData["mediaUrl"] =
-                        selectedMedia?.toString()
-                            ?: ""
+                        selectedMedia?.toString() ?: ""
                 }
 
                 firestore
@@ -2615,19 +2321,15 @@ fun MessagesPage(
 
         PeejeeLogo(size = 70)
 
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
+        Spacer(Modifier.height(8.dp))
 
         Text(
-            text = "Messages",
+            "Messages",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
+        Spacer(Modifier.height(20.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth()
@@ -2641,21 +2343,15 @@ fun MessagesPage(
 
                 PeejeeLogo(size = 70)
 
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
+                Spacer(Modifier.height(8.dp))
 
                 Text(
                     "Welcome $name! Your conversations will appear here."
                 )
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                Spacer(Modifier.height(14.dp))
 
-                Button(
-                    onClick = {}
-                ) {
+                Button(onClick = {}) {
                     Text("Start a Chat")
                 }
             }
@@ -2772,12 +2468,10 @@ fun ProfilePage(
 
     val profilePhotoPicker =
         rememberLauncherForActivityResult(
-            contract =
-                ActivityResultContracts.GetContent()
+            ActivityResultContracts.GetContent()
         ) { uri ->
 
             if (uri != null) {
-
                 selectedProfilePhotoUri = uri
                 profileError = ""
             }
@@ -2801,10 +2495,8 @@ fun ProfilePage(
                         context
                             .contentResolver
                             .openInputStream(selectedUri)
-                            ?.use { inputStream ->
-                                BitmapFactory.decodeStream(
-                                    inputStream
-                                )
+                            ?.use {
+                                BitmapFactory.decodeStream(it)
                             }
 
                     } catch (exception: Exception) {
@@ -2849,52 +2541,44 @@ fun ProfilePage(
                             return@addSnapshotListener
                         }
 
-                        if (document != null &&
+                        if (
+                            document != null &&
                             document.exists()
                         ) {
 
                             val savedName =
                                 document.getString("name")
+                                    ?.trim()
+                                    ?.takeIf { it.isNotBlank() }
                                     ?: name
 
                             val savedBio =
                                 document.getString("bio")
                                     ?: ""
 
-                            profileName =
-                                savedName
-
-                            bio =
-                                savedBio
-
-                            editedName =
-                                savedName
-
-                            editedBio =
-                                savedBio
+                            profileName = savedName
+                            bio = savedBio
+                            editedName = savedName
+                            editedBio = savedBio
 
                             savedProfilePhoto =
-                                document.getString(
-                                    "profilePhoto"
-                                ) ?: ""
+                                document.getString("profilePhoto")
+                                    ?: ""
 
                             followersCount =
                                 document
-                                    .getLong(
-                                        "followersCount"
-                                    )
+                                    .getLong("followersCount")
                                     ?.toInt()
                                     ?: 0
 
                             followingCount =
                                 document
-                                    .getLong(
-                                        "followingCount"
-                                    )
+                                    .getLong("followingCount")
                                     ?.toInt()
                                     ?: 0
 
                             loading = false
+
                         } else {
 
                             loading = false
@@ -2935,40 +2619,50 @@ fun ProfilePage(
                                 snapshot.documents
                                     .mapNotNull { document ->
 
-                                        val postUserId =
-                                            document.getString(
-                                                "userId"
-                                            ) ?: ""
-
-                                        val postText =
-                                            document.getString(
-                                                "text"
-                                            ) ?: ""
-
                                         PeejeePost(
                                             id = document.id,
-                                            userId = postUserId,
+
+                                            userId =
+                                                document.getString(
+                                                    "userId"
+                                                ) ?: userId,
+
                                             userName =
                                                 document.getString(
                                                     "userName"
-                                                ) ?: profileName,
-                                            text = postText,
+                                                )
+                                                    ?.takeIf {
+                                                        it.isNotBlank()
+                                                    }
+                                                    ?: profileName,
+
+                                            text =
+                                                document.getString(
+                                                    "text"
+                                                ) ?: "",
+
                                             timestamp =
                                                 document.getLong(
                                                     "timestamp"
                                                 ) ?: 0L,
+
                                             mediaUrl =
                                                 document.getString(
                                                     "mediaUrl"
                                                 ) ?: "",
+
                                             mediaType =
                                                 document.getString(
                                                     "mediaType"
                                                 ) ?: "",
+
                                             likeCount =
                                                 document.getLong(
                                                     "likes"
-                                                )?.toInt() ?: 0
+                                                )?.toInt() ?: 0,
+
+                                            likedBy =
+                                                getLikedBy(document)
                                         )
                                     }
                                     .sortedByDescending {
@@ -3024,6 +2718,10 @@ fun ProfilePage(
 
                                     val savedName =
                                         document.getString("name")
+                                            ?.trim()
+                                            ?.takeIf {
+                                                it.isNotBlank()
+                                            }
                                             ?: "Peejee User"
 
                                     PeejeePerson(
@@ -3079,13 +2777,17 @@ fun ProfilePage(
                                         document.getString("uid")
                                             ?: document.id
 
+                                    val savedName =
+                                        document.getString("name")
+                                            ?.trim()
+                                            ?.takeIf {
+                                                it.isNotBlank()
+                                            }
+                                            ?: "Peejee User"
+
                                     PeejeePerson(
                                         uid = uid,
-                                        name =
-                                            document.getString(
-                                                "name"
-                                            )
-                                                ?: "Peejee User"
+                                        name = savedName
                                     )
                                 }
                         }
@@ -3114,11 +2816,8 @@ fun ProfilePage(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(
-                horizontal = 20.dp
-            ),
-        horizontalAlignment =
-            Alignment.CenterHorizontally
+            .padding(horizontal = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
         LazyColumn(
@@ -3129,9 +2828,7 @@ fun ProfilePage(
 
             item {
 
-                Spacer(
-                    modifier = Modifier.height(20.dp)
-                )
+                Spacer(Modifier.height(20.dp))
 
                 Box(
                     modifier = Modifier
@@ -3162,28 +2859,22 @@ fun ProfilePage(
                     }
                 }
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
+                Spacer(Modifier.height(16.dp))
 
                 Text(
-                    text = profileName,
+                    profileName,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
+                Spacer(Modifier.height(8.dp))
 
                 Text(
-                    text = email,
+                    email,
                     fontSize = 16.sp
                 )
 
-                Spacer(
-                    modifier = Modifier.height(12.dp)
-                )
+                Spacer(Modifier.height(12.dp))
 
                 if (loading) {
 
@@ -3192,37 +2883,30 @@ fun ProfilePage(
                 } else if (bio.isBlank()) {
 
                     Text(
-                        text = "No bio yet.",
+                        "No bio yet.",
                         fontSize = 16.sp
                     )
 
                 } else {
 
                     Text(
-                        text = bio,
+                        bio,
                         fontSize = 16.sp
                     )
                 }
 
                 if (profileError.isNotEmpty()) {
 
-                    Spacer(
-                        modifier = Modifier.height(8.dp)
-                    )
+                    Spacer(Modifier.height(8.dp))
 
                     Text(
-                        text = profileError,
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .error,
+                        profileError,
+                        color = MaterialTheme.colorScheme.error,
                         fontSize = 13.sp
                     )
                 }
 
-                Spacer(
-                    modifier = Modifier.height(24.dp)
-                )
+                Spacer(Modifier.height(24.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3252,9 +2936,7 @@ fun ProfilePage(
                     )
                 }
 
-                Spacer(
-                    modifier = Modifier.height(24.dp)
-                )
+                Spacer(Modifier.height(24.dp))
 
                 Button(
                     onClick = {
@@ -3271,9 +2953,7 @@ fun ProfilePage(
                     Text("✏️ Edit Profile")
                 }
 
-                Spacer(
-                    modifier = Modifier.height(10.dp)
-                )
+                Spacer(Modifier.height(10.dp))
 
                 OutlinedButton(
                     onClick = {
@@ -3284,9 +2964,7 @@ fun ProfilePage(
                     Text("🔒 Account Settings")
                 }
 
-                Spacer(
-                    modifier = Modifier.height(10.dp)
-                )
+                Spacer(Modifier.height(10.dp))
 
                 OutlinedButton(
                     onClick = {
@@ -3315,9 +2993,7 @@ fun ProfilePage(
                     Text("↗️ Share Profile")
                 }
 
-                Spacer(
-                    modifier = Modifier.height(10.dp)
-                )
+                Spacer(Modifier.height(10.dp))
 
                 OutlinedButton(
                     onClick = {
@@ -3328,9 +3004,7 @@ fun ProfilePage(
                     Text("🚪 Log Out")
                 }
 
-                Spacer(
-                    modifier = Modifier.height(28.dp)
-                )
+                Spacer(Modifier.height(28.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3339,24 +3013,20 @@ fun ProfilePage(
                 ) {
 
                     Text(
-                        text = "My Posts",
+                        "My Posts",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(
-                        modifier = Modifier.width(8.dp)
-                    )
+                    Spacer(Modifier.width(8.dp))
 
                     Text(
-                        text = "(${profilePosts.size})",
+                        "(${profilePosts.size})",
                         fontSize = 18.sp
                     )
                 }
 
-                Spacer(
-                    modifier = Modifier.height(12.dp)
-                )
+                Spacer(Modifier.height(12.dp))
             }
 
             if (profilePosts.isEmpty()) {
@@ -3366,30 +3036,23 @@ fun ProfilePage(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(
-                                vertical = 8.dp
-                            )
+                            .padding(vertical = 8.dp)
                     ) {
 
                         Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(25.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(25.dp),
                             horizontalAlignment =
                                 Alignment.CenterHorizontally
                         ) {
 
                             PeejeeLogo(size = 70)
 
-                            Spacer(
-                                modifier =
-                                    Modifier.height(8.dp)
-                            )
+                            Spacer(Modifier.height(8.dp))
 
                             Text(
-                                text =
-                                    "You haven't posted yet."
+                                "You haven't posted yet."
                             )
                         }
                     }
@@ -3399,9 +3062,7 @@ fun ProfilePage(
 
                 itemsIndexed(
                     profilePosts,
-                    key = { _, post ->
-                        post.id
-                    }
+                    key = { _, post -> post.id }
                 ) { _, post ->
 
                     ProfilePostCard(post)
@@ -3409,10 +3070,7 @@ fun ProfilePage(
             }
 
             item {
-
-                Spacer(
-                    modifier = Modifier.height(30.dp)
-                )
+                Spacer(Modifier.height(30.dp))
             }
         }
     }
@@ -3448,13 +3106,10 @@ fun ProfilePage(
                         label = {
                             Text("Name")
                         },
-                        modifier =
-                            Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
+                    Spacer(Modifier.height(12.dp))
 
                     OutlinedTextField(
                         value = editedBio,
@@ -3465,29 +3120,21 @@ fun ProfilePage(
                         label = {
                             Text("Bio")
                         },
-                        modifier =
-                            Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(16.dp)
-                    )
+                    Spacer(Modifier.height(16.dp))
 
                     Button(
                         onClick = {
-                            profilePhotoPicker.launch(
-                                "image/*"
-                            )
+                            profilePhotoPicker.launch("image/*")
                         },
                         enabled = !savingProfile,
-                        modifier =
-                            Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     ) {
 
                         Text(
-                            if (
-                                selectedProfilePhotoUri == null
-                            ) {
+                            if (selectedProfilePhotoUri == null) {
                                 "🖼️ Choose Profile Photo"
                             } else {
                                 "🖼️ Change Profile Photo"
@@ -3495,33 +3142,24 @@ fun ProfilePage(
                         )
                     }
 
-                    if (
-                        selectedProfilePhotoUri != null
-                    ) {
+                    if (selectedProfilePhotoUri != null) {
 
-                        Spacer(
-                            modifier = Modifier.height(8.dp)
-                        )
+                        Spacer(Modifier.height(8.dp))
 
                         Text(
-                            text = "Photo selected",
-                            fontWeight =
-                                FontWeight.Bold
+                            "Photo selected",
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
                     if (profileError.isNotEmpty()) {
 
-                        Spacer(
-                            modifier = Modifier.height(8.dp)
-                        )
+                        Spacer(Modifier.height(8.dp))
 
                         Text(
-                            text = profileError,
+                            profileError,
                             color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .error
+                                MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -3578,17 +3216,11 @@ fun ProfilePage(
                                                         )
                                                         ?.use {
                                                             BitmapFactory
-                                                                .decodeStream(
-                                                                    it
-                                                                )
+                                                                .decodeStream(it)
                                                         }
 
-                                                if (
-                                                    bitmap != null
-                                                ) {
-                                                    bitmapToBase64(
-                                                        bitmap
-                                                    )
+                                                if (bitmap != null) {
+                                                    bitmapToBase64(bitmap)
                                                 } else {
                                                     ""
                                                 }
@@ -3636,28 +3268,15 @@ fun ProfilePage(
                                     )
                                     .addOnSuccessListener {
 
-                                        profileName =
-                                            newName
-
-                                        bio =
-                                            newBio
-
+                                        profileName = newName
+                                        bio = newBio
                                         savedProfilePhoto =
                                             photoBase64
-
-                                        editedName =
-                                            newName
-
-                                        editedBio =
-                                            newBio
-
-                                        selectedProfilePhotoUri =
-                                            null
-
+                                        editedName = newName
+                                        editedBio = newBio
+                                        selectedProfilePhotoUri = null
                                         savingProfile = false
-
-                                        showEditDialog =
-                                            false
+                                        showEditDialog = false
 
                                         onProfileNameChanged(
                                             newName
@@ -3789,8 +3408,7 @@ fun ProfileStat(
 ) {
 
     Column(
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
             if (onClick != null) {
                 Modifier.clickable {
@@ -3802,7 +3420,7 @@ fun ProfileStat(
     ) {
 
         Text(
-            text = count.toString(),
+            count.toString(),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
@@ -3819,9 +3437,7 @@ fun ProfilePostCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                vertical = 6.dp
-            )
+            .padding(vertical = 6.dp)
     ) {
 
         Column(
@@ -3831,53 +3447,42 @@ fun ProfilePostCard(
             if (post.text.isNotBlank()) {
 
                 Text(
-                    text = post.text,
+                    post.text,
                     fontSize = 17.sp
                 )
             }
 
             if (post.mediaType.isNotBlank()) {
 
-                Spacer(
-                    modifier = Modifier.height(10.dp)
-                )
+                Spacer(Modifier.height(10.dp))
 
                 Text(
-                    text =
-                        if (
-                            post.mediaType
-                                .lowercase()
-                                .contains("image") ||
-                            post.mediaType
-                                .lowercase() == "photo"
-                        ) {
-                            "🖼️ Photo post"
-                        } else {
-                            "🎥 Video post"
-                        },
+                    if (
+                        post.mediaType
+                            .lowercase()
+                            .contains("image") ||
+                        post.mediaType
+                            .lowercase() == "photo"
+                    ) {
+                        "🖼️ Photo post"
+                    } else {
+                        "🎥 Video post"
+                    },
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
+            Spacer(Modifier.height(8.dp))
 
             Text(
-                text =
-                    formatPostTime(
-                        post.timestamp
-                    ),
+                formatPostTime(post.timestamp),
                 fontSize = 12.sp
             )
 
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
+            Spacer(Modifier.height(8.dp))
 
             Text(
-                text =
-                    "❤️ ${post.likeCount} likes",
+                "❤️ ${post.likeCount} likes",
                 fontSize = 13.sp
             )
         }
@@ -3916,39 +3521,27 @@ fun PersonListDialog(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(
-                            max = 350.dp
-                        )
+                        .heightIn(max = 350.dp)
                 ) {
 
-                    itemsIndexed(
-                        people
-                    ) { _, person ->
+                    itemsIndexed(people) { _, person ->
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(
-                                    vertical = 8.dp
-                                ),
+                                .padding(vertical = 8.dp),
                             verticalAlignment =
                                 Alignment.CenterVertically
                         ) {
 
-                            DefaultProfileIcon(
-                                size = 45
-                            )
+                            DefaultProfileIcon(size = 45)
 
-                            Spacer(
-                                modifier =
-                                    Modifier.width(12.dp)
-                            )
+                            Spacer(Modifier.width(12.dp))
 
                             Text(
-                                text = person.name,
+                                person.name,
                                 fontSize = 17.sp,
-                                fontWeight =
-                                    FontWeight.Bold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -3958,9 +3551,7 @@ fun PersonListDialog(
 
         confirmButton = {
 
-            TextButton(
-                onClick = onDismiss
-            ) {
+            TextButton(onClick = onDismiss) {
                 Text("Close")
             }
         }
@@ -3994,14 +3585,12 @@ fun SettingsPage(
     ) {
 
         Text(
-            text = "Account Settings",
+            "Account Settings",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
+        Spacer(Modifier.height(24.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth()
@@ -4012,25 +3601,21 @@ fun SettingsPage(
             ) {
 
                 Text(
-                    text = "Account Email",
+                    "Account Email",
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp
                 )
 
-                Spacer(
-                    modifier = Modifier.height(6.dp)
-                )
+                Spacer(Modifier.height(6.dp))
 
                 Text(
-                    text = email,
+                    email,
                     fontSize = 16.sp
                 )
             }
         }
 
-        Spacer(
-            modifier = Modifier.height(18.dp)
-        )
+        Spacer(Modifier.height(18.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth()
@@ -4041,23 +3626,18 @@ fun SettingsPage(
             ) {
 
                 Text(
-                    text = "Password",
+                    "Password",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
 
-                Spacer(
-                    modifier = Modifier.height(6.dp)
-                )
+                Spacer(Modifier.height(6.dp))
 
                 Text(
-                    text =
-                        "Send a password-reset email to your account."
+                    "Send a password-reset email to your account."
                 )
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                Spacer(Modifier.height(14.dp))
 
                 Button(
                     onClick = {
@@ -4112,21 +3692,16 @@ fun SettingsPage(
 
         if (message.isNotEmpty()) {
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(Modifier.height(16.dp))
 
             Text(
-                text = message,
-                color =
-                    MaterialTheme.colorScheme.primary,
+                message,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
+        Spacer(Modifier.height(24.dp))
 
         OutlinedButton(
             onClick = onBack,
