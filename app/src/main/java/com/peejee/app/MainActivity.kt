@@ -45,6 +45,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import java.io.ByteArrayOutputStream
@@ -92,6 +93,97 @@ fun DefaultProfileIcon(
             text = "👤",
             fontSize = (size * 0.55f).sp
         )
+    }
+}
+
+fun bitmapToBase64(bitmap: Bitmap): String {
+
+    return try {
+
+        val maxSize = 600
+
+        val width = bitmap.width
+        val height = bitmap.height
+
+        val scale =
+            minOf(
+                1f,
+                maxSize.toFloat() /
+                    maxOf(width, height)
+            )
+
+        val resizedBitmap =
+            if (scale < 1f) {
+
+                Bitmap.createScaledBitmap(
+                    bitmap,
+                    (width * scale)
+                        .toInt()
+                        .coerceAtLeast(1),
+                    (height * scale)
+                        .toInt()
+                        .coerceAtLeast(1),
+                    true
+                )
+
+            } else {
+
+                bitmap
+            }
+
+        val outputStream =
+            ByteArrayOutputStream()
+
+        resizedBitmap.compress(
+            Bitmap.CompressFormat.JPEG,
+            70,
+            outputStream
+        )
+
+        val imageBytes =
+            outputStream.toByteArray()
+
+        if (resizedBitmap !== bitmap) {
+            resizedBitmap.recycle()
+        }
+
+        Base64.encodeToString(
+            imageBytes,
+            Base64.NO_WRAP
+        )
+
+    } catch (exception: Exception) {
+
+        ""
+    }
+}
+
+fun base64ToBitmap(
+    base64: String
+): Bitmap? {
+
+    return try {
+
+        if (base64.isBlank()) {
+            null
+        } else {
+
+            val imageBytes =
+                Base64.decode(
+                    base64,
+                    Base64.DEFAULT
+                )
+
+            BitmapFactory.decodeByteArray(
+                imageBytes,
+                0,
+                imageBytes.size
+            )
+        }
+
+    } catch (exception: Exception) {
+
+        null
     }
 }
 
@@ -2613,6 +2705,8 @@ fun ProfilePage(
         FirebaseFirestore.getInstance()
     }
 
+    val scope = rememberCoroutineScope()
+
     val userId =
         auth.currentUser?.uid
 
@@ -2656,6 +2750,10 @@ fun ProfilePage(
         mutableStateOf("")
     }
 
+    var profileError by remember {
+        mutableStateOf("")
+    }
+
     val email =
         auth.currentUser?.email
             ?: "No email available"
@@ -2669,20 +2767,18 @@ fun ProfilePage(
             if (uri != null) {
 
                 selectedProfilePhotoUri = uri
+                profileError = ""
             }
         }
 
+    /*
+     * Show the newly selected photo immediately.
+     */
     LaunchedEffect(selectedProfilePhotoUri) {
 
         val uri = selectedProfilePhotoUri
 
-        if (uri == null) {
-
-            if (savedProfilePhoto.isBlank()) {
-                profileBitmap = null
-            }
-
-        } else {
+        if (uri != null) {
 
             profileBitmap =
                 withContext(Dispatchers.IO) {
@@ -2708,9 +2804,33 @@ fun ProfilePage(
         }
     }
 
+    /*
+     * Load the saved profile photo from Firestore.
+     */
+    LaunchedEffect(savedProfilePhoto) {
+
+        if (
+            selectedProfilePhotoUri == null
+        ) {
+
+            profileBitmap =
+                withContext(Dispatchers.IO) {
+
+                    base64ToBitmap(
+                        savedProfilePhoto
+                    )
+                }
+        }
+    }
+
+    /*
+     * Load profile information from Firestore.
+     */
     LaunchedEffect(userId) {
 
         if (userId != null) {
+
+            loading = true
 
             firestore
                 .collection("users")
@@ -2736,36 +2856,14 @@ fun ProfilePage(
                             "profilePhoto"
                         ) ?: ""
 
-                    if (
-                        savedProfilePhoto.isNotBlank()
-                    ) {
-
-                        try {
-
-                            val imageBytes =
-                                Base64.decode(
-                                    savedProfilePhoto,
-                                    Base64.DEFAULT
-                                )
-
-                            profileBitmap =
-                                BitmapFactory.decodeByteArray(
-                                    imageBytes,
-                                    0,
-                                    imageBytes.size
-                                )
-
-                        } catch (exception: Exception) {
-
-                            profileBitmap = null
-                        }
-                    }
-
                     loading = false
                 }
                 .addOnFailureListener {
 
                     loading = false
+
+                    profileError =
+                        "Could not load your profile."
                 }
 
         } else {
@@ -2868,6 +2966,20 @@ fun ProfilePage(
             }
         }
 
+        if (profileError.isNotEmpty()) {
+
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+
+            Text(
+                text = profileError,
+                color =
+                    MaterialTheme.colorScheme.error,
+                fontSize = 13.sp
+            )
+        }
+
         Spacer(
             modifier = Modifier.height(24.dp)
         )
@@ -2933,6 +3045,8 @@ fun ProfilePage(
 
                 editedName = profileName
                 editedBio = bio
+                profileError = ""
+                selectedProfilePhotoUri = null
                 showEditDialog = true
 
             },
@@ -2985,6 +3099,9 @@ fun ProfilePage(
             onDismissRequest = {
 
                 if (!savingProfile) {
+
+                    selectedProfilePhotoUri = null
+                    profileError = ""
                     showEditDialog = false
                 }
             },
@@ -3001,6 +3118,7 @@ fun ProfilePage(
                         value = editedName,
                         onValueChange = {
                             editedName = it
+                            profileError = ""
                         },
                         label = {
                             Text("Name")
@@ -3018,6 +3136,7 @@ fun ProfilePage(
                         value = editedBio,
                         onValueChange = {
                             editedBio = it
+                            profileError = ""
                         },
                         label = {
                             Text("Bio")
@@ -3075,149 +3194,136 @@ fun ProfilePage(
                                 FontWeight.Bold
                         )
                     }
+
+                    if (profileError.isNotEmpty()) {
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(8.dp)
+                        )
+
+                        Text(
+                            text = profileError,
+                            color =
+                                MaterialTheme
+                                    .colorScheme
+                                    .error,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             },
 
             confirmButton = {
 
                 TextButton(
+
                     enabled =
                         !savingProfile &&
                         editedName.isNotBlank(),
+
                     onClick = {
 
                         if (userId == null) {
+
+                            profileError =
+                                "Please log in again."
 
                             return@TextButton
                         }
 
                         savingProfile = true
+                        profileError = ""
 
                         val selectedUri =
                             selectedProfilePhotoUri
 
-                        if (selectedUri != null) {
+                        val newName =
+                            editedName.trim()
 
-                            LaunchedEffect(Unit) {
-                            }
-                        }
+                        val newBio =
+                            editedBio.trim()
 
-                        Thread {
+                        scope.launch {
 
                             try {
 
-                                var photoBase64 =
-                                    savedProfilePhoto
+                                /*
+                                 * Convert selected image to
+                                 * compressed Base64 off the
+                                 * main UI thread.
+                                 */
+                                val photoBase64 =
+                                    if (selectedUri != null) {
 
-                                if (selectedUri != null) {
+                                        withContext(
+                                            Dispatchers.IO
+                                        ) {
 
-                                    val inputStream =
-                                        context
-                                            .contentResolver
-                                            .openInputStream(
-                                                selectedUri
-                                            )
+                                            try {
 
-                                    val originalBitmap =
-                                        inputStream?.use {
-                                            BitmapFactory
-                                                .decodeStream(it)
-                                        }
+                                                val inputStream =
+                                                    context
+                                                        .contentResolver
+                                                        .openInputStream(
+                                                            selectedUri
+                                                        )
 
-                                    if (
-                                        originalBitmap != null
-                                    ) {
+                                                val bitmap =
+                                                    inputStream?.use {
+                                                        BitmapFactory
+                                                            .decodeStream(
+                                                                it
+                                                            )
+                                                    }
 
-                                        val maxSize = 600
+                                                if (
+                                                    bitmap != null
+                                                ) {
 
-                                        val width =
-                                            originalBitmap.width
-
-                                        val height =
-                                            originalBitmap.height
-
-                                        val scale =
-                                            minOf(
-                                                1f,
-                                                maxSize.toFloat() /
-                                                    maxOf(
-                                                        width,
-                                                        height
+                                                    bitmapToBase64(
+                                                        bitmap
                                                     )
-                                            )
 
-                                        val resizedBitmap =
-                                            if (scale < 1f) {
+                                                } else {
 
-                                                Bitmap.createScaledBitmap(
-                                                    originalBitmap,
-                                                    (
-                                                        width *
-                                                            scale
-                                                    ).toInt()
-                                                        .coerceAtLeast(1),
-                                                    (
-                                                        height *
-                                                            scale
-                                                    ).toInt()
-                                                        .coerceAtLeast(1),
-                                                    true
-                                                )
+                                                    ""
+                                                }
 
-                                            } else {
+                                            } catch (
+                                                exception: Exception
+                                            ) {
 
-                                                originalBitmap
+                                                ""
                                             }
-
-                                        val outputStream =
-                                            ByteArrayOutputStream()
-
-                                        resizedBitmap.compress(
-                                            Bitmap.CompressFormat.JPEG,
-                                            70,
-                                            outputStream
-                                        )
-
-                                        val imageBytes =
-                                            outputStream
-                                                .toByteArray()
-
-                                        photoBase64 =
-                                            Base64.encodeToString(
-                                                imageBytes,
-                                                Base64.NO_WRAP
-                                            )
-
-                                        if (
-                                            resizedBitmap !==
-                                            originalBitmap
-                                        ) {
-
-                                            resizedBitmap.recycle()
                                         }
 
-                                        if (
-                                            originalBitmap
-                                                .isRecycled
-                                                .not()
-                                        ) {
+                                    } else {
 
-                                            originalBitmap.recycle()
-                                        }
+                                        savedProfilePhoto
                                     }
-                                }
 
-                                val finalPhoto =
-                                    photoBase64
+                                if (
+                                    selectedUri != null &&
+                                    photoBase64.isBlank()
+                                ) {
+
+                                    savingProfile = false
+
+                                    profileError =
+                                        "Could not read the selected photo."
+
+                                    return@launch
+                                }
 
                                 val updates =
                                     hashMapOf<String, Any>(
                                         "name" to
-                                            editedName.trim(),
+                                            newName,
                                         "bio" to
-                                            editedBio.trim(),
+                                            newBio,
                                         "profilePhoto" to
-                                            finalPhoto
+                                            photoBase64
                                     )
 
                                 firestore
@@ -3227,45 +3333,16 @@ fun ProfilePage(
                                     .addOnSuccessListener {
 
                                         profileName =
-                                            editedName.trim()
+                                            newName
 
                                         bio =
-                                            editedBio.trim()
+                                            newBio
 
                                         savedProfilePhoto =
-                                            finalPhoto
+                                            photoBase64
 
                                         selectedProfilePhotoUri =
                                             null
-
-                                        if (
-                                            finalPhoto.isNotBlank()
-                                        ) {
-
-                                            try {
-
-                                                val imageBytes =
-                                                    Base64.decode(
-                                                        finalPhoto,
-                                                        Base64.DEFAULT
-                                                    )
-
-                                                profileBitmap =
-                                                    BitmapFactory
-                                                        .decodeByteArray(
-                                                            imageBytes,
-                                                            0,
-                                                            imageBytes.size
-                                                        )
-
-                                            } catch (
-                                                exception: Exception
-                                            ) {
-
-                                                profileBitmap =
-                                                    null
-                                            }
-                                        }
 
                                         savingProfile = false
 
@@ -3275,14 +3352,21 @@ fun ProfilePage(
                                     .addOnFailureListener { exception ->
 
                                         savingProfile = false
+
+                                        profileError =
+                                            exception.message
+                                                ?: "Could not save your profile."
                                     }
 
                             } catch (exception: Exception) {
 
                                 savingProfile = false
-                            }
 
-                        }.start()
+                                profileError =
+                                    exception.message
+                                        ?: "Could not save your profile."
+                            }
+                        }
                     }
                 ) {
 
@@ -3301,6 +3385,9 @@ fun ProfilePage(
                 TextButton(
                     enabled = !savingProfile,
                     onClick = {
+
+                        selectedProfilePhotoUri = null
+                        profileError = ""
                         showEditDialog = false
                     }
                 ) {
