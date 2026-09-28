@@ -45,7 +45,6 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +55,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 
 @Composable
 fun PeejeeApp() {
@@ -150,7 +148,6 @@ fun PeejeeApp() {
     }
 }
 
-
 @Composable
 fun WelcomeScreen(
     onCreateAccount: () -> Unit,
@@ -203,7 +200,6 @@ fun WelcomeScreen(
         }
     }
 }
-
 
 @Composable
 fun SignUpScreen(
@@ -345,25 +341,21 @@ fun SignUpScreen(
                 when {
 
                     name.isBlank() -> {
-
                         errorMessage =
                             "Please enter your full name."
                     }
 
                     email.isBlank() -> {
-
                         errorMessage =
                             "Please enter your email."
                     }
 
                     password.length < 6 -> {
-
                         errorMessage =
                             "Password must be at least 6 characters."
                     }
 
                     password != confirmPassword -> {
-
                         errorMessage =
                             "Passwords do not match."
                     }
@@ -459,7 +451,6 @@ fun SignUpScreen(
         }
     }
 }
-
 
 @Composable
 fun LoginScreen(
@@ -561,13 +552,11 @@ fun LoginScreen(
                 when {
 
                     email.isBlank() -> {
-
                         errorMessage =
                             "Please enter your email."
                     }
 
                     password.isBlank() -> {
-
                         errorMessage =
                             "Please enter your password."
                     }
@@ -658,7 +647,6 @@ fun LoginScreen(
     }
 }
 
-
 data class PeejeePost(
     val id: String,
     val userId: String,
@@ -671,7 +659,6 @@ data class PeejeePost(
     val likedBy: Map<String, Boolean> = emptyMap()
 )
 
-
 data class PeejeeComment(
     val id: String,
     val userId: String,
@@ -679,7 +666,6 @@ data class PeejeeComment(
     val text: String,
     val timestamp: Long
 )
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -699,6 +685,10 @@ fun HomeScreen(
         mutableStateOf(setOf<String>())
     }
 
+    var selectedComments by remember {
+        mutableStateOf<List<PeejeeComment>>(emptyList())
+    }
+
     var showCommentDialog by remember {
         mutableStateOf(false)
     }
@@ -711,8 +701,8 @@ fun HomeScreen(
         mutableStateOf("")
     }
 
-    var selectedComments by remember {
-        mutableStateOf<List<PeejeeComment>>(emptyList())
+    var loadingPosts by remember {
+        mutableStateOf(true)
     }
 
     var loadingComments by remember {
@@ -725,10 +715,6 @@ fun HomeScreen(
 
     var commentError by remember {
         mutableStateOf("")
-    }
-
-    var loadingPosts by remember {
-        mutableStateOf(true)
     }
 
     val context = LocalContext.current
@@ -851,7 +837,6 @@ fun HomeScreen(
         }
     }
 
-
     DisposableEffect(
         showCommentDialog,
         selectedPostId
@@ -864,9 +849,9 @@ fun HomeScreen(
 
             selectedComments = emptyList()
             loadingComments = false
+            commentError = ""
 
-            onDispose {
-            }
+            onDispose { }
 
         } else {
 
@@ -901,23 +886,19 @@ fun HomeScreen(
                                 snapshot.documents.mapNotNull { document ->
 
                                     val userId =
-                                        document
-                                            .getString("userId")
+                                        document.getString("userId")
                                             ?: ""
 
                                     val userName =
-                                        document
-                                            .getString("userName")
+                                        document.getString("userName")
                                             ?: "Peejee User"
 
                                     val text =
-                                        document
-                                            .getString("text")
+                                        document.getString("text")
                                             ?: ""
 
                                     val timestamp =
-                                        document
-                                            .getLong("timestamp")
+                                        document.getLong("timestamp")
                                             ?: 0L
 
                                     if (text.isBlank()) {
@@ -943,12 +924,12 @@ fun HomeScreen(
         }
     }
 
-
     Scaffold(
 
         topBar = {
 
             TopAppBar(
+
                 title = {
 
                     Text(
@@ -1151,8 +1132,11 @@ fun HomeScreen(
                         if (
                             newFollowing.contains(userId)
                         ) {
+
                             newFollowing.remove(userId)
+
                         } else {
+
                             newFollowing.add(userId)
                         }
 
@@ -1220,7 +1204,6 @@ fun HomeScreen(
         }
     }
 
-
     if (showCommentDialog) {
 
         AlertDialog(
@@ -1243,18 +1226,12 @@ fun HomeScreen(
                     if (loadingComments) {
 
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    vertical = 10.dp
-                                ),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement =
                                 Arrangement.Center
                         ) {
 
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(28.dp)
-                            )
+                            CircularProgressIndicator()
                         }
 
                     } else if (
@@ -1267,7 +1244,7 @@ fun HomeScreen(
 
                     } else {
 
-                        Column(
+                        LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(
@@ -1275,50 +1252,40 @@ fun HomeScreen(
                                 )
                         ) {
 
-                            LazyColumn {
+                            itemsIndexed(
+                                selectedComments
+                            ) { _, comment ->
 
-                                itemsIndexed(
-                                    selectedComments
-                                ) { _, comment ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            vertical = 6.dp
+                                        )
+                                ) {
 
-                                    Column(
+                                    Text(
+                                        text = comment.userName,
+                                        fontWeight =
+                                            FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+
+                                    Spacer(
                                         modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(
-                                                    vertical = 6.dp
-                                                )
-                                    ) {
+                                            Modifier.height(2.dp)
+                                    )
 
-                                        Text(
-                                            text =
-                                                comment.userName,
-                                            fontWeight =
-                                                FontWeight.Bold,
-                                            fontSize = 14.sp
-                                        )
-
-                                        Spacer(
-                                            modifier =
-                                                Modifier.height(
-                                                    2.dp
-                                                )
-                                        )
-
-                                        Text(
-                                            text =
-                                                comment.text,
-                                            fontSize = 15.sp
-                                        )
-                                    }
+                                    Text(
+                                        text = comment.text,
+                                        fontSize = 15.sp
+                                    )
                                 }
                             }
                         }
                     }
 
-                    if (
-                        commentError.isNotEmpty()
-                    ) {
+                    if (commentError.isNotEmpty()) {
 
                         Spacer(
                             modifier =
@@ -1344,6 +1311,7 @@ fun HomeScreen(
                         value = newComment,
                         onValueChange = {
                             newComment = it
+                            commentError = ""
                         },
                         label = {
                             Text("Write a comment")
@@ -1358,6 +1326,7 @@ fun HomeScreen(
             confirmButton = {
 
                 TextButton(
+
                     enabled =
                         !sendingComment &&
                         newComment.isNotBlank(),
@@ -1367,9 +1336,7 @@ fun HomeScreen(
                         val currentUser =
                             auth.currentUser
 
-                        if (
-                            currentUser == null
-                        ) {
+                        if (currentUser == null) {
 
                             commentError =
                                 "Please log in again."
@@ -1377,9 +1344,7 @@ fun HomeScreen(
                             return@TextButton
                         }
 
-                        if (
-                            selectedPostId.isBlank()
-                        ) {
+                        if (selectedPostId.isBlank()) {
 
                             commentError =
                                 "Post not found."
@@ -1402,8 +1367,24 @@ fun HomeScreen(
                                         ?: currentUser.displayName
                                         ?: "Peejee User"
 
+                                val commentReference =
+                                    firestore
+                                        .collection("posts")
+                                        .document(
+                                            selectedPostId
+                                        )
+                                        .collection("comments")
+                                        .document()
+
                                 val commentData =
                                     hashMapOf<String, Any>(
+
+                                        "commentId" to
+                                            commentReference.id,
+
+                                        "postId" to
+                                            selectedPostId,
+
                                         "userId" to
                                             currentUser.uid,
 
@@ -1417,23 +1398,16 @@ fun HomeScreen(
                                             System.currentTimeMillis()
                                     )
 
-                                firestore
-                                    .collection("posts")
-                                    .document(selectedPostId)
-                                    .collection("comments")
-                                    .document()
+                                commentReference
                                     .set(commentData)
                                     .addOnSuccessListener {
 
-                                        sendingComment =
-                                            false
-
+                                        sendingComment = false
                                         newComment = ""
                                     }
                                     .addOnFailureListener { exception ->
 
-                                        sendingComment =
-                                            false
+                                        sendingComment = false
 
                                         commentError =
                                             exception.message
@@ -1442,8 +1416,7 @@ fun HomeScreen(
                             }
                             .addOnFailureListener { exception ->
 
-                                sendingComment =
-                                    false
+                                sendingComment = false
 
                                 commentError =
                                     exception.message
@@ -1454,7 +1427,7 @@ fun HomeScreen(
 
                     Text(
                         if (sendingComment) {
-                            "Sending..."
+                            "Posting..."
                         } else {
                             "Comment"
                         }
@@ -1465,10 +1438,13 @@ fun HomeScreen(
             dismissButton = {
 
                 TextButton(
+
                     enabled = !sendingComment,
+
                     onClick = {
                         showCommentDialog = false
                     }
+
                 ) {
 
                     Text("Close")
@@ -1477,7 +1453,6 @@ fun HomeScreen(
         )
     }
 }
-
 
 @Composable
 fun HomeFeed(
@@ -1645,7 +1620,10 @@ fun HomeFeed(
                 }
             }
 
-            if (!loadingPosts && posts.isEmpty()) {
+            if (
+                !loadingPosts &&
+                posts.isEmpty()
+            ) {
 
                 Card(
                     modifier = Modifier
@@ -1727,7 +1705,6 @@ fun HomeFeed(
         }
     }
 }
-
 
 @Composable
 fun TikTokStylePost(
@@ -2006,7 +1983,6 @@ fun TikTokStylePost(
     }
 }
 
-
 @Composable
 fun ActionCircle(
     icon: String,
@@ -2050,7 +2026,6 @@ fun ActionCircle(
         )
     }
 }
-
 
 @Composable
 fun SearchPage(
@@ -2144,7 +2119,6 @@ fun SearchPage(
         }
     }
 }
-
 
 @Composable
 fun CreatePostPage(
@@ -2369,23 +2343,38 @@ fun CreatePostPage(
 
                 publishing = true
 
-                val postId =
+                val postReference =
                     firestore
                         .collection("posts")
                         .document()
-                        .id
+
+                val postId =
+                    postReference.id
 
                 val postData =
                     hashMapOf<String, Any>(
-                        "postId" to postId,
-                        "userId" to currentUser.uid,
-                        "userName" to (
-                            currentUser.displayName
-                                ?: "Peejee User"
+
+                        "postId" to
+                            postId,
+
+                        "userId" to
+                            currentUser.uid,
+
+                        "userName" to
+                            (
+                                currentUser.displayName
+                                    ?: "Peejee User"
                             ),
-                        "text" to postText.trim(),
-                        "likes" to 0,
-                        "likedBy" to emptyMap<String, Boolean>(),
+
+                        "text" to
+                            postText.trim(),
+
+                        "likes" to
+                            0,
+
+                        "likedBy" to
+                            emptyMap<String, Boolean>(),
+
                         "timestamp" to
                             System.currentTimeMillis()
                     )
@@ -2414,9 +2403,7 @@ fun CreatePostPage(
                         postData["userName"] =
                             savedName
 
-                        firestore
-                            .collection("posts")
-                            .document(postId)
+                        postReference
                             .set(postData)
                             .addOnSuccessListener {
 
@@ -2438,9 +2425,7 @@ fun CreatePostPage(
                     }
                     .addOnFailureListener {
 
-                        firestore
-                            .collection("posts")
-                            .document(postId)
+                        postReference
                             .set(postData)
                             .addOnSuccessListener {
 
@@ -2476,7 +2461,6 @@ fun CreatePostPage(
         }
     }
 }
-
 
 @Composable
 fun MessagesPage(
@@ -2538,7 +2522,6 @@ fun MessagesPage(
         }
     }
 }
-
 
 @Composable
 fun ProfilePage(
@@ -2794,7 +2777,8 @@ fun ProfilePage(
                 Text(
                     text = "0",
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight =
+                        FontWeight.Bold
                 )
 
                 Text("Posts")
@@ -2808,7 +2792,8 @@ fun ProfilePage(
                 Text(
                     text = "0",
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight =
+                        FontWeight.Bold
                 )
 
                 Text("Followers")
@@ -2822,7 +2807,8 @@ fun ProfilePage(
                 Text(
                     text = "0",
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight =
+                        FontWeight.Bold
                 )
 
                 Text("Following")
@@ -2954,8 +2940,11 @@ fun ProfilePage(
                                 selectedProfilePhotoUri ==
                                 null
                             ) {
+
                                 "🖼️ Choose Profile Photo"
+
                             } else {
+
                                 "🖼️ Change Profile Photo"
                             }
                         )
