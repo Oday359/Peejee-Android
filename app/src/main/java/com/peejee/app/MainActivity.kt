@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Base64
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -46,6 +47,8 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import java.io.ByteArrayOutputStream
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,12 +67,32 @@ fun PeejeeLogo(
 ) {
     Image(
         painter = painterResource(
-            id = com.peejee.app.R.drawable.peejee_app_icon_512
+            id = R.drawable.peejee_app_icon_512
         ),
         contentDescription = "Peejee",
         modifier = modifier.size(size.dp),
         contentScale = ContentScale.Fit
     )
+}
+
+@Composable
+fun DefaultProfileIcon(
+    size: Int = 65
+) {
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "👤",
+            fontSize = (size * 0.55f).sp
+        )
+    }
 }
 
 @Composable
@@ -402,7 +425,8 @@ fun SignUpScreen(
                                             "uid" to user.uid,
                                             "name" to name.trim(),
                                             "email" to email.trim(),
-                                            "bio" to ""
+                                            "bio" to "",
+                                            "profilePhoto" to ""
                                         )
 
                                     firestore
@@ -1583,9 +1607,8 @@ fun HomeFeed(
 
                                 } else {
 
-                                    Text(
-                                        text = "👤",
-                                        fontSize = 45.sp
+                                    DefaultProfileIcon(
+                                        size = 60
                                     )
                                 }
                             }
@@ -1594,12 +1617,24 @@ fun HomeFeed(
                                 modifier = Modifier.height(8.dp)
                             )
 
-                            Text(
-                                text = liveUser,
-                                fontSize = 15.sp,
-                                fontWeight =
-                                    FontWeight.Bold
-                            )
+                            if (liveUser == "Live") {
+
+                                Text(
+                                    text = "Peejee Live",
+                                    fontSize = 15.sp,
+                                    fontWeight =
+                                        FontWeight.Bold
+                                )
+
+                            } else {
+
+                                Text(
+                                    text = liveUser,
+                                    fontSize = 15.sp,
+                                    fontWeight =
+                                        FontWeight.Bold
+                                )
+                            }
 
                             Spacer(
                                 modifier = Modifier.height(6.dp)
@@ -1783,24 +1818,9 @@ fun TikTokStylePost(
                         Alignment.CenterVertically
                 ) {
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(
-                                MaterialTheme
-                                    .colorScheme
-                                    .surfaceVariant
-                            ),
-                        contentAlignment =
-                            Alignment.Center
-                    ) {
-
-                        Text(
-                            text = "👤",
-                            fontSize = 28.sp
-                        )
-                    }
+                    DefaultProfileIcon(
+                        size = 48
+                    )
 
                     Spacer(
                         modifier = Modifier.width(10.dp)
@@ -2138,9 +2158,8 @@ fun SearchPage(
                         Alignment.CenterVertically
                 ) {
 
-                    Text(
-                        text = "👤",
-                        fontSize = 28.sp
+                    DefaultProfileIcon(
+                        size = 45
                     )
 
                     Spacer(
@@ -2633,6 +2652,10 @@ fun ProfilePage(
         mutableStateOf<Bitmap?>(null)
     }
 
+    var savedProfilePhoto by remember {
+        mutableStateOf("")
+    }
+
     val email =
         auth.currentUser?.email
             ?: "No email available"
@@ -2655,7 +2678,9 @@ fun ProfilePage(
 
         if (uri == null) {
 
-            profileBitmap = null
+            if (savedProfilePhoto.isBlank()) {
+                profileBitmap = null
+            }
 
         } else {
 
@@ -2705,6 +2730,36 @@ fun ProfilePage(
 
                     editedName =
                         profileName
+
+                    savedProfilePhoto =
+                        document.getString(
+                            "profilePhoto"
+                        ) ?: ""
+
+                    if (
+                        savedProfilePhoto.isNotBlank()
+                    ) {
+
+                        try {
+
+                            val imageBytes =
+                                Base64.decode(
+                                    savedProfilePhoto,
+                                    Base64.DEFAULT
+                                )
+
+                            profileBitmap =
+                                BitmapFactory.decodeByteArray(
+                                    imageBytes,
+                                    0,
+                                    imageBytes.size
+                                )
+
+                        } catch (exception: Exception) {
+
+                            profileBitmap = null
+                        }
+                    }
 
                     loading = false
                 }
@@ -2761,8 +2816,8 @@ fun ProfilePage(
 
                 } else {
 
-                    PeejeeLogo(
-                        size = 80
+                    DefaultProfileIcon(
+                        size = 90
                     )
                 }
             }
@@ -3026,46 +3081,208 @@ fun ProfilePage(
             confirmButton = {
 
                 TextButton(
-                    enabled = !savingProfile,
+                    enabled =
+                        !savingProfile &&
+                        editedName.isNotBlank(),
                     onClick = {
 
-                        if (
-                            userId != null &&
-                            editedName.isNotBlank()
-                        ) {
+                        if (userId == null) {
 
-                            savingProfile = true
-
-                            val updates =
-                                hashMapOf<String, Any>(
-                                    "name" to
-                                        editedName.trim(),
-                                    "bio" to
-                                        editedBio.trim()
-                                )
-
-                            firestore
-                                .collection("users")
-                                .document(userId)
-                                .update(updates)
-                                .addOnSuccessListener {
-
-                                    profileName =
-                                        editedName.trim()
-
-                                    bio =
-                                        editedBio.trim()
-
-                                    savingProfile = false
-
-                                    showEditDialog =
-                                        false
-                                }
-                                .addOnFailureListener {
-
-                                    savingProfile = false
-                                }
+                            return@TextButton
                         }
+
+                        savingProfile = true
+
+                        val selectedUri =
+                            selectedProfilePhotoUri
+
+                        if (selectedUri != null) {
+
+                            LaunchedEffect(Unit) {
+                            }
+                        }
+
+                        Thread {
+
+                            try {
+
+                                var photoBase64 =
+                                    savedProfilePhoto
+
+                                if (selectedUri != null) {
+
+                                    val inputStream =
+                                        context
+                                            .contentResolver
+                                            .openInputStream(
+                                                selectedUri
+                                            )
+
+                                    val originalBitmap =
+                                        inputStream?.use {
+                                            BitmapFactory
+                                                .decodeStream(it)
+                                        }
+
+                                    if (
+                                        originalBitmap != null
+                                    ) {
+
+                                        val maxSize = 600
+
+                                        val width =
+                                            originalBitmap.width
+
+                                        val height =
+                                            originalBitmap.height
+
+                                        val scale =
+                                            minOf(
+                                                1f,
+                                                maxSize.toFloat() /
+                                                    maxOf(
+                                                        width,
+                                                        height
+                                                    )
+                                            )
+
+                                        val resizedBitmap =
+                                            if (scale < 1f) {
+
+                                                Bitmap.createScaledBitmap(
+                                                    originalBitmap,
+                                                    (
+                                                        width *
+                                                            scale
+                                                    ).toInt()
+                                                        .coerceAtLeast(1),
+                                                    (
+                                                        height *
+                                                            scale
+                                                    ).toInt()
+                                                        .coerceAtLeast(1),
+                                                    true
+                                                )
+
+                                            } else {
+
+                                                originalBitmap
+                                            }
+
+                                        val outputStream =
+                                            ByteArrayOutputStream()
+
+                                        resizedBitmap.compress(
+                                            Bitmap.CompressFormat.JPEG,
+                                            70,
+                                            outputStream
+                                        )
+
+                                        val imageBytes =
+                                            outputStream
+                                                .toByteArray()
+
+                                        photoBase64 =
+                                            Base64.encodeToString(
+                                                imageBytes,
+                                                Base64.NO_WRAP
+                                            )
+
+                                        if (
+                                            resizedBitmap !==
+                                            originalBitmap
+                                        ) {
+
+                                            resizedBitmap.recycle()
+                                        }
+
+                                        if (
+                                            originalBitmap
+                                                .isRecycled
+                                                .not()
+                                        ) {
+
+                                            originalBitmap.recycle()
+                                        }
+                                    }
+                                }
+
+                                val finalPhoto =
+                                    photoBase64
+
+                                val updates =
+                                    hashMapOf<String, Any>(
+                                        "name" to
+                                            editedName.trim(),
+                                        "bio" to
+                                            editedBio.trim(),
+                                        "profilePhoto" to
+                                            finalPhoto
+                                    )
+
+                                firestore
+                                    .collection("users")
+                                    .document(userId)
+                                    .update(updates)
+                                    .addOnSuccessListener {
+
+                                        profileName =
+                                            editedName.trim()
+
+                                        bio =
+                                            editedBio.trim()
+
+                                        savedProfilePhoto =
+                                            finalPhoto
+
+                                        selectedProfilePhotoUri =
+                                            null
+
+                                        if (
+                                            finalPhoto.isNotBlank()
+                                        ) {
+
+                                            try {
+
+                                                val imageBytes =
+                                                    Base64.decode(
+                                                        finalPhoto,
+                                                        Base64.DEFAULT
+                                                    )
+
+                                                profileBitmap =
+                                                    BitmapFactory
+                                                        .decodeByteArray(
+                                                            imageBytes,
+                                                            0,
+                                                            imageBytes.size
+                                                        )
+
+                                            } catch (
+                                                exception: Exception
+                                            ) {
+
+                                                profileBitmap =
+                                                    null
+                                            }
+                                        }
+
+                                        savingProfile = false
+
+                                        showEditDialog =
+                                            false
+                                    }
+                                    .addOnFailureListener { exception ->
+
+                                        savingProfile = false
+                                    }
+
+                            } catch (exception: Exception) {
+
+                                savingProfile = false
+                            }
+
+                        }.start()
                     }
                 ) {
 
