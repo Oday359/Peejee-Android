@@ -672,6 +672,15 @@ data class PeejeePost(
 )
 
 
+data class PeejeeComment(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val text: String,
+    val timestamp: Long
+)
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -690,10 +699,6 @@ fun HomeScreen(
         mutableStateOf(setOf<String>())
     }
 
-    var comments by remember {
-        mutableStateOf<Map<String, List<String>>>(emptyMap())
-    }
-
     var showCommentDialog by remember {
         mutableStateOf(false)
     }
@@ -703,6 +708,22 @@ fun HomeScreen(
     }
 
     var newComment by remember {
+        mutableStateOf("")
+    }
+
+    var selectedComments by remember {
+        mutableStateOf<List<PeejeeComment>>(emptyList())
+    }
+
+    var loadingComments by remember {
+        mutableStateOf(false)
+    }
+
+    var sendingComment by remember {
+        mutableStateOf(false)
+    }
+
+    var commentError by remember {
         mutableStateOf("")
     }
 
@@ -829,6 +850,99 @@ fun HomeScreen(
             registration.remove()
         }
     }
+
+
+    DisposableEffect(
+        showCommentDialog,
+        selectedPostId
+    ) {
+
+        if (
+            !showCommentDialog ||
+            selectedPostId.isBlank()
+        ) {
+
+            selectedComments = emptyList()
+            loadingComments = false
+
+            onDispose {
+            }
+
+        } else {
+
+            loadingComments = true
+            commentError = ""
+
+            val commentRegistration =
+                firestore
+                    .collection("posts")
+                    .document(selectedPostId)
+                    .collection("comments")
+                    .orderBy(
+                        "timestamp",
+                        Query.Direction.ASCENDING
+                    )
+                    .addSnapshotListener { snapshot, error ->
+
+                        if (error != null) {
+
+                            loadingComments = false
+
+                            commentError =
+                                error.message
+                                    ?: "Could not load comments."
+
+                            return@addSnapshotListener
+                        }
+
+                        if (snapshot != null) {
+
+                            selectedComments =
+                                snapshot.documents.mapNotNull { document ->
+
+                                    val userId =
+                                        document
+                                            .getString("userId")
+                                            ?: ""
+
+                                    val userName =
+                                        document
+                                            .getString("userName")
+                                            ?: "Peejee User"
+
+                                    val text =
+                                        document
+                                            .getString("text")
+                                            ?: ""
+
+                                    val timestamp =
+                                        document
+                                            .getLong("timestamp")
+                                            ?: 0L
+
+                                    if (text.isBlank()) {
+                                        null
+                                    } else {
+                                        PeejeeComment(
+                                            id = document.id,
+                                            userId = userId,
+                                            userName = userName,
+                                            text = text,
+                                            timestamp = timestamp
+                                        )
+                                    }
+                                }
+                        }
+
+                        loadingComments = false
+                    }
+
+            onDispose {
+                commentRegistration.remove()
+            }
+        }
+    }
+
 
     Scaffold(
 
@@ -1050,6 +1164,7 @@ fun HomeScreen(
 
                         selectedPostId = postId
                         newComment = ""
+                        commentError = ""
                         showCommentDialog = true
                     },
 
@@ -1105,16 +1220,16 @@ fun HomeScreen(
         }
     }
 
-    if (showCommentDialog) {
 
-        val selectedComments =
-            comments[selectedPostId]
-                ?: emptyList()
+    if (showCommentDialog) {
 
         AlertDialog(
 
             onDismissRequest = {
-                showCommentDialog = false
+
+                if (!sendingComment) {
+                    showCommentDialog = false
+                }
             },
 
             title = {
@@ -1125,7 +1240,26 @@ fun HomeScreen(
 
                 Column {
 
-                    if (selectedComments.isEmpty()) {
+                    if (loadingComments) {
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    vertical = 10.dp
+                                ),
+                            horizontalArrangement =
+                                Arrangement.Center
+                        ) {
+
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+
+                    } else if (
+                        selectedComments.isEmpty()
+                    ) {
 
                         Text(
                             "No comments yet. Be the first!"
@@ -1133,19 +1267,77 @@ fun HomeScreen(
 
                     } else {
 
-                        selectedComments.forEach { comment ->
-
-                            Text(
-                                text = comment,
-                                modifier = Modifier.padding(
-                                    vertical = 5.dp
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(
+                                    max = 260.dp
                                 )
-                            )
+                        ) {
+
+                            LazyColumn {
+
+                                itemsIndexed(
+                                    selectedComments
+                                ) { _, comment ->
+
+                                    Column(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(
+                                                    vertical = 6.dp
+                                                )
+                                    ) {
+
+                                        Text(
+                                            text =
+                                                comment.userName,
+                                            fontWeight =
+                                                FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+
+                                        Spacer(
+                                            modifier =
+                                                Modifier.height(
+                                                    2.dp
+                                                )
+                                        )
+
+                                        Text(
+                                            text =
+                                                comment.text,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
+                    if (
+                        commentError.isNotEmpty()
+                    ) {
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(8.dp)
+                        )
+
+                        Text(
+                            text = commentError,
+                            color =
+                                MaterialTheme
+                                    .colorScheme
+                                    .error,
+                            fontSize = 13.sp
+                        )
+                    }
+
                     Spacer(
-                        modifier = Modifier.height(12.dp)
+                        modifier =
+                            Modifier.height(12.dp)
                     )
 
                     OutlinedTextField(
@@ -1156,7 +1348,9 @@ fun HomeScreen(
                         label = {
                             Text("Write a comment")
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        enabled = !sendingComment,
+                        modifier =
+                            Modifier.fillMaxWidth()
                     )
                 }
             },
@@ -1164,42 +1358,114 @@ fun HomeScreen(
             confirmButton = {
 
                 TextButton(
+                    enabled =
+                        !sendingComment &&
+                        newComment.isNotBlank(),
+
                     onClick = {
 
-                        if (newComment.isNotBlank()) {
+                        val currentUser =
+                            auth.currentUser
 
-                            val updatedComments =
-                                comments.toMutableMap()
+                        if (
+                            currentUser == null
+                        ) {
 
-                            val currentComments =
-                                updatedComments[
-                                    selectedPostId
-                                ]?.toMutableList()
-                                    ?: mutableListOf()
+                            commentError =
+                                "Please log in again."
 
-                            currentComments.add(
-                                "$name: ${newComment.trim()}"
-                            )
-
-                            updatedComments[
-                                selectedPostId
-                            ] = currentComments
-
-                            comments =
-                                updatedComments
-
-                            newComment = ""
+                            return@TextButton
                         }
+
+                        if (
+                            selectedPostId.isBlank()
+                        ) {
+
+                            commentError =
+                                "Post not found."
+
+                            return@TextButton
+                        }
+
+                        sendingComment = true
+                        commentError = ""
+
+                        firestore
+                            .collection("users")
+                            .document(currentUser.uid)
+                            .get()
+                            .addOnSuccessListener { userDocument ->
+
+                                val savedUserName =
+                                    userDocument
+                                        .getString("name")
+                                        ?: currentUser.displayName
+                                        ?: "Peejee User"
+
+                                val commentData =
+                                    hashMapOf<String, Any>(
+                                        "userId" to
+                                            currentUser.uid,
+
+                                        "userName" to
+                                            savedUserName,
+
+                                        "text" to
+                                            newComment.trim(),
+
+                                        "timestamp" to
+                                            System.currentTimeMillis()
+                                    )
+
+                                firestore
+                                    .collection("posts")
+                                    .document(selectedPostId)
+                                    .collection("comments")
+                                    .document()
+                                    .set(commentData)
+                                    .addOnSuccessListener {
+
+                                        sendingComment =
+                                            false
+
+                                        newComment = ""
+                                    }
+                                    .addOnFailureListener { exception ->
+
+                                        sendingComment =
+                                            false
+
+                                        commentError =
+                                            exception.message
+                                                ?: "Could not post comment."
+                                    }
+                            }
+                            .addOnFailureListener { exception ->
+
+                                sendingComment =
+                                    false
+
+                                commentError =
+                                    exception.message
+                                        ?: "Could not load your profile."
+                            }
                     }
                 ) {
 
-                    Text("Comment")
+                    Text(
+                        if (sendingComment) {
+                            "Sending..."
+                        } else {
+                            "Comment"
+                        }
+                    )
                 }
             },
 
             dismissButton = {
 
                 TextButton(
+                    enabled = !sendingComment,
                     onClick = {
                         showCommentDialog = false
                     }
