@@ -204,7 +204,10 @@ data class PeejeePost(
     val likeCount: Int = 0,
     val likedBy: Map<String, Boolean> = emptyMap(),
     val commentCount: Int = 0,
-    val shareCount: Int = 0
+    val shareCount: Int = 0,
+    val sharedFromPostId: String = "",
+    val sharedFromUserName: String = "",
+    val sharedFromText: String = ""
 )
 
 data class PeejeeComment(
@@ -217,7 +220,16 @@ data class PeejeeComment(
 
 data class PeejeePerson(
     val uid: String,
-    val name: String
+    val name: String,
+    val email: String = ""
+)
+
+data class PeejeeMessage(
+    val id: String,
+    val senderId: String,
+    val receiverId: String,
+    val text: String,
+    val timestamp: Long
 )
 
 @Composable
@@ -731,22 +743,50 @@ fun HomeScreen(
 ) {
 
     var selectedTab by remember { mutableStateOf(0) }
-    var posts by remember { mutableStateOf<List<PeejeePost>>(emptyList()) }
-    var followedUserIds by remember { mutableStateOf(setOf<String>()) }
+
+    var posts by remember {
+        mutableStateOf<List<PeejeePost>>(emptyList())
+    }
+
+    var followedUserIds by remember {
+        mutableStateOf(setOf<String>())
+    }
 
     var selectedComments by remember {
         mutableStateOf<List<PeejeeComment>>(emptyList())
     }
 
-    var showCommentDialog by remember { mutableStateOf(false) }
-    var selectedPostId by remember { mutableStateOf("") }
-    var newComment by remember { mutableStateOf("") }
-    var loadingPosts by remember { mutableStateOf(true) }
-    var loadingComments by remember { mutableStateOf(false) }
-    var sendingComment by remember { mutableStateOf(false) }
-    var commentError by remember { mutableStateOf("") }
+    var showCommentDialog by remember {
+        mutableStateOf(false)
+    }
 
-    val context = LocalContext.current
+    var selectedPostId by remember {
+        mutableStateOf("")
+    }
+
+    var newComment by remember {
+        mutableStateOf("")
+    }
+
+    var loadingPosts by remember {
+        mutableStateOf(true)
+    }
+
+    var loadingComments by remember {
+        mutableStateOf(false)
+    }
+
+    var sendingComment by remember {
+        mutableStateOf(false)
+    }
+
+    var commentError by remember {
+        mutableStateOf("")
+    }
+
+    var selectedChatUser by remember {
+        mutableStateOf<PeejeePerson?>(null)
+    }
 
     val firestore = remember {
         FirebaseFirestore.getInstance()
@@ -813,7 +853,19 @@ fun HomeScreen(
                                     shareCount =
                                         document.getLong("shareCount")
                                             ?.toInt()
-                                            ?: 0
+                                            ?: 0,
+                                    sharedFromPostId =
+                                        document.getString(
+                                            "sharedFromPostId"
+                                        ) ?: "",
+                                    sharedFromUserName =
+                                        document.getString(
+                                            "sharedFromUserName"
+                                        ) ?: "",
+                                    sharedFromText =
+                                        document.getString(
+                                            "sharedFromText"
+                                        ) ?: ""
                                 )
                             }
                     }
@@ -958,35 +1010,49 @@ fun HomeScreen(
 
                 NavigationBarItem(
                     selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
+                    onClick = {
+                        selectedTab = 0
+                        selectedChatUser = null
+                    },
                     icon = { Text("🏠") },
                     label = { Text("Home") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
+                    onClick = {
+                        selectedTab = 1
+                        selectedChatUser = null
+                    },
                     icon = { Text("🔍") },
                     label = { Text("Search") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
+                    onClick = {
+                        selectedTab = 2
+                        selectedChatUser = null
+                    },
                     icon = { Text("➕") },
                     label = { Text("Post") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
+                    onClick = {
+                        selectedTab = 3
+                    },
                     icon = { Text("💬") },
                     label = { Text("Messages") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 4,
-                    onClick = { selectedTab = 4 },
+                    onClick = {
+                        selectedTab = 4
+                        selectedChatUser = null
+                    },
                     icon = { Text("👤") },
                     label = { Text("Profile") }
                 )
@@ -995,303 +1061,374 @@ fun HomeScreen(
 
     ) { paddingValues ->
 
-        when (selectedTab) {
+        if (
+            selectedTab == 3 &&
+            selectedChatUser != null
+        ) {
 
-            0 -> HomeFeed(
-                name = name,
-                currentUserId = currentUserId,
-                posts = posts,
-                followedUserIds = followedUserIds,
-                loadingPosts = loadingPosts,
+            PrivateChatPage(
+                person = selectedChatUser!!,
+                paddingValues = paddingValues,
+                onBack = {
+                    selectedChatUser = null
+                }
+            )
 
-                onLike = { postId ->
+        } else {
 
-                    val userId =
-                        auth.currentUser?.uid
+            when (selectedTab) {
 
-                    if (userId != null) {
+                0 -> HomeFeed(
+                    name = name,
+                    currentUserId = currentUserId,
+                    posts = posts,
+                    followedUserIds = followedUserIds,
+                    loadingPosts = loadingPosts,
 
-                        val postRef =
-                            firestore
-                                .collection("posts")
-                                .document(postId)
+                    onLike = { postId ->
 
-                        firestore.runTransaction { transaction ->
+                        val userId =
+                            auth.currentUser?.uid
 
-                            val snapshot =
-                                transaction.get(postRef)
+                        if (userId != null) {
 
-                            val currentLikes =
-                                snapshot.getLong("likes")
-                                    ?.toInt()
-                                    ?: 0
+                            val postRef =
+                                firestore
+                                    .collection("posts")
+                                    .document(postId)
 
-                            val currentLikedBy =
-                                getLikedBy(snapshot).toMutableMap()
+                            firestore.runTransaction { transaction ->
 
-                            val alreadyLiked =
-                                currentLikedBy[userId] == true
+                                val snapshot =
+                                    transaction.get(postRef)
 
-                            if (alreadyLiked) {
+                                val currentLikes =
+                                    snapshot.getLong("likes")
+                                        ?.toInt()
+                                        ?: 0
 
-                                currentLikedBy.remove(userId)
+                                val currentLikedBy =
+                                    getLikedBy(snapshot).toMutableMap()
+
+                                val alreadyLiked =
+                                    currentLikedBy[userId] == true
+
+                                if (alreadyLiked) {
+
+                                    currentLikedBy.remove(userId)
+
+                                    transaction.update(
+                                        postRef,
+                                        "likes",
+                                        (currentLikes - 1)
+                                            .coerceAtLeast(0)
+                                    )
+
+                                } else {
+
+                                    currentLikedBy[userId] = true
+
+                                    transaction.update(
+                                        postRef,
+                                        "likes",
+                                        currentLikes + 1
+                                    )
+                                }
 
                                 transaction.update(
                                     postRef,
-                                    "likes",
-                                    (currentLikes - 1)
-                                        .coerceAtLeast(0)
+                                    "likedBy",
+                                    currentLikedBy
+                                )
+
+                                null
+                            }
+                        }
+                    },
+
+                    onFollow = { targetUserId ->
+
+                        val currentUser =
+                            auth.currentUser
+
+                        if (
+                            currentUser == null ||
+                            targetUserId.isBlank() ||
+                            targetUserId == currentUser.uid
+                        ) {
+                            return@HomeFeed
+                        }
+
+                        val currentUserRef =
+                            firestore
+                                .collection("users")
+                                .document(currentUser.uid)
+
+                        val targetUserRef =
+                            firestore
+                                .collection("users")
+                                .document(targetUserId)
+
+                        val followingRef =
+                            currentUserRef
+                                .collection("following")
+                                .document(targetUserId)
+
+                        val followerRef =
+                            targetUserRef
+                                .collection("followers")
+                                .document(currentUser.uid)
+
+                        firestore.runTransaction { transaction ->
+
+                            val followingSnapshot =
+                                transaction.get(followingRef)
+
+                            val currentUserSnapshot =
+                                transaction.get(currentUserRef)
+
+                            val targetUserSnapshot =
+                                transaction.get(targetUserRef)
+
+                            val currentFollowingCount =
+                                currentUserSnapshot
+                                    .getLong("followingCount")
+                                    ?.toInt()
+                                    ?: 0
+
+                            val targetFollowersCount =
+                                targetUserSnapshot
+                                    .getLong("followersCount")
+                                    ?.toInt()
+                                    ?: 0
+
+                            if (followingSnapshot.exists()) {
+
+                                transaction.delete(followingRef)
+                                transaction.delete(followerRef)
+
+                                transaction.set(
+                                    currentUserRef,
+                                    mapOf(
+                                        "followingCount" to
+                                            (currentFollowingCount - 1)
+                                                .coerceAtLeast(0)
+                                    ),
+                                    SetOptions.merge()
+                                )
+
+                                transaction.set(
+                                    targetUserRef,
+                                    mapOf(
+                                        "followersCount" to
+                                            (targetFollowersCount - 1)
+                                                .coerceAtLeast(0)
+                                    ),
+                                    SetOptions.merge()
                                 )
 
                             } else {
 
-                                currentLikedBy[userId] = true
+                                val currentUserName =
+                                    currentUserSnapshot
+                                        .getString("name")
+                                        ?.trim()
+                                        ?.takeIf {
+                                            it.isNotBlank()
+                                        }
+                                        ?: name
 
-                                transaction.update(
-                                    postRef,
-                                    "likes",
-                                    currentLikes + 1
+                                val targetUserName =
+                                    targetUserSnapshot
+                                        .getString("name")
+                                        ?.trim()
+                                        ?.takeIf {
+                                            it.isNotBlank()
+                                        }
+                                        ?: "Peejee User"
+
+                                val now =
+                                    System.currentTimeMillis()
+
+                                val followerData =
+                                    hashMapOf<String, Any>(
+                                        "uid" to currentUser.uid,
+                                        "name" to currentUserName,
+                                        "timestamp" to now
+                                    )
+
+                                val followingData =
+                                    hashMapOf<String, Any>(
+                                        "uid" to targetUserId,
+                                        "name" to targetUserName,
+                                        "timestamp" to now
+                                    )
+
+                                transaction.set(
+                                    followingRef,
+                                    followingData
+                                )
+
+                                transaction.set(
+                                    followerRef,
+                                    followerData
+                                )
+
+                                transaction.set(
+                                    currentUserRef,
+                                    mapOf(
+                                        "followingCount" to
+                                            currentFollowingCount + 1
+                                    ),
+                                    SetOptions.merge()
+                                )
+
+                                transaction.set(
+                                    targetUserRef,
+                                    mapOf(
+                                        "followersCount" to
+                                            targetFollowersCount + 1
+                                    ),
+                                    SetOptions.merge()
                                 )
                             }
-
-                            transaction.update(
-                                postRef,
-                                "likedBy",
-                                currentLikedBy
-                            )
 
                             null
                         }
-                    }
-                },
+                    },
 
-                onFollow = { targetUserId ->
+                    onComment = { postId ->
+                        selectedPostId = postId
+                        newComment = ""
+                        commentError = ""
+                        showCommentDialog = true
+                    },
 
-                    val currentUser =
-                        auth.currentUser
+                    onShare = { post ->
 
-                    if (
-                        currentUser == null ||
-                        targetUserId.isBlank() ||
-                        targetUserId == currentUser.uid
-                    ) {
-                        return@HomeFeed
-                    }
+                        val currentUser =
+                            auth.currentUser
 
-                    val currentUserRef =
-                        firestore
-                            .collection("users")
-                            .document(currentUser.uid)
-
-                    val targetUserRef =
-                        firestore
-                            .collection("users")
-                            .document(targetUserId)
-
-                    val followingRef =
-                        currentUserRef
-                            .collection("following")
-                            .document(targetUserId)
-
-                    val followerRef =
-                        targetUserRef
-                            .collection("followers")
-                            .document(currentUser.uid)
-
-                    firestore.runTransaction { transaction ->
-
-                        val followingSnapshot =
-                            transaction.get(followingRef)
-
-                        val currentUserSnapshot =
-                            transaction.get(currentUserRef)
-
-                        val targetUserSnapshot =
-                            transaction.get(targetUserRef)
-
-                        val currentFollowingCount =
-                            currentUserSnapshot
-                                .getLong("followingCount")
-                                ?.toInt()
-                                ?: 0
-
-                        val targetFollowersCount =
-                            targetUserSnapshot
-                                .getLong("followersCount")
-                                ?.toInt()
-                                ?: 0
-
-                        if (followingSnapshot.exists()) {
-
-                            transaction.delete(followingRef)
-                            transaction.delete(followerRef)
-
-                            transaction.set(
-                                currentUserRef,
-                                mapOf(
-                                    "followingCount" to
-                                        (currentFollowingCount - 1)
-                                            .coerceAtLeast(0)
-                                ),
-                                SetOptions.merge()
-                            )
-
-                            transaction.set(
-                                targetUserRef,
-                                mapOf(
-                                    "followersCount" to
-                                        (targetFollowersCount - 1)
-                                            .coerceAtLeast(0)
-                                ),
-                                SetOptions.merge()
-                            )
-
-                        } else {
-
-                            val currentUserName =
-                                currentUserSnapshot
-                                    .getString("name")
-                                    ?.trim()
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?: name
-
-                            val targetUserName =
-                                targetUserSnapshot
-                                    .getString("name")
-                                    ?.trim()
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?: "Peejee User"
-
-                            val now =
-                                System.currentTimeMillis()
-
-                            val followerData =
-                                hashMapOf<String, Any>(
-                                    "uid" to currentUser.uid,
-                                    "name" to currentUserName,
-                                    "timestamp" to now
-                                )
-
-                            val followingData =
-                                hashMapOf<String, Any>(
-                                    "uid" to targetUserId,
-                                    "name" to targetUserName,
-                                    "timestamp" to now
-                                )
-
-                            transaction.set(
-                                followingRef,
-                                followingData
-                            )
-
-                            transaction.set(
-                                followerRef,
-                                followerData
-                            )
-
-                            transaction.set(
-                                currentUserRef,
-                                mapOf(
-                                    "followingCount" to
-                                        currentFollowingCount + 1
-                                ),
-                                SetOptions.merge()
-                            )
-
-                            transaction.set(
-                                targetUserRef,
-                                mapOf(
-                                    "followersCount" to
-                                        targetFollowersCount + 1
-                                ),
-                                SetOptions.merge()
-                            )
+                        if (currentUser == null) {
+                            return@HomeFeed
                         }
 
-                        null
-                    }
-                },
+                        val postRef =
+                            firestore
+                                .collection("posts")
+                                .document(post.id)
 
-                onComment = { postId ->
-                    selectedPostId = postId
-                    newComment = ""
-                    commentError = ""
-                    showCommentDialog = true
-                },
+                        val newPostRef =
+                            firestore
+                                .collection("posts")
+                                .document()
 
-                onShare = { post ->
+                        val userRef =
+                            firestore
+                                .collection("users")
+                                .document(currentUser.uid)
 
-                    val postRef =
-                        firestore
-                            .collection("posts")
-                            .document(post.id)
+                        firestore.runTransaction { transaction ->
 
-                    firestore.runTransaction { transaction ->
+                            val postSnapshot =
+                                transaction.get(postRef)
 
-                        val snapshot =
-                            transaction.get(postRef)
+                            val userSnapshot =
+                                transaction.get(userRef)
 
-                        val currentShares =
-                            snapshot.getLong("shareCount")
-                                ?.toInt()
-                                ?: 0
+                            val currentShares =
+                                postSnapshot
+                                    .getLong("shareCount")
+                                    ?.toInt()
+                                    ?: 0
 
-                        transaction.update(
-                            postRef,
-                            "shareCount",
-                            currentShares + 1
-                        )
+                            val currentName =
+                                userSnapshot
+                                    .getString("name")
+                                    ?.trim()
+                                    ?.takeIf {
+                                        it.isNotBlank()
+                                    }
+                                    ?: name
 
-                        null
-                    }.addOnSuccessListener {
-
-                        val shareText =
-                            "Check this out on Peejee:\n\n${post.text}"
-
-                        val shareIntent =
-                            Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    shareText
+                            val sharedPostData =
+                                hashMapOf<String, Any>(
+                                    "postId" to newPostRef.id,
+                                    "userId" to currentUser.uid,
+                                    "userName" to currentName,
+                                    "text" to post.text,
+                                    "likes" to 0,
+                                    "likedBy" to
+                                        emptyMap<String, Boolean>(),
+                                    "commentCount" to 0,
+                                    "shareCount" to 0,
+                                    "timestamp" to
+                                        System.currentTimeMillis(),
+                                    "sharedFromPostId" to post.id,
+                                    "sharedFromUserName" to
+                                        post.userName,
+                                    "sharedFromText" to
+                                        post.text
                                 )
+
+                            if (post.mediaUrl.isNotBlank()) {
+                                sharedPostData["mediaUrl"] =
+                                    post.mediaUrl
+
+                                sharedPostData["mediaType"] =
+                                    post.mediaType
                             }
 
-                        context.startActivity(
-                            Intent.createChooser(
-                                shareIntent,
-                                "Share Peejee post"
+                            transaction.set(
+                                newPostRef,
+                                sharedPostData
                             )
-                        )
-                    }
-                },
 
-                paddingValues = paddingValues
-            )
+                            transaction.update(
+                                postRef,
+                                "shareCount",
+                                currentShares + 1
+                            )
 
-            1 -> SearchPage(
-                name = name,
-                paddingValues = paddingValues
-            )
+                            null
 
-            2 -> CreatePostPage(
-                onPostCreated = {
-                    selectedTab = 0
-                },
-                paddingValues = paddingValues
-            )
+                        }.addOnFailureListener {
+                            // No external share.
+                        }
+                    },
 
-            3 -> MessagesPage(
-                name = name,
-                paddingValues = paddingValues
-            )
+                    paddingValues = paddingValues
+                )
 
-            4 -> ProfilePage(
-                name = name,
-                paddingValues = paddingValues,
-                onProfileNameChanged = onProfileNameChanged,
-                onLoggedOut = onLoggedOut
-            )
+                1 -> SearchPage(
+                    onMessage = { person ->
+                        selectedChatUser = person
+                        selectedTab = 3
+                    },
+                    paddingValues = paddingValues
+                )
+
+                2 -> CreatePostPage(
+                    onPostCreated = {
+                        selectedTab = 0
+                    },
+                    paddingValues = paddingValues
+                )
+
+                3 -> MessagesPage(
+                    onMessage = { person ->
+                        selectedChatUser = person
+                    },
+                    paddingValues = paddingValues
+                )
+
+                4 -> ProfilePage(
+                    name = name,
+                    paddingValues = paddingValues,
+                    onProfileNameChanged = onProfileNameChanged,
+                    onLoggedOut = onLoggedOut
+                )
+            }
         }
     }
 
@@ -1765,6 +1902,20 @@ fun TikTokStylePost(
                 modifier = Modifier.fillMaxWidth()
             ) {
 
+                if (post.sharedFromPostId.isNotBlank()) {
+
+                    Text(
+                        "🔁 $${post.userName} shared a post",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(
+                            start = 14.dp,
+                            top = 12.dp,
+                            end = 14.dp
+                        )
+                    )
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1826,6 +1977,42 @@ fun TikTokStylePost(
                 }
 
                 Spacer(Modifier.height(12.dp))
+
+                if (post.sharedFromPostId.isNotBlank()) {
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+
+                        Column(
+                            modifier = Modifier.padding(14.dp)
+                        ) {
+
+                            Text(
+                                "Original post by ${post.sharedFromUserName}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(Modifier.height(6.dp))
+
+                            if (
+                                post.sharedFromText.isNotBlank()
+                            ) {
+
+                                Text(
+                                    post.sharedFromText,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                }
 
                 if (post.mediaUrl.isNotBlank()) {
 
@@ -1929,7 +2116,6 @@ fun TikTokStylePost(
                     Alignment.CenterHorizontally
             ) {
 
-                // LIKE — LEFT EXACTLY AS IT WAS
                 ActionCircle(
                     icon =
                         if (isLiked) "❤️" else "♡",
@@ -1939,7 +2125,6 @@ fun TikTokStylePost(
 
                 Spacer(Modifier.height(14.dp))
 
-                // COMMENT — ICON + REAL COUNT
                 ActionCircle(
                     icon = "💬",
                     label = commentCount.toString(),
@@ -1948,7 +2133,6 @@ fun TikTokStylePost(
 
                 Spacer(Modifier.height(14.dp))
 
-                // SHARE — ICON + REAL COUNT
                 ActionCircle(
                     icon = "↗️",
                     label = shareCount.toString(),
@@ -1957,7 +2141,6 @@ fun TikTokStylePost(
 
                 Spacer(Modifier.height(14.dp))
 
-                // SOUND — ICON ONLY
                 ActionCircle(
                     icon = "🔊",
                     label = "",
@@ -2013,27 +2196,95 @@ fun ActionCircle(
 
 @Composable
 fun SearchPage(
-    name: String,
+    onMessage: (PeejeePerson) -> Unit,
     paddingValues: PaddingValues
 ) {
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
 
     var searchText by remember {
         mutableStateOf("")
     }
 
-    val people = listOf(
-        name,
-        "Peejee User",
-        "New Friend"
-    )
+    var results by remember {
+        mutableStateOf<List<PeejeePerson>>(emptyList())
+    }
 
-    val results =
-        people.filter {
-            it.contains(
-                searchText,
-                ignoreCase = true
-            )
+    var searching by remember {
+        mutableStateOf(false)
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    LaunchedEffect(searchText) {
+
+        val queryText = searchText.trim()
+
+        if (queryText.isBlank()) {
+
+            results = emptyList()
+            searching = false
+            errorMessage = ""
+
+        } else {
+
+            searching = true
+            errorMessage = ""
+
+            firestore
+                .collection("users")
+                .orderBy("name")
+                .startAt(queryText)
+                .endAt(queryText + "\uf8ff")
+                .limit(30)
+                .get()
+                .addOnSuccessListener { snapshot ->
+
+                    val currentId =
+                        auth.currentUser?.uid
+
+                    results =
+                        snapshot.documents.mapNotNull { document ->
+
+                            val uid =
+                                document.id
+
+                            if (uid == currentId) {
+                                null
+                            } else {
+
+                                PeejeePerson(
+                                    uid = uid,
+                                    name =
+                                        document.getString("name")
+                                            ?: "Peejee User",
+                                    email =
+                                        document.getString("email")
+                                            ?: ""
+                                )
+                            }
+                        }
+
+                    searching = false
+                }
+                .addOnFailureListener { exception ->
+
+                    searching = false
+
+                    errorMessage =
+                        exception.message
+                            ?: "Could not search users."
+                }
         }
+    }
 
     Column(
         modifier = Modifier
@@ -2047,7 +2298,7 @@ fun SearchPage(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            "Search",
+            "Search Users",
             fontSize = 30.sp,
             fontWeight = FontWeight.Bold
         )
@@ -2060,42 +2311,736 @@ fun SearchPage(
                 searchText = it
             },
             label = {
-                Text("Search people")
+                Text("Search registered users")
             },
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
 
-        results.forEach { person ->
+        if (searching) {
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.Center
             ) {
+                CircularProgressIndicator()
+            }
 
-                Row(
+        } else if (errorMessage.isNotBlank()) {
+
+            Text(
+                errorMessage,
+                color = MaterialTheme.colorScheme.error
+            )
+
+        } else if (
+            searchText.isNotBlank() &&
+            results.isEmpty()
+        ) {
+
+            Text(
+                "No Peejee user found."
+            )
+
+        } else {
+
+            results.forEach { person ->
+
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment =
-                        Alignment.CenterVertically
+                        .padding(bottom = 10.dp)
                 ) {
 
-                    DefaultProfileIcon(size = 45)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
 
-                    Spacer(Modifier.width(14.dp))
+                        DefaultProfileIcon(size = 52)
 
-                    Text(
-                        person,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                        Spacer(Modifier.width(12.dp))
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+
+                            Text(
+                                person.name,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            if (person.email.isNotBlank()) {
+
+                                Text(
+                                    person.email,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                onMessage(person)
+                            }
+                        ) {
+                            Text("Message")
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+fun MessagesPage(
+    onMessage: (PeejeePerson) -> Unit,
+    paddingValues: PaddingValues
+) {
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    var searchText by remember {
+        mutableStateOf("")
+    }
+
+    var results by remember {
+        mutableStateOf<List<PeejeePerson>>(emptyList())
+    }
+
+    var searching by remember {
+        mutableStateOf(false)
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    LaunchedEffect(searchText) {
+
+        val queryText = searchText.trim()
+
+        if (queryText.isBlank()) {
+
+            results = emptyList()
+            searching = false
+            errorMessage = ""
+
+        } else {
+
+            searching = true
+            errorMessage = ""
+
+            firestore
+                .collection("users")
+                .orderBy("name")
+                .startAt(queryText)
+                .endAt(queryText + "\uf8ff")
+                .limit(30)
+                .get()
+                .addOnSuccessListener { snapshot ->
+
+                    val currentId =
+                        auth.currentUser?.uid
+
+                    results =
+                        snapshot.documents.mapNotNull { document ->
+
+                            val uid =
+                                document.id
+
+                            if (uid == currentId) {
+                                null
+                            } else {
+
+                                PeejeePerson(
+                                    uid = uid,
+                                    name =
+                                        document.getString("name")
+                                            ?: "Peejee User",
+                                    email =
+                                        document.getString("email")
+                                            ?: ""
+                                )
+                            }
+                        }
+
+                    searching = false
+                }
+                .addOnFailureListener { exception ->
+
+                    searching = false
+
+                    errorMessage =
+                        exception.message
+                            ?: "Could not search users."
+                }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(20.dp)
+    ) {
+
+        PeejeeLogo(size = 70)
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            "Private Messages",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            "Search a Peejee user to start a private chat."
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        OutlinedTextField(
+            value = searchText,
+            onValueChange = {
+                searchText = it
+            },
+            label = {
+                Text("Search user")
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        if (searching) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.Center
+            ) {
+                CircularProgressIndicator()
+            }
+
+        } else if (errorMessage.isNotBlank()) {
+
+            Text(
+                errorMessage,
+                color = MaterialTheme.colorScheme.error
+            )
+
+        } else if (
+            searchText.isNotBlank() &&
+            results.isEmpty()
+        ) {
+
+            Text("No user found.")
+
+        } else if (searchText.isBlank()) {
+
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
+                ) {
+
+                    Text(
+                        "💬",
+                        fontSize = 45.sp
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        "Find someone and start chatting."
+                    )
+                }
+            }
+
+        } else {
+
+            results.forEach { person ->
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp)
+                ) {
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+
+                        DefaultProfileIcon(size = 52)
+
+                        Spacer(Modifier.width(12.dp))
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+
+                            Text(
+                                person.name,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                onMessage(person)
+                            }
+                        ) {
+                            Text("Message")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PrivateChatPage(
+    person: PeejeePerson,
+    paddingValues: PaddingValues,
+    onBack: () -> Unit
+) {
+
+    val firestore = remember {
+        FirebaseFirestore.getInstance()
+    }
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val currentUserId =
+        auth.currentUser?.uid ?: ""
+
+    var messages by remember {
+        mutableStateOf<List<PeejeeMessage>>(emptyList())
+    }
+
+    var newMessage by remember {
+        mutableStateOf("")
+    }
+
+    var sending by remember {
+        mutableStateOf(false)
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    DisposableEffect(
+        currentUserId,
+        person.uid
+    ) {
+
+        if (
+            currentUserId.isBlank() ||
+            person.uid.isBlank()
+        ) {
+
+            onDispose { }
+
+        } else {
+
+            val sentRegistration =
+                firestore
+                    .collection("messages")
+                    .whereEqualTo(
+                        "senderId",
+                        currentUserId
+                    )
+                    .whereEqualTo(
+                        "receiverId",
+                        person.uid
+                    )
+                    .addSnapshotListener { sentSnapshot, sentError ->
+
+                        if (sentError != null) {
+                            return@addSnapshotListener
+                        }
+
+                        firestore
+                            .collection("messages")
+                            .whereEqualTo(
+                                "senderId",
+                                person.uid
+                            )
+                            .whereEqualTo(
+                                "receiverId",
+                                currentUserId
+                            )
+                            .get()
+                            .addOnSuccessListener { receivedSnapshot ->
+
+                                val sentMessages =
+                                    sentSnapshot
+                                        ?.documents
+                                        ?.mapNotNull {
+                                            messageFromDocument(it)
+                                        }
+                                        ?: emptyList()
+
+                                val receivedMessages =
+                                    receivedSnapshot
+                                        .documents
+                                        .mapNotNull {
+                                            messageFromDocument(it)
+                                        }
+
+                                messages =
+                                    (
+                                        sentMessages +
+                                            receivedMessages
+                                        )
+                                        .distinctBy { it.id }
+                                        .sortedBy {
+                                            it.timestamp
+                                        }
+                            }
+                    }
+
+            val receivedRegistration =
+                firestore
+                    .collection("messages")
+                    .whereEqualTo(
+                        "senderId",
+                        person.uid
+                    )
+                    .whereEqualTo(
+                        "receiverId",
+                        currentUserId
+                    )
+                    .addSnapshotListener { receivedSnapshot, receivedError ->
+
+                        if (receivedError != null) {
+                            return@addSnapshotListener
+                        }
+
+                        firestore
+                            .collection("messages")
+                            .whereEqualTo(
+                                "senderId",
+                                currentUserId
+                            )
+                            .whereEqualTo(
+                                "receiverId",
+                                person.uid
+                            )
+                            .get()
+                            .addOnSuccessListener { sentSnapshot ->
+
+                                val sentMessages =
+                                    sentSnapshot
+                                        .documents
+                                        .mapNotNull {
+                                            messageFromDocument(it)
+                                        }
+
+                                val receivedMessages =
+                                    receivedSnapshot
+                                        ?.documents
+                                        ?.mapNotNull {
+                                            messageFromDocument(it)
+                                        }
+                                        ?: emptyList()
+
+                                messages =
+                                    (
+                                        sentMessages +
+                                            receivedMessages
+                                        )
+                                        .distinctBy { it.id }
+                                        .sortedBy {
+                                            it.timestamp
+                                        }
+                            }
+                    }
+
+            onDispose {
+                sentRegistration.remove()
+                receivedRegistration.remove()
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+    ) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 12.dp,
+                    vertical = 10.dp
+                ),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            TextButton(
+                onClick = onBack
+            ) {
+                Text("← Back")
+            }
+
+            DefaultProfileIcon(size = 45)
+
+            Spacer(Modifier.width(10.dp))
+
+            Column {
+
+                Text(
+                    person.name,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    "Private chat",
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        HorizontalDivider()
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            reverseLayout = false
+        ) {
+
+            itemsIndexed(
+                messages,
+                key = { _, message -> message.id }
+            ) { _, message ->
+
+                val mine =
+                    message.senderId == currentUserId
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            vertical = 5.dp
+                        ),
+                    horizontalArrangement =
+                        if (mine) {
+                            Arrangement.End
+                        } else {
+                            Arrangement.Start
+                        }
+                ) {
+
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color =
+                            if (mine) {
+                                MaterialTheme
+                                    .colorScheme
+                                    .primaryContainer
+                            } else {
+                                MaterialTheme
+                                    .colorScheme
+                                    .surfaceVariant
+                            }
+                    ) {
+
+                        Column(
+                            modifier = Modifier
+                                .widthIn(max = 290.dp)
+                                .padding(
+                                    horizontal = 14.dp,
+                                    vertical = 9.dp
+                                )
+                        ) {
+
+                            Text(
+                                message.text,
+                                fontSize = 16.sp
+                            )
+
+                            Spacer(Modifier.height(3.dp))
+
+                            Text(
+                                formatPostTime(
+                                    message.timestamp
+                                ),
+                                fontSize = 9.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (errorMessage.isNotBlank()) {
+
+            Text(
+                errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(
+                    horizontal = 12.dp
+                )
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            OutlinedTextField(
+                value = newMessage,
+                onValueChange = {
+                    newMessage = it
+                    errorMessage = ""
+                },
+                label = {
+                    Text("Message")
+                },
+                modifier = Modifier.weight(1f),
+                enabled = !sending
+            )
+
+            Spacer(Modifier.width(8.dp))
+
+            Button(
+                onClick = {
+
+                    val text =
+                        newMessage.trim()
+
+                    if (
+                        currentUserId.isBlank() ||
+                        person.uid.isBlank()
+                    ) {
+
+                        errorMessage =
+                            "Please log in again."
+
+                        return@Button
+                    }
+
+                    if (text.isBlank()) {
+                        return@Button
+                    }
+
+                    sending = true
+                    errorMessage = ""
+
+                    val messageReference =
+                        firestore
+                            .collection("messages")
+                            .document()
+
+                    val messageData =
+                        hashMapOf<String, Any>(
+                            "messageId" to
+                                messageReference.id,
+                            "senderId" to
+                                currentUserId,
+                            "receiverId" to
+                                person.uid,
+                            "text" to text,
+                            "timestamp" to
+                                System.currentTimeMillis()
+                        )
+
+                    messageReference
+                        .set(messageData)
+                        .addOnSuccessListener {
+
+                            sending = false
+                            newMessage = ""
+                        }
+                        .addOnFailureListener { exception ->
+
+                            sending = false
+
+                            errorMessage =
+                                exception.message
+                                    ?: "Could not send message."
+                        }
+                },
+                enabled =
+                    !sending &&
+                    newMessage.isNotBlank()
+            ) {
+                Text(
+                    if (sending) "..." else "Send"
+                )
+            }
+        }
+    }
+}
+
+fun messageFromDocument(
+    document: com.google.firebase.firestore.DocumentSnapshot
+): PeejeeMessage? {
+
+    val senderId =
+        document.getString("senderId")
+            ?: return null
+
+    val receiverId =
+        document.getString("receiverId")
+            ?: return null
+
+    val text =
+        document.getString("text")
+            ?: return null
+
+    return PeejeeMessage(
+        id = document.id,
+        senderId = senderId,
+        receiverId = receiverId,
+        text = text,
+        timestamp =
+            document.getLong("timestamp")
+                ?: 0L
+    )
 }
 
 @Composable
@@ -2377,59 +3322,6 @@ fun CreatePostPage(
                     "Publish Post"
                 }
             )
-        }
-    }
-}
-
-@Composable
-fun MessagesPage(
-    name: String,
-    paddingValues: PaddingValues
-) {
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
-            .padding(20.dp)
-    ) {
-
-        PeejeeLogo(size = 70)
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            "Messages",
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(20.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-
-            Column(
-                modifier = Modifier.padding(18.dp),
-                horizontalAlignment =
-                    Alignment.CenterHorizontally
-            ) {
-
-                PeejeeLogo(size = 70)
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    "Welcome $name! Your conversations will appear here."
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                Button(onClick = {}) {
-                    Text("Start a Chat")
-                }
-            }
         }
     }
 }
@@ -2747,7 +3639,22 @@ fun ProfilePage(
                                             shareCount =
                                                 document.getLong(
                                                     "shareCount"
-                                                )?.toInt() ?: 0
+                                                )?.toInt() ?: 0,
+
+                                            sharedFromPostId =
+                                                document.getString(
+                                                    "sharedFromPostId"
+                                                ) ?: "",
+
+                                            sharedFromUserName =
+                                                document.getString(
+                                                    "sharedFromUserName"
+                                                ) ?: "",
+
+                                            sharedFromText =
+                                                document.getString(
+                                                    "sharedFromText"
+                                                ) ?: ""
                                         )
                                     }
                                     .sortedByDescending {
@@ -3529,6 +4436,17 @@ fun ProfilePostCard(
             modifier = Modifier.padding(16.dp)
         ) {
 
+            if (post.sharedFromPostId.isNotBlank()) {
+
+                Text(
+                    "🔁 Shared from ${post.sharedFromUserName}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(6.dp))
+            }
+
             if (post.text.isNotBlank()) {
 
                 Text(
@@ -3568,6 +4486,16 @@ fun ProfilePostCard(
 
             Text(
                 "❤️ ${post.likeCount} likes",
+                fontSize = 13.sp
+            )
+
+            Text(
+                "💬 ${post.commentCount} comments",
+                fontSize = 13.sp
+            )
+
+            Text(
+                "↗️ ${post.shareCount} shares",
                 fontSize = 13.sp
             )
         }
