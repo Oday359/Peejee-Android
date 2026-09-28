@@ -5,10 +5,12 @@ import android.os.Bundle
 import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,8 +20,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material3.*
+
 import androidx.compose.runtime.*
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,12 +36,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
 
 class MainActivity : ComponentActivity() {
 
@@ -48,6 +56,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 
 @Composable
 fun PeejeeApp() {
@@ -141,6 +150,7 @@ fun PeejeeApp() {
     }
 }
 
+
 @Composable
 fun WelcomeScreen(
     onCreateAccount: () -> Unit,
@@ -161,14 +171,18 @@ fun WelcomeScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         Text(
             text = "Connect. Chat. Share.",
             fontSize = 18.sp
         )
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(
+            modifier = Modifier.height(40.dp)
+        )
 
         Button(
             onClick = onCreateAccount,
@@ -177,7 +191,9 @@ fun WelcomeScreen(
             Text("Create Account")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         OutlinedButton(
             onClick = onLogin,
@@ -188,19 +204,36 @@ fun WelcomeScreen(
     }
 }
 
+
 @Composable
 fun SignUpScreen(
     onAccountCreated: (String) -> Unit,
     onBack: () -> Unit
 ) {
 
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var name by remember {
+        mutableStateOf("")
+    }
 
-    var errorMessage by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
+    var email by remember {
+        mutableStateOf("")
+    }
+
+    var password by remember {
+        mutableStateOf("")
+    }
+
+    var confirmPassword by remember {
+        mutableStateOf("")
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    var loading by remember {
+        mutableStateOf(false)
+    }
 
     val auth = remember {
         FirebaseAuth.getInstance()
@@ -224,7 +257,9 @@ fun SignUpScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
 
         OutlinedTextField(
             value = name,
@@ -237,7 +272,9 @@ fun SignUpScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = email,
@@ -250,7 +287,9 @@ fun SignUpScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = password,
@@ -260,11 +299,14 @@ fun SignUpScreen(
             label = {
                 Text("Password")
             },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation =
+                PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = confirmPassword,
@@ -274,11 +316,14 @@ fun SignUpScreen(
             label = {
                 Text("Confirm Password")
             },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation =
+                PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         if (errorMessage.isNotEmpty()) {
 
@@ -287,7 +332,9 @@ fun SignUpScreen(
                 color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
         }
 
         Button(
@@ -298,21 +345,25 @@ fun SignUpScreen(
                 when {
 
                     name.isBlank() -> {
+
                         errorMessage =
                             "Please enter your full name."
                     }
 
                     email.isBlank() -> {
+
                         errorMessage =
                             "Please enter your email."
                     }
 
                     password.length < 6 -> {
+
                         errorMessage =
                             "Password must be at least 6 characters."
                     }
 
                     password != confirmPassword -> {
+
                         errorMessage =
                             "Passwords do not match."
                     }
@@ -394,17 +445,21 @@ fun SignUpScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedButton(
             onClick = onBack,
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("Back")
         }
     }
 }
+
 
 @Composable
 fun LoginScreen(
@@ -412,11 +467,21 @@ fun LoginScreen(
     onBack: () -> Unit
 ) {
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var email by remember {
+        mutableStateOf("")
+    }
 
-    var errorMessage by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
+    var password by remember {
+        mutableStateOf("")
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    var loading by remember {
+        mutableStateOf(false)
+    }
 
     val auth = remember {
         FirebaseAuth.getInstance()
@@ -440,7 +505,9 @@ fun LoginScreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
 
         OutlinedTextField(
             value = email,
@@ -453,7 +520,9 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedTextField(
             value = password,
@@ -463,11 +532,14 @@ fun LoginScreen(
             label = {
                 Text("Password")
             },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation =
+                PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         if (errorMessage.isNotEmpty()) {
 
@@ -476,7 +548,9 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.error
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
         }
 
         Button(
@@ -487,11 +561,13 @@ fun LoginScreen(
                 when {
 
                     email.isBlank() -> {
+
                         errorMessage =
                             "Please enter your email."
                     }
 
                     password.isBlank() -> {
+
                         errorMessage =
                             "Please enter your password."
                     }
@@ -567,17 +643,21 @@ fun LoginScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         OutlinedButton(
             onClick = onBack,
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("Back")
         }
     }
 }
+
 
 data class PeejeePost(
     val id: String,
@@ -586,8 +666,11 @@ data class PeejeePost(
     val text: String,
     val timestamp: Long,
     val mediaUrl: String = "",
-    val mediaType: String = ""
+    val mediaType: String = "",
+    val likeCount: Int = 0,
+    val likedBy: Map<String, Boolean> = emptyMap()
 )
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -601,14 +684,6 @@ fun HomeScreen(
 
     var posts by remember {
         mutableStateOf<List<PeejeePost>>(emptyList())
-    }
-
-    var likedPostIds by remember {
-        mutableStateOf(setOf<String>())
-    }
-
-    var likeCounts by remember {
-        mutableStateOf<Map<String, Int>>(emptyMap())
     }
 
     var followedUserIds by remember {
@@ -640,6 +715,13 @@ fun HomeScreen(
     val firestore = remember {
         FirebaseFirestore.getInstance()
     }
+
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val currentUserId =
+        auth.currentUser?.uid ?: ""
 
     DisposableEffect(Unit) {
 
@@ -688,6 +770,41 @@ fun HomeScreen(
                                     document.getString("mediaType")
                                         ?: ""
 
+                                val likeCount =
+                                    document.getLong("likes")
+                                        ?.toInt()
+                                        ?: 0
+
+                                val likedByRaw =
+                                    document.get("likedBy")
+
+                                val likedBy =
+                                    if (likedByRaw is Map<*, *>) {
+
+                                        likedByRaw
+                                            .mapNotNull { entry ->
+
+                                                val key =
+                                                    entry.key as? String
+
+                                                val value =
+                                                    entry.value as? Boolean
+
+                                                if (
+                                                    key != null &&
+                                                    value != null
+                                                ) {
+                                                    key to value
+                                                } else {
+                                                    null
+                                                }
+                                            }
+                                            .toMap()
+
+                                    } else {
+                                        emptyMap()
+                                    }
+
                                 PeejeePost(
                                     id = document.id,
                                     userId = userId,
@@ -695,30 +812,13 @@ fun HomeScreen(
                                     text = text,
                                     timestamp = timestamp,
                                     mediaUrl = mediaUrl,
-                                    mediaType = mediaType
+                                    mediaType = mediaType,
+                                    likeCount = likeCount,
+                                    likedBy = likedBy
                                 )
                             }
 
                         posts = loadedPosts
-
-                        val loadedLikes =
-                            mutableMapOf<String, Int>()
-
-                        loadedPosts.forEach { post ->
-
-                            val document =
-                                snapshot.documents.firstOrNull {
-                                    it.id == post.id
-                                }
-
-                            loadedLikes[post.id] =
-                                document
-                                    ?.getLong("likes")
-                                    ?.toInt()
-                                    ?: 0
-                        }
-
-                        likeCounts = loadedLikes
                     }
 
                     loadingPosts = false
@@ -825,50 +925,109 @@ fun HomeScreen(
                 HomeFeed(
                     name = name,
                     posts = posts,
-                    likes = likeCounts,
-                    likedPostIds = likedPostIds,
                     followedUserIds = followedUserIds,
                     loadingPosts = loadingPosts,
 
                     onLike = { postId ->
 
-                        val currentlyLiked =
-                            likedPostIds.contains(postId)
+                        val userId =
+                            auth.currentUser?.uid
 
-                        val newLiked =
-                            likedPostIds.toMutableSet()
-
-                        if (currentlyLiked) {
-                            newLiked.remove(postId)
-                        } else {
-                            newLiked.add(postId)
+                        if (userId == null) {
+                            return@HomeFeed
                         }
 
-                        likedPostIds = newLiked
+                        val postRef =
+                            firestore
+                                .collection("posts")
+                                .document(postId)
 
-                        val currentCount =
-                            likeCounts[postId] ?: 0
+                        firestore.runTransaction { transaction ->
 
-                        val newCount =
-                            if (currentlyLiked) {
-                                (currentCount - 1)
-                                    .coerceAtLeast(0)
+                            val snapshot =
+                                transaction.get(postRef)
+
+                            val currentLikes =
+                                snapshot
+                                    .getLong("likes")
+                                    ?.toInt()
+                                    ?: 0
+
+                            val rawLikedBy =
+                                snapshot.get("likedBy")
+
+                            val currentLikedBy =
+                                if (rawLikedBy is Map<*, *>) {
+
+                                    rawLikedBy
+                                        .mapNotNull { entry ->
+
+                                            val key =
+                                                entry.key as? String
+
+                                            val value =
+                                                entry.value as? Boolean
+
+                                            if (
+                                                key != null &&
+                                                value != null
+                                            ) {
+                                                key to value
+                                            } else {
+                                                null
+                                            }
+                                        }
+                                        .toMutableMap()
+
+                                } else {
+                                    mutableMapOf()
+                                }
+
+                            val alreadyLiked =
+                                currentLikedBy[userId] == true
+
+                            if (alreadyLiked) {
+
+                                currentLikedBy.remove(userId)
+
+                                transaction.update(
+                                    postRef,
+                                    "likes",
+                                    (currentLikes - 1)
+                                        .coerceAtLeast(0)
+                                )
+
+                                transaction.update(
+                                    postRef,
+                                    "likedBy",
+                                    currentLikedBy
+                                )
+
                             } else {
-                                currentCount + 1
+
+                                currentLikedBy[userId] =
+                                    true
+
+                                transaction.update(
+                                    postRef,
+                                    "likes",
+                                    currentLikes + 1
+                                )
+
+                                transaction.update(
+                                    postRef,
+                                    "likedBy",
+                                    currentLikedBy
+                                )
                             }
 
-                        likeCounts =
-                            likeCounts.toMutableMap().apply {
-                                this[postId] = newCount
-                            }
+                            null
 
-                        firestore
-                            .collection("posts")
-                            .document(postId)
-                            .update(
-                                "likes",
-                                newCount
-                            )
+                        }.addOnFailureListener {
+                            // Firestore listener will keep the
+                            // displayed data unchanged if the
+                            // operation fails.
+                        }
                     },
 
                     onFollow = { userId ->
@@ -877,9 +1036,7 @@ fun HomeScreen(
                             followedUserIds.toMutableSet()
 
                         if (
-                            newFollowing.contains(
-                                userId
-                            )
+                            newFollowing.contains(userId)
                         ) {
                             newFollowing.remove(userId)
                         } else {
@@ -904,6 +1061,7 @@ fun HomeScreen(
 
                         val shareIntent =
                             Intent(Intent.ACTION_SEND).apply {
+
                                 type = "text/plain"
 
                                 putExtra(
@@ -951,9 +1109,11 @@ fun HomeScreen(
     if (showCommentDialog) {
 
         val selectedComments =
-            comments[selectedPostId] ?: emptyList()
+            comments[selectedPostId]
+                ?: emptyList()
 
         AlertDialog(
+
             onDismissRequest = {
                 showCommentDialog = false
             },
@@ -1033,6 +1193,7 @@ fun HomeScreen(
                         }
                     }
                 ) {
+
                     Text("Comment")
                 }
             },
@@ -1044,6 +1205,7 @@ fun HomeScreen(
                         showCommentDialog = false
                     }
                 ) {
+
                     Text("Close")
                 }
             }
@@ -1051,12 +1213,11 @@ fun HomeScreen(
     }
 }
 
+
 @Composable
 fun HomeFeed(
     name: String,
     posts: List<PeejeePost>,
-    likes: Map<String, Int>,
-    likedPostIds: Set<String>,
     followedUserIds: Set<String>,
     loadingPosts: Boolean,
     onLike: (String) -> Unit,
@@ -1154,8 +1315,7 @@ fun HomeFeed(
                             }
 
                             Spacer(
-                                modifier =
-                                    Modifier.height(8.dp)
+                                modifier = Modifier.height(8.dp)
                             )
 
                             Text(
@@ -1166,8 +1326,7 @@ fun HomeFeed(
                             )
 
                             Spacer(
-                                modifier =
-                                    Modifier.height(6.dp)
+                                modifier = Modifier.height(6.dp)
                             )
 
                             Surface(
@@ -1190,8 +1349,7 @@ fun HomeFeed(
                             }
 
                             Spacer(
-                                modifier =
-                                    Modifier.height(6.dp)
+                                modifier = Modifier.height(6.dp)
                             )
 
                             Text(
@@ -1238,12 +1396,12 @@ fun HomeFeed(
                         Text(
                             text = "No posts yet.",
                             fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight =
+                                FontWeight.Bold
                         )
 
                         Spacer(
-                            modifier =
-                                Modifier.height(8.dp)
+                            modifier = Modifier.height(8.dp)
                         )
 
                         Text(
@@ -1268,26 +1426,29 @@ fun HomeFeed(
 
             TikTokStylePost(
                 post = post,
-                likeCount =
-                    likes[post.id] ?: 0,
+                likeCount = post.likeCount,
                 isLiked =
-                    likedPostIds.contains(
-                        post.id
-                    ),
+                    post.likedBy.values.any {
+                        it
+                    },
                 isFollowing =
                     followedUserIds.contains(
                         post.userId
                     ),
                 currentUserName = name,
+
                 onLike = {
                     onLike(post.id)
                 },
+
                 onFollow = {
                     onFollow(post.userId)
                 },
+
                 onComment = {
                     onComment(post.id)
                 },
+
                 onShare = {
                     onShare(post)
                 }
@@ -1302,6 +1463,7 @@ fun HomeFeed(
         }
     }
 }
+
 
 @Composable
 fun TikTokStylePost(
@@ -1331,8 +1493,7 @@ fun TikTokStylePost(
         ) {
 
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
 
                 Row(
@@ -1382,7 +1543,8 @@ fun TikTokStylePost(
                         )
 
                         Text(
-                            text = "@${post.userName.replace(" ", "").lowercase()}",
+                            text =
+                                "@${post.userName.replace(" ", "").lowercase()}",
                             fontSize = 12.sp
                         )
                     }
@@ -1399,7 +1561,8 @@ fun TikTokStylePost(
                                     horizontal = 12.dp,
                                     vertical = 0.dp
                                 ),
-                            modifier = Modifier.height(36.dp)
+                            modifier =
+                                Modifier.height(36.dp)
                         ) {
 
                             Text(
@@ -1456,8 +1619,7 @@ fun TikTokStylePost(
                                 )
 
                                 Text(
-                                    text =
-                                        "Video post",
+                                    text = "Video post",
                                     fontSize = 18.sp,
                                     fontWeight =
                                         FontWeight.Bold
@@ -1506,98 +1668,6 @@ fun TikTokStylePost(
                     }
                 }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = 14.dp,
-                            end = 14.dp,
-                            top = 10.dp
-                        ),
-                    horizontalArrangement =
-                        Arrangement.SpaceEvenly
-                ) {
-
-                    Column(
-                        horizontalAlignment =
-                            Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable {
-                            onLike()
-                        }
-                    ) {
-
-                        Text(
-                            text = if (isLiked) {
-                                "❤️"
-                            } else {
-                                "♡"
-                            },
-                            fontSize = 30.sp
-                        )
-
-                        Text(
-                            text = likeCount.toString(),
-                            fontSize = 12.sp,
-                            fontWeight =
-                                FontWeight.Bold
-                        )
-                    }
-
-                    Column(
-                        horizontalAlignment =
-                            Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable {
-                            onComment()
-                        }
-                    ) {
-
-                        Text(
-                            text = "💬",
-                            fontSize = 28.sp
-                        )
-
-                        Text(
-                            text = "Comment",
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    Column(
-                        horizontalAlignment =
-                            Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable {
-                            onShare()
-                        }
-                    ) {
-
-                        Text(
-                            text = "↗️",
-                            fontSize = 28.sp
-                        )
-
-                        Text(
-                            text = "Share",
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    Column(
-                        horizontalAlignment =
-                            Alignment.CenterHorizontally
-                    ) {
-
-                        Text(
-                            text = "🔊",
-                            fontSize = 28.sp
-                        )
-
-                        Text(
-                            text = "Sound",
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-
                 if (post.text.isNotBlank()) {
 
                     Spacer(
@@ -1627,7 +1697,12 @@ fun TikTokStylePost(
             ) {
 
                 ActionCircle(
-                    icon = if (isLiked) "❤️" else "♡",
+                    icon =
+                        if (isLiked) {
+                            "❤️"
+                        } else {
+                            "♡"
+                        },
                     label = likeCount.toString(),
                     onClick = onLike
                 )
@@ -1666,6 +1741,7 @@ fun TikTokStylePost(
         }
     }
 }
+
 
 @Composable
 fun ActionCircle(
@@ -1711,6 +1787,7 @@ fun ActionCircle(
     }
 }
 
+
 @Composable
 fun SearchPage(
     name: String,
@@ -1727,12 +1804,13 @@ fun SearchPage(
         "New Friend"
     )
 
-    val results = people.filter {
-        it.contains(
-            searchText,
-            ignoreCase = true
-        )
-    }
+    val results =
+        people.filter {
+            it.contains(
+                searchText,
+                ignoreCase = true
+            )
+        }
 
     Column(
         modifier = Modifier
@@ -1794,13 +1872,15 @@ fun SearchPage(
                     Text(
                         text = person,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight =
+                            FontWeight.Bold
                     )
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun CreatePostPage(
@@ -1891,6 +1971,7 @@ fun CreatePostPage(
                 },
                 modifier = Modifier.weight(1f)
             ) {
+
                 Text("🖼️ Photo")
             }
 
@@ -1900,6 +1981,7 @@ fun CreatePostPage(
                 },
                 modifier = Modifier.weight(1f)
             ) {
+
                 Text("🎥 Video")
             }
         }
@@ -1953,6 +2035,7 @@ fun CreatePostPage(
                             mediaType = ""
                         }
                     ) {
+
                         Text("Remove")
                     }
                 }
@@ -1984,7 +2067,8 @@ fun CreatePostPage(
 
             Text(
                 text = errorMessage,
-                color = MaterialTheme.colorScheme.error
+                color =
+                    MaterialTheme.colorScheme.error
             )
 
             Spacer(
@@ -2037,6 +2121,7 @@ fun CreatePostPage(
                             ),
                         "text" to postText.trim(),
                         "likes" to 0,
+                        "likedBy" to emptyMap<String, Boolean>(),
                         "timestamp" to
                             System.currentTimeMillis()
                     )
@@ -2128,6 +2213,7 @@ fun CreatePostPage(
     }
 }
 
+
 @Composable
 fun MessagesPage(
     name: String,
@@ -2181,12 +2267,14 @@ fun MessagesPage(
                     onClick = {
                     }
                 ) {
+
                     Text("Start a Chat")
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun ProfilePage(
@@ -2280,7 +2368,9 @@ fun ProfilePage(
                             ?.use { inputStream ->
 
                                 BitmapFactory
-                                    .decodeStream(inputStream)
+                                    .decodeStream(
+                                        inputStream
+                                    )
                             }
 
                     } catch (exception: Exception) {
@@ -2356,7 +2446,8 @@ fun ProfilePage(
 
                     Image(
                         bitmap =
-                            profileBitmap!!.asImageBitmap(),
+                            profileBitmap!!
+                                .asImageBitmap(),
                         contentDescription =
                             "Profile photo",
                         modifier = Modifier
@@ -2488,6 +2579,7 @@ fun ProfilePage(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("Edit Profile")
         }
 
@@ -2503,6 +2595,7 @@ fun ProfilePage(
 
                 val shareIntent =
                     Intent(Intent.ACTION_SEND).apply {
+
                         type = "text/plain"
 
                         putExtra(
@@ -2521,6 +2614,7 @@ fun ProfilePage(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("Share Profile")
         }
     }
@@ -2528,6 +2622,7 @@ fun ProfilePage(
     if (showEditDialog) {
 
         AlertDialog(
+
             onDismissRequest = {
 
                 if (!savingProfile) {
@@ -2591,7 +2686,10 @@ fun ProfilePage(
                     ) {
 
                         Text(
-                            if (selectedProfilePhotoUri == null) {
+                            if (
+                                selectedProfilePhotoUri ==
+                                null
+                            ) {
                                 "🖼️ Choose Profile Photo"
                             } else {
                                 "🖼️ Change Profile Photo"
@@ -2599,7 +2697,9 @@ fun ProfilePage(
                         )
                     }
 
-                    if (selectedProfilePhotoUri != null) {
+                    if (
+                        selectedProfilePhotoUri != null
+                    ) {
 
                         Spacer(
                             modifier =
@@ -2680,6 +2780,7 @@ fun ProfilePage(
                         showEditDialog = false
                     }
                 ) {
+
                     Text("Cancel")
                 }
             }
