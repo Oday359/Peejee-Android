@@ -2158,28 +2158,25 @@ Card(
 
             Spacer(Modifier.height(14.dp))  
 
-            Box {  
-
-                ActionCircle(  
-                    icon = "⋮",  
-                    label = "",  
-                    onClick = {  
-                        showPostMenu = true  
-                    }  
-                )  
-
-                if (showPostMenu) {  
-
-                    PostMenu(  
-                        post = post,  
-                        onDismiss = {  
-                            showPostMenu = false  
-                        }  
-                    )  
+            ActionCircle(  
+                icon = "⋮",  
+                label = "",  
+                onClick = {  
+                    showPostMenu = true  
                 }  
-            }  
+            )  
         }  
     }  
+}  
+
+if (showPostMenu) {  
+
+    PostMenu(  
+        post = post,  
+        onDismiss = {  
+            showPostMenu = false  
+        }  
+    )  
 }
 
 }
@@ -3444,6 +3441,18 @@ var savedProfilePhoto by remember {
     mutableStateOf("")  
 }  
 
+var selectedCoverPhotoUri by remember {  
+    mutableStateOf<Uri?>(null)  
+}  
+
+var coverBitmap by remember {  
+    mutableStateOf<Bitmap?>(null)  
+}  
+
+var savedCoverPhoto by remember {  
+    mutableStateOf("")  
+}  
+
 var profileError by remember {  
     mutableStateOf("")  
 }  
@@ -3483,6 +3492,17 @@ val profilePhotoPicker =
         }  
     }  
 
+val coverPhotoPicker =  
+    rememberLauncherForActivityResult(  
+        ActivityResultContracts.GetContent()  
+    ) { uri ->  
+
+        if (uri != null) {  
+            selectedCoverPhotoUri = uri  
+            profileError = ""  
+        }  
+    }  
+
 LaunchedEffect(  
     selectedProfilePhotoUri,  
     savedProfilePhoto  
@@ -3513,6 +3533,41 @@ LaunchedEffect(
 
                 base64ToBitmap(  
                     savedProfilePhoto  
+                )  
+            }  
+        }  
+}  
+
+LaunchedEffect(  
+    selectedCoverPhotoUri,  
+    savedCoverPhoto  
+) {  
+
+    val selectedUri =  
+        selectedCoverPhotoUri  
+
+    coverBitmap =  
+        withContext(Dispatchers.IO) {  
+
+            if (selectedUri != null) {  
+
+                try {  
+
+                    context  
+                        .contentResolver  
+                        .openInputStream(selectedUri)  
+                        ?.use {  
+                            BitmapFactory.decodeStream(it)  
+                        }  
+
+                } catch (exception: Exception) {  
+                    null  
+                }  
+
+            } else {  
+
+                base64ToBitmap(  
+                    savedCoverPhoto  
                 )  
             }  
         }  
@@ -3569,6 +3624,10 @@ DisposableEffect(userId) {
 
                         savedProfilePhoto =  
                             document.getString("profilePhoto")  
+                                ?: ""  
+
+                        savedCoverPhoto =  
+                            document.getString("coverPhoto")  
                                 ?: ""  
 
                         followersCount =  
@@ -3863,6 +3922,51 @@ Column(
 
             Box(  
                 modifier = Modifier  
+                    .fillMaxWidth()  
+                    .height(180.dp)  
+                    .clip(RoundedCornerShape(18.dp)),  
+                contentAlignment =  
+                    Alignment.Center  
+            ) {  
+
+                if (coverBitmap != null) {  
+
+                    Image(  
+                        bitmap =  
+                            coverBitmap!!  
+                                .asImageBitmap(),  
+                        contentDescription =  
+                            "Cover photo",  
+                        modifier = Modifier.fillMaxSize(),  
+                        contentScale =  
+                            ContentScale.Crop  
+                    )  
+
+                } else {  
+
+                    Box(  
+                        modifier = Modifier  
+                            .fillMaxSize()  
+                            .background(  
+                                MaterialTheme.colorScheme.primaryContainer  
+                            ),  
+                        contentAlignment =  
+                            Alignment.Center  
+                    ) {  
+                        Text(  
+                            "Add a cover photo",  
+                            color =  
+                                MaterialTheme.colorScheme.onPrimaryContainer,  
+                            fontWeight = FontWeight.Bold  
+                        )  
+                    }  
+                }  
+            }  
+
+            Spacer(Modifier.height(12.dp))  
+
+            Box(  
+                modifier = Modifier  
                     .size(120.dp)  
                     .clip(CircleShape),  
                 contentAlignment =  
@@ -3976,6 +4080,7 @@ Column(
                     editedBio = bio  
                     profileError = ""  
                     selectedProfilePhotoUri = null  
+                    selectedCoverPhotoUri = null  
                     showEditDialog = true  
 
                 },  
@@ -4115,6 +4220,7 @@ if (showEditDialog) {
             if (!savingProfile) {  
 
                 selectedProfilePhotoUri = null  
+                selectedCoverPhotoUri = null  
                 profileError = ""  
                 showEditDialog = false  
             }  
@@ -4178,7 +4284,36 @@ if (showEditDialog) {
                     Spacer(Modifier.height(8.dp))  
 
                     Text(  
-                        "Photo selected",  
+                        "Profile photo selected",  
+                        fontWeight = FontWeight.Bold  
+                    )  
+                }  
+
+                Spacer(Modifier.height(10.dp))  
+
+                Button(  
+                    onClick = {  
+                        coverPhotoPicker.launch("image/*")  
+                    },  
+                    enabled = !savingProfile,  
+                    modifier = Modifier.fillMaxWidth()  
+                ) {  
+
+                    Text(  
+                        if (selectedCoverPhotoUri == null) {  
+                            "🖼️ Choose Cover Photo"  
+                        } else {  
+                            "🖼️ Change Cover Photo"  
+                        }  
+                    )  
+                }  
+
+                if (selectedCoverPhotoUri != null) {  
+
+                    Spacer(Modifier.height(8.dp))  
+
+                    Text(  
+                        "Cover photo selected",  
                         fontWeight = FontWeight.Bold  
                     )  
                 }  
@@ -4267,6 +4402,46 @@ if (showEditDialog) {
                                     savedProfilePhoto  
                                 }  
 
+                            val selectedCoverUri =  
+                                selectedCoverPhotoUri  
+
+                            val coverBase64 =  
+                                if (selectedCoverUri != null) {  
+
+                                    withContext(  
+                                        Dispatchers.IO  
+                                    ) {  
+
+                                        try {  
+
+                                            val bitmap =  
+                                                context  
+                                                    .contentResolver  
+                                                    .openInputStream(  
+                                                        selectedCoverUri  
+                                                    )  
+                                                    ?.use {  
+                                                        BitmapFactory  
+                                                            .decodeStream(it)  
+                                                    }  
+
+                                            if (bitmap != null) {  
+                                                bitmapToBase64(bitmap)  
+                                            } else {  
+                                                ""  
+                                            }  
+
+                                        } catch (  
+                                            exception: Exception  
+                                        ) {  
+                                            ""  
+                                        }  
+                                    }  
+
+                                } else {  
+                                    savedCoverPhoto  
+                                }  
+
                             if (  
                                 selectedUri != null &&  
                                 photoBase64.isBlank()  
@@ -4280,12 +4455,27 @@ if (showEditDialog) {
                                 return@launch  
                             }  
 
+                            if (  
+                                selectedCoverUri != null &&  
+                                coverBase64.isBlank()  
+                            ) {  
+
+                                savingProfile = false  
+
+                                profileError =  
+                                    "Could not read the selected cover photo."  
+
+                                return@launch  
+                            }  
+
                             val updates =  
                                 hashMapOf<String, Any>(  
                                     "name" to newName,  
                                     "bio" to newBio,  
                                     "profilePhoto" to  
                                         photoBase64,  
+                                    "coverPhoto" to  
+                                        coverBase64,  
                                     "updatedAt" to  
                                         System.currentTimeMillis()  
                                 )  
@@ -4303,9 +4493,12 @@ if (showEditDialog) {
                                     bio = newBio  
                                     savedProfilePhoto =  
                                         photoBase64  
+                                    savedCoverPhoto =  
+                                        coverBase64  
                                     editedName = newName  
                                     editedBio = newBio  
                                     selectedProfilePhotoUri = null  
+                                    selectedCoverPhotoUri = null  
                                     savingProfile = false  
                                     showEditDialog = false  
 
@@ -4351,6 +4544,7 @@ if (showEditDialog) {
                 onClick = {  
 
                     selectedProfilePhotoUri = null  
+                    selectedCoverPhotoUri = null  
                     profileError = ""  
                     showEditDialog = false  
                 }  
