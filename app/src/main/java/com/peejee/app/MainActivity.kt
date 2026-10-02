@@ -4766,6 +4766,3 @@ Column(
         Text("← Back to Profile")  
     }  
 }
-
-}
-Check
