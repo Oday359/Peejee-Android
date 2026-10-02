@@ -231,6 +231,14 @@ val name: String,
 val email: String = ""
 )
 
+data class PeejeeMessage(
+val id: String,
+val senderId: String,
+val receiverId: String,
+val text: String,
+val timestamp: Long
+)
+
 data class PeejeeNotification(
 val id: String,
 val type: String,
@@ -278,22 +286,6 @@ firestore
 
 }
 
-fun notificationFromDocument(
-document: com.google.firebase.firestore.DocumentSnapshot
-): PeejeeNotification {
-return PeejeeNotification(
-id = document.id,
-type = document.getString("type") ?: "activity",
-actorId = document.getString("actorId") ?: "",
-actorName = document.getString("actorName") ?: "Peejee User",
-text = document.getString("text") ?: "",
-postId = document.getString("postId") ?: "",
-messageId = document.getString("messageId") ?: "",
-timestamp = document.getLong("timestamp") ?: 0L,
-read = document.getBoolean("read") ?: false
-)
-}
-
 fun findMentionedUsers(
 firestore: FirebaseFirestore,
 text: String,
@@ -335,14 +327,6 @@ firestore
     }
 
 }
-
-data class PeejeeMessage(
-val id: String,
-val senderId: String,
-val receiverId: String,
-val text: String,
-val timestamp: Long
-)
 
 @Composable
 fun PeejeeApp() {
@@ -918,6 +902,30 @@ val auth = remember {
 val currentUserId =  
     auth.currentUser?.uid ?: ""  
 
+DisposableEffect(currentUserId) {  
+
+    if (currentUserId.isBlank()) {  
+        unreadNotificationCount = 0  
+        onDispose { }  
+    } else {  
+        val registration =  
+            firestore  
+                .collection("users")  
+                .document(currentUserId)  
+                .collection("notifications")  
+                .whereEqualTo("read", false)  
+                .addSnapshotListener { snapshot, error ->  
+                    if (error == null) {  
+                        unreadNotificationCount = snapshot?.size() ?: 0  
+                    }  
+                }  
+
+        onDispose {  
+            registration.remove()  
+        }  
+    }  
+}  
+
 DisposableEffect(Unit) {  
 
     val registration =  
@@ -1113,29 +1121,6 @@ DisposableEffect(
     }  
 }  
 
-DisposableEffect(currentUserId) {  
-    if (currentUserId.isBlank()) {  
-        unreadNotificationCount = 0  
-        onDispose { }  
-    } else {  
-        val registration =  
-            firestore  
-                .collection("users")  
-                .document(currentUserId)  
-                .collection("notifications")  
-                .whereEqualTo("read", false)  
-                .addSnapshotListener { snapshot, error ->  
-                    if (error == null) {  
-                        unreadNotificationCount = snapshot?.size() ?: 0  
-                    }  
-                }  
-
-        onDispose {  
-            registration.remove()  
-        }  
-    }  
-}  
-
 Scaffold(  
 
     topBar = {  
@@ -1283,14 +1268,9 @@ Scaffold(
                                 .collection("posts")  
                                 .document(postId)  
 
-                        val targetPost =  
-                            posts.firstOrNull { it.id == postId }  
-
-                        val postOwnerId =  
-                            targetPost?.userId ?: ""  
-
-                        val wasAlreadyLiked =  
-                            targetPost?.likedBy?.get(userId) == true  
+                        var postOwnerId = ""  
+                        var postOwnerName = "Peejee User"  
+                        var wasAlreadyLiked = false  
 
                         firestore.runTransaction { transaction ->  
 
@@ -1307,6 +1287,13 @@ Scaffold(
 
                             val alreadyLiked =  
                                 currentLikedBy[userId] == true  
+
+                            wasAlreadyLiked = alreadyLiked  
+                            postOwnerId =  
+                                snapshot.getString("userId") ?: ""  
+                            postOwnerName =  
+                                snapshot.getString("userName")  
+                                    ?: "Peejee User"  
 
                             if (alreadyLiked) {  
 
@@ -1338,16 +1325,13 @@ Scaffold(
 
                             null  
                         }.addOnSuccessListener {  
-                            val currentUserName =  
-                                name.trim().ifBlank { "Peejee User" }  
-
                             if (!wasAlreadyLiked) {  
                                 createPeejeeNotification(  
                                     firestore = firestore,  
                                     recipientUserId = postOwnerId,  
                                     type = "like",  
                                     actorId = userId,  
-                                    actorName = currentUserName,  
+                                    actorName = name,  
                                     text = "liked your post",  
                                     postId = postId  
                                 )  
@@ -1389,11 +1373,8 @@ Scaffold(
                             .collection("followers")  
                             .document(currentUser.uid)  
 
-                    val wasFollowing =  
-                        followedUserIds.contains(targetUserId)  
-
-                    val actorName =  
-                        name.trim().ifBlank { "Peejee User" }  
+                    var wasFollowing = false  
+                    var actorName = name  
 
                     firestore.runTransaction { transaction ->  
 
@@ -1419,6 +1400,8 @@ Scaffold(
                                 ?: 0  
 
                         if (followingSnapshot.exists()) {  
+
+                            wasFollowing = true  
 
                             transaction.delete(followingRef)  
                             transaction.delete(followerRef)  
@@ -1453,6 +1436,12 @@ Scaffold(
                                         it.isNotBlank()  
                                     }  
                                     ?: name  
+
+                            actorName = currentUserSnapshot  
+                                .getString("name")  
+                                ?.trim()  
+                                ?.takeIf { it.isNotBlank() }  
+                                ?: name  
 
                             val targetUserName =  
                                 targetUserSnapshot  
@@ -1841,18 +1830,17 @@ if (showCommentDialog) {
 
                             }.addOnSuccessListener {  
 
-                                val commentText =  
-                                    newComment.trim()  
+                                sendingComment = false  
+
+                                val postOwnerId =  
+                                    posts  
+                                        .firstOrNull { it.id == selectedPostId }  
+                                        ?.userId  
+                                        ?: ""  
 
                                 createPeejeeNotification(  
                                     firestore = firestore,  
-                                    recipientUserId =  
-                                        selectedPostId.let { id ->  
-                                            posts  
-                                                .firstOrNull { it.id == id }  
-                                                ?.userId  
-                                                ?: ""  
-                                        },  
+                                    recipientUserId = postOwnerId,  
                                     type = "comment",  
                                     actorId = currentUser.uid,  
                                     actorName = savedUserName,  
@@ -1862,7 +1850,7 @@ if (showCommentDialog) {
 
                                 findMentionedUsers(  
                                     firestore = firestore,  
-                                    text = commentText,  
+                                    text = newComment.trim(),  
                                     currentUserId = currentUser.uid  
                                 ) { mentionedUsers ->  
                                     mentionedUsers.forEach { mentioned ->  
@@ -1878,7 +1866,6 @@ if (showCommentDialog) {
                                     }  
                                 }  
 
-                                sendingComment = false  
                                 newComment = ""  
 
                             }.addOnFailureListener { exception ->  
@@ -2171,7 +2158,7 @@ Card(
             if (post.sharedFromPostId.isNotBlank()) {  
 
                 Text(  
-                    "🔁 $${post.userName} shared a post",  
+                    "🔁 ${post.userName} shared a post",  
                     fontSize = 14.sp,  
                     fontWeight = FontWeight.Bold,  
                     modifier = Modifier.padding(  
@@ -3262,6 +3249,8 @@ Column(
                     .set(messageData)  
                     .addOnSuccessListener {  
 
+                        sending = false  
+
                         firestore  
                             .collection("users")  
                             .document(currentUserId)  
@@ -3279,19 +3268,7 @@ Column(
                                     messageId = messageReference.id  
                                 )  
                             }  
-                            .addOnFailureListener {  
-                                createPeejeeNotification(  
-                                    firestore = firestore,  
-                                    recipientUserId = person.uid,  
-                                    type = "message",  
-                                    actorId = currentUserId,  
-                                    actorName = "Peejee User",  
-                                    text = "sent you a message",  
-                                    messageId = messageReference.id  
-                                )  
-                            }  
 
-                        sending = false  
                         newMessage = ""  
                     }  
                     .addOnFailureListener { exception ->  
@@ -3572,6 +3549,8 @@ Column(
                         .set(postData)  
                         .addOnSuccessListener {  
 
+                            publishing = false  
+
                             findMentionedUsers(  
                                 firestore = firestore,  
                                 text = postText.trim(),  
@@ -3594,7 +3573,6 @@ Column(
                                 }  
                             }  
 
-                            publishing = false  
                             postText = ""  
                             selectedMedia = null  
                             mediaType = ""  
@@ -3615,24 +3593,6 @@ Column(
                     postReference  
                         .set(postData)  
                         .addOnSuccessListener {  
-
-                            findMentionedUsers(  
-                                firestore = firestore,  
-                                text = postText.trim(),  
-                                currentUserId = currentUser.uid  
-                            ) { mentionedUsers ->  
-                                mentionedUsers.forEach { mentioned ->  
-                                    createPeejeeNotification(  
-                                        firestore = firestore,  
-                                        recipientUserId = mentioned.uid,  
-                                        type = "mention",  
-                                        actorId = currentUser.uid,  
-                                        actorName = "Peejee User",  
-                                        text = "mentioned you in a post",  
-                                        postId = postReference.id  
-                                    )  
-                                }  
-                            }  
 
                             publishing = false  
                             postText = ""  
@@ -3747,6 +3707,18 @@ var savedProfilePhoto by remember {
     mutableStateOf("")  
 }  
 
+var selectedCoverPhotoUri by remember {  
+    mutableStateOf<Uri?>(null)  
+}  
+
+var coverBitmap by remember {  
+    mutableStateOf<Bitmap?>(null)  
+}  
+
+var savedCoverPhoto by remember {  
+    mutableStateOf("")  
+}  
+
 var profileError by remember {  
     mutableStateOf("")  
 }  
@@ -3786,6 +3758,16 @@ val profilePhotoPicker =
         }  
     }  
 
+val coverPhotoPicker =  
+    rememberLauncherForActivityResult(  
+        ActivityResultContracts.GetContent()  
+    ) { uri ->  
+        if (uri != null) {  
+            selectedCoverPhotoUri = uri  
+            profileError = ""  
+        }  
+    }  
+
 LaunchedEffect(  
     selectedProfilePhotoUri,  
     savedProfilePhoto  
@@ -3817,6 +3799,31 @@ LaunchedEffect(
                 base64ToBitmap(  
                     savedProfilePhoto  
                 )  
+            }  
+        }  
+}  
+
+
+LaunchedEffect(  
+    selectedCoverPhotoUri,  
+    savedCoverPhoto  
+) {  
+    val selectedUri = selectedCoverPhotoUri  
+    coverBitmap =  
+        withContext(Dispatchers.IO) {  
+            if (selectedUri != null) {  
+                try {  
+                    context  
+                        .contentResolver  
+                        .openInputStream(selectedUri)  
+                        ?.use {  
+                            BitmapFactory.decodeStream(it)  
+                        }  
+                } catch (exception: Exception) {  
+                    null  
+                }  
+            } else {  
+                base64ToBitmap(savedCoverPhoto)  
             }  
         }  
 }  
@@ -3872,6 +3879,10 @@ DisposableEffect(userId) {
 
                         savedProfilePhoto =  
                             document.getString("profilePhoto")  
+                                ?: ""  
+
+                        savedCoverPhoto =  
+                            document.getString("coverPhoto")  
                                 ?: ""  
 
                         followersCount =  
@@ -4166,6 +4177,40 @@ Column(
 
             Box(  
                 modifier = Modifier  
+                    .fillMaxWidth()  
+                    .height(180.dp)  
+                    .clip(RoundedCornerShape(20.dp)),  
+                contentAlignment = Alignment.Center  
+            ) {  
+                if (coverBitmap != null) {  
+                    Image(  
+                        bitmap = coverBitmap!!.asImageBitmap(),  
+                        contentDescription = "Cover photo",  
+                        modifier = Modifier.fillMaxSize(),  
+                        contentScale = ContentScale.Crop  
+                    )  
+                } else {  
+                    Box(  
+                        modifier = Modifier  
+                            .fillMaxSize()  
+                            .background(  
+                                MaterialTheme.colorScheme.surfaceVariant  
+                            ),  
+                        contentAlignment = Alignment.Center  
+                    ) {  
+                        Text(  
+                            "Add a cover photo",  
+                            fontSize = 18.sp,  
+                            fontWeight = FontWeight.Bold  
+                        )  
+                    }  
+                }  
+            }  
+
+            Spacer(Modifier.height(16.dp))  
+
+            Box(  
+                modifier = Modifier  
                     .size(120.dp)  
                     .clip(CircleShape),  
                 contentAlignment =  
@@ -4279,6 +4324,7 @@ Column(
                     editedBio = bio  
                     profileError = ""  
                     selectedProfilePhotoUri = null  
+                    selectedCoverPhotoUri = null  
                     showEditDialog = true  
 
                 },  
@@ -4418,6 +4464,7 @@ if (showEditDialog) {
             if (!savingProfile) {  
 
                 selectedProfilePhotoUri = null  
+                selectedCoverPhotoUri = null  
                 profileError = ""  
                 showEditDialog = false  
             }  
@@ -4482,6 +4529,34 @@ if (showEditDialog) {
 
                     Text(  
                         "Photo selected",  
+                        fontWeight = FontWeight.Bold  
+                    )  
+                }  
+
+                Spacer(Modifier.height(10.dp))  
+
+                Button(  
+                    onClick = {  
+                        coverPhotoPicker.launch("image/*")  
+                    },  
+                    enabled = !savingProfile,  
+                    modifier = Modifier.fillMaxWidth()  
+                ) {  
+                    Text(  
+                        if (selectedCoverPhotoUri == null) {  
+                            "🖼️ Choose Cover Photo"  
+                        } else {  
+                            "🖼️ Change Cover Photo"  
+                        }  
+                    )  
+                }  
+
+                if (selectedCoverPhotoUri != null) {  
+
+                    Spacer(Modifier.height(8.dp))  
+
+                    Text(  
+                        "Cover photo selected",  
                         fontWeight = FontWeight.Bold  
                     )  
                 }  
@@ -4583,12 +4658,51 @@ if (showEditDialog) {
                                 return@launch  
                             }  
 
+                            val coverBase64 =  
+                                if (selectedCoverPhotoUri != null) {  
+                                    withContext(Dispatchers.IO) {  
+                                        try {  
+                                            val bitmap =  
+                                                context  
+                                                    .contentResolver  
+                                                    .openInputStream(  
+                                                        selectedCoverPhotoUri!!  
+                                                    )  
+                                                    ?.use {  
+                                                        BitmapFactory.decodeStream(it)  
+                                                    }  
+
+                                            if (bitmap != null) {  
+                                                bitmapToBase64(bitmap)  
+                                            } else {  
+                                                ""  
+                                            }  
+                                        } catch (exception: Exception) {  
+                                            ""  
+                                        }  
+                                    }  
+                                } else {  
+                                    savedCoverPhoto  
+                                }  
+
+                            if (  
+                                selectedCoverPhotoUri != null &&  
+                                coverBase64.isBlank()  
+                            ) {  
+                                savingProfile = false  
+                                profileError =  
+                                    "Could not read the selected cover photo."  
+                                return@launch  
+                            }  
+
                             val updates =  
                                 hashMapOf<String, Any>(  
                                     "name" to newName,  
                                     "bio" to newBio,  
                                     "profilePhoto" to  
                                         photoBase64,  
+                                    "coverPhoto" to  
+                                        coverBase64,  
                                     "updatedAt" to  
                                         System.currentTimeMillis()  
                                 )  
@@ -4606,9 +4720,12 @@ if (showEditDialog) {
                                     bio = newBio  
                                     savedProfilePhoto =  
                                         photoBase64  
+                                    savedCoverPhoto =  
+                                        coverBase64  
                                     editedName = newName  
                                     editedBio = newBio  
                                     selectedProfilePhotoUri = null  
+                                    selectedCoverPhotoUri = null  
                                     savingProfile = false  
                                     showEditDialog = false  
 
@@ -4731,204 +4848,6 @@ if (showFollowingDialog) {
             showFollowingDialog = false  
         }  
     )  
-}
-
-}
-
-@Composable
-fun ActivityPage(
-paddingValues: PaddingValues,
-onBack: () -> Unit
-) {
-val firestore = remember {
-FirebaseFirestore.getInstance()
-}
-
-val auth = remember {  
-    FirebaseAuth.getInstance()  
-}  
-
-val currentUserId =  
-    auth.currentUser?.uid ?: ""  
-
-var notifications by remember {  
-    mutableStateOf<List<PeejeeNotification>>(emptyList())  
-}  
-
-var loading by remember {  
-    mutableStateOf(true)  
-}  
-
-DisposableEffect(currentUserId) {  
-    if (currentUserId.isBlank()) {  
-        notifications = emptyList()  
-        loading = false  
-        onDispose { }  
-    } else {  
-        val registration =  
-            firestore  
-                .collection("users")  
-                .document(currentUserId)  
-                .collection("notifications")  
-                .orderBy(  
-                    "timestamp",  
-                    Query.Direction.DESCENDING  
-                )  
-                .limit(100)  
-                .addSnapshotListener { snapshot, error ->  
-                    loading = false  
-
-                    if (error == null && snapshot != null) {  
-                        notifications =  
-                            snapshot.documents.map {  
-                                notificationFromDocument(it)  
-                            }  
-                    }  
-                }  
-
-        onDispose {  
-            registration.remove()  
-        }  
-    }  
-}  
-
-Column(  
-    modifier = Modifier  
-        .fillMaxSize()  
-        .padding(paddingValues)  
-) {  
-    Row(  
-        modifier = Modifier  
-            .fillMaxWidth()  
-            .padding(  
-                horizontal = 12.dp,  
-                vertical = 8.dp  
-            ),  
-        verticalAlignment = Alignment.CenterVertically  
-    ) {  
-        TextButton(onClick = onBack) {  
-            Text("← Back")  
-        }  
-
-        Text(  
-            "Activity",  
-            fontSize = 26.sp,  
-            fontWeight = FontWeight.Bold  
-        )  
-    }  
-
-    HorizontalDivider()  
-
-    if (loading) {  
-        Box(  
-            modifier = Modifier.fillMaxSize(),  
-            contentAlignment = Alignment.Center  
-        ) {  
-            CircularProgressIndicator()  
-        }  
-    } else if (notifications.isEmpty()) {  
-        Box(  
-            modifier = Modifier.fillMaxSize(),  
-            contentAlignment = Alignment.Center  
-        ) {  
-            Column(  
-                horizontalAlignment = Alignment.CenterHorizontally  
-            ) {  
-                Text("🔔", fontSize = 50.sp)  
-                Spacer(Modifier.height(10.dp))  
-                Text(  
-                    "No activity yet.",  
-                    fontSize = 18.sp  
-                )  
-            }  
-        }  
-    } else {  
-        LazyColumn(  
-            modifier = Modifier.fillMaxSize(),  
-            contentPadding = PaddingValues(16.dp)  
-        ) {  
-            itemsIndexed(  
-                notifications,  
-                key = { _, notification -> notification.id }  
-            ) { _, notification ->  
-
-                val icon =  
-                    when (notification.type) {  
-                        "like" -> "❤️"  
-                        "comment" -> "💬"  
-                        "follow" -> "👤"  
-                        "message" -> "✉️"  
-                        "mention" -> "@️⃣"  
-                        else -> "🔔"  
-                    }  
-
-                Card(  
-                    modifier = Modifier  
-                        .fillMaxWidth()  
-                        .padding(vertical = 5.dp)  
-                        .clickable {  
-                            firestore  
-                                .collection("users")  
-                                .document(currentUserId)  
-                                .collection("notifications")  
-                                .document(notification.id)  
-                                .update("read", true)  
-                        }  
-                ) {  
-                    Row(  
-                        modifier = Modifier  
-                            .fillMaxWidth()  
-                            .padding(14.dp),  
-                        verticalAlignment =  
-                            Alignment.CenterVertically  
-                    ) {  
-                        Text(  
-                            icon,  
-                            fontSize = 27.sp  
-                        )  
-
-                        Spacer(Modifier.width(12.dp))  
-
-                        Column(  
-                            modifier = Modifier.weight(1f)  
-                        ) {  
-                            Text(  
-                                notification.actorName,  
-                                fontWeight = FontWeight.Bold  
-                            )  
-
-                            Text(  
-                                notification.text,  
-                                fontSize = 14.sp  
-                            )  
-
-                            Spacer(Modifier.height(3.dp))  
-
-                            Text(  
-                                formatPostTime(  
-                                    notification.timestamp  
-                                ),  
-                                fontSize = 11.sp  
-                            )  
-                        }  
-
-                        if (!notification.read) {  
-                            Box(  
-                                modifier = Modifier  
-                                    .size(9.dp)  
-                                    .clip(CircleShape)  
-                                    .background(  
-                                        MaterialTheme  
-                                            .colorScheme  
-                                            .primary  
-                                    )  
-                            )  
-                        }  
-                    }  
-                }  
-            }  
-        }  
-    }  
 }
 
 }
@@ -5112,6 +5031,184 @@ AlertDialog(
         }  
     }  
 )
+
+}
+
+@Composable
+fun ActivityPage(
+paddingValues: PaddingValues,
+onBack: () -> Unit
+) {
+val auth = remember { FirebaseAuth.getInstance() }
+val firestore = remember { FirebaseFirestore.getInstance() }
+val currentUserId = auth.currentUser?.uid ?: ""
+
+var notifications by remember {  
+    mutableStateOf<List<PeejeeNotification>>(emptyList())  
+}  
+var loading by remember { mutableStateOf(true) }  
+
+DisposableEffect(currentUserId) {  
+    if (currentUserId.isBlank()) {  
+        notifications = emptyList()  
+        loading = false  
+        onDispose { }  
+    } else {  
+        val registration =  
+            firestore  
+                .collection("users")  
+                .document(currentUserId)  
+                .collection("notifications")  
+                .orderBy("timestamp", Query.Direction.DESCENDING)  
+                .limit(100)  
+                .addSnapshotListener { snapshot, error ->  
+                    if (error != null) {  
+                        loading = false  
+                        return@addSnapshotListener  
+                    }  
+
+                    notifications =  
+                        snapshot?.documents?.mapNotNull { document ->  
+                            PeejeeNotification(  
+                                id = document.id,  
+                                type = document.getString("type") ?: "",  
+                                actorId = document.getString("actorId") ?: "",  
+                                actorName = document.getString("actorName")  
+                                    ?: "Peejee User",  
+                                text = document.getString("text") ?: "",  
+                                postId = document.getString("postId") ?: "",  
+                                messageId = document.getString("messageId") ?: "",  
+                                timestamp = document.getLong("timestamp") ?: 0L,  
+                                read = document.getBoolean("read") ?: false  
+                            )  
+                        } ?: emptyList()  
+
+                    loading = false  
+                }  
+
+        onDispose {  
+            registration.remove()  
+        }  
+    }  
+}  
+
+Column(  
+    modifier = Modifier  
+        .fillMaxSize()  
+        .padding(paddingValues)  
+) {  
+    Row(  
+        modifier = Modifier  
+            .fillMaxWidth()  
+            .padding(horizontal = 8.dp, vertical = 8.dp),  
+        verticalAlignment = Alignment.CenterVertically  
+    ) {  
+        TextButton(onClick = onBack) {  
+            Text("← Back")  
+        }  
+
+        Text(  
+            "Activity",  
+            fontSize = 24.sp,  
+            fontWeight = FontWeight.Bold  
+        )  
+    }  
+
+    HorizontalDivider()  
+
+    if (loading) {  
+        Box(  
+            modifier = Modifier.fillMaxSize(),  
+            contentAlignment = Alignment.Center  
+        ) {  
+            CircularProgressIndicator()  
+        }  
+    } else if (notifications.isEmpty()) {  
+        Box(  
+            modifier = Modifier.fillMaxSize(),  
+            contentAlignment = Alignment.Center  
+        ) {  
+            Text("No activity yet.")  
+        }  
+    } else {  
+        LazyColumn(  
+            modifier = Modifier.fillMaxSize()  
+        ) {  
+            itemsIndexed(  
+                notifications,  
+                key = { _, notification -> notification.id }  
+            ) { _, notification ->  
+
+                val icon =  
+                    when (notification.type) {  
+                        "like" -> "❤️"  
+                        "comment" -> "💬"  
+                        "follow" -> "👤"  
+                        "message" -> "✉️"  
+                        "mention" -> "@️⃣"  
+                        else -> "🔔"  
+                    }  
+
+                Row(  
+                    modifier = Modifier  
+                        .fillMaxWidth()  
+                        .clickable {  
+                            firestore  
+                                .collection("users")  
+                                .document(currentUserId)  
+                                .collection("notifications")  
+                                .document(notification.id)  
+                                .update("read", true)  
+                        }  
+                        .padding(horizontal = 16.dp, vertical = 14.dp),  
+                    verticalAlignment = Alignment.CenterVertically  
+                ) {  
+                    Text(  
+                        icon,  
+                        fontSize = 28.sp  
+                    )  
+
+                    Spacer(Modifier.width(12.dp))  
+
+                    Column(  
+                        modifier = Modifier.weight(1f)  
+                    ) {  
+                        Text(  
+                            "${notification.actorName} ${notification.text}",  
+                            fontSize = 16.sp,  
+                            fontWeight =  
+                                if (!notification.read) {  
+                                    FontWeight.Bold  
+                                } else {  
+                                    FontWeight.Normal  
+                                }  
+                        )  
+
+                        Spacer(Modifier.height(3.dp))  
+
+                        Text(  
+                            formatPostTime(notification.timestamp),  
+                            fontSize = 12.sp  
+                        )  
+                    }  
+
+                    if (!notification.read) {  
+                        Box(  
+                            modifier = Modifier  
+                                .size(9.dp)  
+                                .clip(CircleShape)  
+                                .background(  
+                                    MaterialTheme.colorScheme.primary  
+                                )  
+                        )  
+                    }  
+                }  
+
+                HorizontalDivider()  
+            }  
+        }  
+    }  
+}
 
 }
 
