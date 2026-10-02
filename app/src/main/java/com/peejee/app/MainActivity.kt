@@ -1886,6 +1886,10 @@ fun TikTokStylePost(
     onShare: () -> Unit
 ) {
 
+    var showPostMenu by remember {
+        mutableStateOf(false)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -2144,12 +2148,24 @@ fun TikTokStylePost(
                 Spacer(Modifier.height(14.dp))
 
                 ActionCircle(
-                    icon = "🔊",
+                    icon = "⋮",
                     label = "",
-                    onClick = {}
+                    onClick = {
+                        showPostMenu = true
+                    }
                 )
             }
         }
+    }
+
+    if (showPostMenu) {
+
+        PostMenu(
+            post = post,
+            onDismiss = {
+                showPostMenu = false
+            }
+        )
     }
 }
 
@@ -4289,14 +4305,5 @@ fun ProfilePage(
 
                                 savingProfile = false
 
-                                profileError =
-                                    exception.message
-                                        ?: "Could not save your profile."
-                            }
-                        }
-                    }
-                ) {
-
-                    Text(
-  
+    
 Preview truncated for large file
