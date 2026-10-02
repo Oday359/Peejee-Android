@@ -7,6 +7,8 @@ import android.widget.Toast
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
@@ -17,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 
@@ -35,10 +36,6 @@ fun PostMenu(
         mutableStateOf(false)
     }
 
-    var message by remember {
-        mutableStateOf("")
-    }
-
     val firestore = remember {
         FirebaseFirestore.getInstance()
     }
@@ -52,6 +49,155 @@ fun PostMenu(
 
     val context =
         androidx.compose.ui.platform.LocalContext.current
+
+    DropdownMenu(
+        expanded = true,
+        onDismissRequest = onDismiss
+    ) {
+
+        DropdownMenuItem(
+            text = {
+                Text("🔖 Save post")
+            },
+            onClick = {
+
+                if (currentUserId.isBlank()) {
+
+                    Toast.makeText(
+                        context,
+                        "Please log in again.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                } else {
+
+                    val savedPost =
+                        hashMapOf<String, Any>(
+                            "postId" to post.id,
+                            "userId" to post.userId,
+                            "userName" to post.userName,
+                            "text" to post.text,
+                            "savedAt" to
+                                System.currentTimeMillis()
+                        )
+
+                    firestore
+                        .collection("users")
+                        .document(currentUserId)
+                        .collection("savedPosts")
+                        .document(post.id)
+                        .set(
+                            savedPost,
+                            SetOptions.merge()
+                        )
+                        .addOnSuccessListener {
+
+                            Toast.makeText(
+                                context,
+                                "Post saved.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        .addOnFailureListener {
+
+                            Toast.makeText(
+                                context,
+                                "Could not save post.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                }
+
+                onDismiss()
+            }
+        )
+
+        DropdownMenuItem(
+            text = {
+                Text("🔗 Copy link")
+            },
+            onClick = {
+
+                val clipboard =
+                    context.getSystemService(
+                        Context.CLIPBOARD_SERVICE
+                    ) as ClipboardManager
+
+                val postLink =
+                    "https://peejee.app/post/${post.id}"
+
+                val clip =
+                    ClipData.newPlainText(
+                        "Peejee post link",
+                        postLink
+                    )
+
+                clipboard.setPrimaryClip(clip)
+
+                Toast.makeText(
+                    context,
+                    "Post link copied.",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                onDismiss()
+            }
+        )
+
+        DropdownMenuItem(
+            text = {
+                Text("🚫 Not interested")
+            },
+            onClick = {
+
+                if (currentUserId.isNotBlank()) {
+
+                    val data =
+                        hashMapOf<String, Any>(
+                            "postId" to post.id,
+                            "userId" to post.userId,
+                            "markedAt" to
+                                System.currentTimeMillis()
+                        )
+
+                    firestore
+                        .collection("users")
+                        .document(currentUserId)
+                        .collection("notInterested")
+                        .document(post.id)
+                        .set(data)
+                        .addOnSuccessListener {
+
+                            Toast.makeText(
+                                context,
+                                "You won't see this post again.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                }
+
+                onDismiss()
+            }
+        )
+
+        DropdownMenuItem(
+            text = {
+                Text("⚠️ Report post")
+            },
+            onClick = {
+                showReportDialog = true
+            }
+        )
+
+        DropdownMenuItem(
+            text = {
+                Text("🚫 Block user")
+            },
+            onClick = {
+                showBlockDialog = true
+            }
+        )
+    }
 
     if (showReportDialog) {
 
@@ -78,8 +224,11 @@ fun PostMenu(
 
                         if (currentUserId.isBlank()) {
 
-                            message =
-                                "Please log in again."
+                            Toast.makeText(
+                                context,
+                                "Please log in again.",
+                                Toast.LENGTH_SHORT
+                            ).show()
 
                             showReportDialog = false
 
@@ -108,7 +257,6 @@ fun PostMenu(
                                     ).show()
 
                                     showReportDialog = false
-                                    onDismiss()
                                 }
                                 .addOnFailureListener {
 
@@ -136,8 +284,6 @@ fun PostMenu(
                 }
             }
         )
-
-        return
     }
 
     if (showBlockDialog) {
@@ -201,7 +347,6 @@ fun PostMenu(
                                     ).show()
 
                                     showBlockDialog = false
-                                    onDismiss()
                                 }
                                 .addOnFailureListener {
 
@@ -229,167 +374,5 @@ fun PostMenu(
                 }
             }
         )
-
-        return
     }
-
-    AlertDialog(
-
-        onDismissRequest = onDismiss,
-
-        title = {
-            Text("Post Options")
-        },
-
-        text = {
-
-            androidx.compose.foundation.layout.Column {
-
-                Button(
-                    onClick = {
-
-                        if (currentUserId.isBlank()) {
-
-                            Toast.makeText(
-                                context,
-                                "Please log in again.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-
-                        } else {
-
-                            val savedPost =
-                                hashMapOf<String, Any>(
-                                    "postId" to post.id,
-                                    "userId" to post.userId,
-                                    "userName" to post.userName,
-                                    "text" to post.text,
-                                    "savedAt" to
-                                        System.currentTimeMillis()
-                                )
-
-                            firestore
-                                .collection("users")
-                                .document(currentUserId)
-                                .collection("savedPosts")
-                                .document(post.id)
-                                .set(
-                                    savedPost,
-                                    SetOptions.merge()
-                                )
-                                .addOnSuccessListener {
-
-                                    Toast.makeText(
-                                        context,
-                                        "Post saved.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-
-                                    onDismiss()
-                                }
-                                .addOnFailureListener {
-
-                                    Toast.makeText(
-                                        context,
-                                        "Could not save post.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                        }
-                    }
-                ) {
-                    Text("🔖 Save post")
-                }
-
-                Button(
-                    onClick = {
-
-                        val clipboard =
-                            context.getSystemService(
-                                Context.CLIPBOARD_SERVICE
-                            ) as ClipboardManager
-
-                        val postLink =
-                            "https://peejee.app/post/${post.id}"
-
-                        val clip =
-                            ClipData.newPlainText(
-                                "Peejee post link",
-                                postLink
-                            )
-
-                        clipboard.setPrimaryClip(clip)
-
-                        Toast.makeText(
-                            context,
-                            "Post link copied.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        onDismiss()
-                    }
-                ) {
-                    Text("🔗 Copy link")
-                }
-
-                Button(
-                    onClick = {
-
-                        if (currentUserId.isNotBlank()) {
-
-                            val data =
-                                hashMapOf<String, Any>(
-                                    "postId" to post.id,
-                                    "userId" to post.userId,
-                                    "markedAt" to
-                                        System.currentTimeMillis()
-                                )
-
-                            firestore
-                                .collection("users")
-                                .document(currentUserId)
-                                .collection("notInterested")
-                                .document(post.id)
-                                .set(data)
-
-                            Toast.makeText(
-                                context,
-                                "You won't see this post again.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-
-                        onDismiss()
-                    }
-                ) {
-                    Text("🚫 Not interested")
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        showReportDialog = true
-                    }
-                ) {
-                    Text("⚠️ Report post")
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        showBlockDialog = true
-                    }
-                ) {
-                    Text("🚫 Block user")
-                }
-            }
-        },
-
-        confirmButton = {
-
-            TextButton(
-                onClick = onDismiss
-            ) {
-                Text("Close")
-            }
-        }
-    )
 }
