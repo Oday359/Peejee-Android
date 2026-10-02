@@ -1,10 +1,26 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
+<?xml version="1.0" encoding="utf-8"?>  <resources>  <style name="Theme.Peejee" parent="android:style/Theme.Material.Light.NoActionBar">  
 
-    <style name="Theme.Peejee" parent="android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:fontFamily">sans</item>
-        <item name="android:windowActionModeOverlay">true</item>
-        <item name="android:colorAccent">#6750A4</item>
-    </style>
+    <!-- Peejee typography -->  
+    <item name="android:fontFamily">sans</item>  
+
+    <!-- Peejee brand accent -->  
+    <item name="android:colorAccent">#6750A4</item>  
+
+    <!-- Modern window behavior -->  
+    <item name="android:windowActionModeOverlay">true</item>  
+    <item name="android:windowNoTitle">true</item>  
+
+    <!-- Status bar -->  
+    <item name="android:statusBarColor">#F9F5FF</item>  
+    <item name="android:windowLightStatusBar">true</item>  
+
+    <!-- Navigation bar -->  
+    <item name="android:navigationBarColor">#F9F5FF</item>  
+    <item name="android:windowLightNavigationBar">true</item>  
+
+    <!-- Android window background -->  
+    <item name="android:windowBackground">#F9F5FF</item>  
+
+</style>
 
 </resources>
