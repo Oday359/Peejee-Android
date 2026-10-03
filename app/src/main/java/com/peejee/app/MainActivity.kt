@@ -2946,6 +2946,10 @@ var newMessage by remember {
     mutableStateOf("")  
 }  
 
+var showEmojiPicker by remember {  
+    mutableStateOf(false)  
+}  
+
 var sending by remember {  
     mutableStateOf(false)  
 }  
@@ -3241,6 +3245,49 @@ Column(
         )  
     }  
 
+    if (showEmojiPicker) {  
+
+        Card(  
+            modifier = Modifier  
+                .fillMaxWidth()  
+                .padding(10.dp)  
+        ) {  
+
+            LazyRow(  
+                modifier = Modifier  
+                    .fillMaxWidth()  
+                    .padding(8.dp),  
+                horizontalArrangement =  
+                    Arrangement.spacedBy(4.dp)  
+            ) {  
+
+                itemsIndexed(  
+                    listOf(  
+                        "😀", "😂", "🤣", "😊", "😍",  
+                        "🥰", "😘", "😎", "🤔", "😢",  
+                        "😭", "😡", "👍", "👎", "👏",  
+                        "🙏", "❤️", "🔥", "🎉", "💯"  
+                    )  
+                ) { _, emoji ->  
+
+                    TextButton(  
+                        onClick = {  
+                            newMessage += emoji  
+                            errorMessage = ""  
+                            showEmojiPicker = false  
+                        },  
+                        enabled = !sending  
+                    ) {  
+                        Text(  
+                            emoji,  
+                            fontSize = 24.sp  
+                        )  
+                    }  
+                }  
+            }  
+        }  
+    }  
+
     Row(  
         modifier = Modifier  
             .fillMaxWidth()  
@@ -3248,6 +3295,18 @@ Column(
         verticalAlignment =  
             Alignment.CenterVertically  
     ) {  
+
+        IconButton(  
+            onClick = {  
+                showEmojiPicker = !showEmojiPicker  
+            },  
+            enabled = !sending  
+        ) {  
+            Text(  
+                "😊",  
+                fontSize = 25.sp  
+            )  
+        }  
 
         OutlinedTextField(  
             value = newMessage,  
