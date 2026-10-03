@@ -247,7 +247,9 @@ val id: String,
 val userId: String,
 val userName: String,
 val text: String,
-val timestamp: Long
+val timestamp: Long,
+val parentCommentId: String = "",
+val replyCount: Int = 0
 )
 
 data class PeejeePerson(
@@ -898,6 +900,14 @@ var commentError by remember {
     mutableStateOf("")  
 }  
 
+var replyingToCommentId by remember {  
+    mutableStateOf("")  
+}  
+
+var expandedReplyCommentIds by remember {  
+    mutableStateOf(setOf<String>())  
+}  
+
 var selectedChatUser by remember {  
     mutableStateOf<PeejeePerson?>(null)  
 }  
@@ -1120,7 +1130,14 @@ DisposableEffect(
                                         text = text,  
                                         timestamp =  
                                             document.getLong("timestamp")  
-                                                ?: 0L  
+                                                ?: 0L,  
+                                        parentCommentId =  
+                                            document.getString("parentCommentId")  
+                                                ?: "",  
+                                        replyCount =  
+                                            document.getLong("replyCount")  
+                                                ?.toInt()  
+                                                ?: 0  
                                     )  
                                 }  
                             }  
@@ -1531,6 +1548,8 @@ Scaffold(
                     selectedPostId = postId  
                     newComment = ""  
                     commentError = ""  
+                    replyingToCommentId = ""  
+                    expandedReplyCommentIds = emptySet()  
                     showCommentDialog = true  
                 },  
 
@@ -1664,11 +1683,17 @@ Scaffold(
 
 if (showCommentDialog) {  
 
+    val topLevelComments =  
+        selectedComments.filter {  
+            it.parentCommentId.isBlank()  
+        }  
+
     AlertDialog(  
 
         onDismissRequest = {  
             if (!sendingComment) {  
                 showCommentDialog = false  
+                replyingToCommentId = ""  
             }  
         },  
 
@@ -1701,12 +1726,22 @@ if (showCommentDialog) {
                     LazyColumn(  
                         modifier = Modifier  
                             .fillMaxWidth()  
-                            .heightIn(max = 260.dp)  
+                            .heightIn(max = 320.dp)  
                     ) {  
 
                         itemsIndexed(  
-                            selectedComments  
+                            topLevelComments  
                         ) { _, comment ->  
+
+                            val replies =  
+                                selectedComments.filter {  
+                                    it.parentCommentId == comment.id  
+                                }  
+
+                            val repliesExpanded =  
+                                expandedReplyCommentIds.contains(  
+                                    comment.id  
+                                )  
 
                             Column(  
                                 modifier = Modifier  
@@ -1724,6 +1759,84 @@ if (showCommentDialog) {
                                     comment.text,  
                                     fontSize = 15.sp  
                                 )  
+
+                                Row(  
+                                    verticalAlignment =  
+                                        Alignment.CenterVertically  
+                                ) {  
+
+                                    TextButton(  
+                                        enabled = !sendingComment,  
+                                        onClick = {  
+                                            replyingToCommentId = comment.id  
+                                            newComment = ""  
+                                            commentError = ""  
+                                        }  
+                                    ) {  
+                                        Text("Reply")  
+                                    }  
+
+                                    if (comment.replyCount > 0 || replies.isNotEmpty()) {  
+                                        TextButton(  
+                                            enabled = !sendingComment,  
+                                            onClick = {  
+                                                expandedReplyCommentIds =  
+                                                    if (repliesExpanded) {  
+                                                        expandedReplyCommentIds - comment.id  
+                                                    } else {  
+                                                        expandedReplyCommentIds + comment.id  
+                                                    }  
+                                            }  
+                                        ) {  
+                                            Text(  
+                                                if (repliesExpanded) {  
+                                                    "Hide replies"  
+                                                } else {  
+                                                    "View ${replies.size.coerceAtLeast(comment.replyCount)} replies"  
+                                                }  
+                                            )  
+                                        }  
+                                    }  
+                                }  
+
+                                if (repliesExpanded) {  
+
+                                    replies.forEach { reply ->  
+
+                                        Column(  
+                                            modifier = Modifier  
+                                                .fillMaxWidth()  
+                                                .padding(  
+                                                    start = 24.dp,  
+                                                    top = 4.dp,  
+                                                    bottom = 6.dp  
+                                                )  
+                                        ) {  
+
+                                            Text(  
+                                                reply.userName,  
+                                                fontWeight = FontWeight.Bold,  
+                                                fontSize = 13.sp  
+                                            )  
+
+                                            Text(  
+                                                reply.text,  
+                                                fontSize = 14.sp  
+                                            )  
+
+                                            TextButton(  
+                                                enabled = !sendingComment,  
+                                                onClick = {  
+                                                    replyingToCommentId = comment.id  
+                                                    newComment = ""  
+                                                    commentError = ""  
+                                                }  
+                                            ) {  
+                                                Text("Reply")  
+                                            }  
+                                        }  
+                                    }  
+                                }  
                             }  
                         }  
                     }  
@@ -1740,7 +1853,38 @@ if (showCommentDialog) {
                     )  
                 }  
 
-                Spacer(Modifier.height(12.dp))  
+                if (replyingToCommentId.isNotBlank()) {  
+
+                    val replyTarget =  
+                        selectedComments.firstOrNull {  
+                            it.id == replyingToCommentId  
+                        }  
+
+                    Spacer(Modifier.height(8.dp))  
+
+                    Text(  
+                        if (replyTarget != null) {  
+                            "Replying to ${replyTarget.userName}"  
+                        } else {  
+                            "Replying to comment"  
+                        },  
+                        fontSize = 13.sp,  
+                        fontWeight = FontWeight.Bold  
+                    )  
+
+                    TextButton(  
+                        enabled = !sendingComment,  
+                        onClick = {  
+                            replyingToCommentId = ""  
+                            newComment = ""  
+                            commentError = ""  
+                        }  
+                    ) {  
+                        Text("Cancel reply")  
+                    }  
+                }  
+
+                Spacer(Modifier.height(4.dp))  
 
                 OutlinedTextField(  
                     value = newComment,  
@@ -1749,7 +1893,13 @@ if (showCommentDialog) {
                         commentError = ""  
                     },  
                     label = {  
-                        Text("Write a comment")  
+                        Text(  
+                            if (replyingToCommentId.isBlank()) {  
+                                "Write a comment"  
+                            } else {  
+                                "Write a reply"  
+                            }  
+                        )  
                     },  
                     enabled = !sendingComment,  
                     modifier = Modifier.fillMaxWidth()  
@@ -1780,6 +1930,9 @@ if (showCommentDialog) {
                     sendingComment = true  
                     commentError = ""  
 
+                    val replyParentId = replyingToCommentId  
+                    val commentText = newComment.trim()  
+
                     firestore  
                         .collection("users")  
                         .document(currentUser.uid)  
@@ -1802,6 +1955,17 @@ if (showCommentDialog) {
                                     .collection("posts")  
                                     .document(selectedPostId)  
 
+                            val parentReference =  
+                                if (replyParentId.isNotBlank()) {  
+                                    firestore  
+                                        .collection("posts")  
+                                        .document(selectedPostId)  
+                                        .collection("comments")  
+                                        .document(replyParentId)  
+                                } else {  
+                                    null  
+                                }  
+
                             val commentData =  
                                 hashMapOf<String, Any>(  
                                     "commentId" to  
@@ -1813,9 +1977,12 @@ if (showCommentDialog) {
                                     "userName" to  
                                         savedUserName,  
                                     "text" to  
-                                        newComment.trim(),  
+                                        commentText,  
                                     "timestamp" to  
-                                        System.currentTimeMillis()  
+                                        System.currentTimeMillis(),  
+                                    "parentCommentId" to  
+                                        replyParentId,  
+                                    "replyCount" to 0  
                                 )  
 
                             firestore.runTransaction { transaction ->  
@@ -1826,6 +1993,27 @@ if (showCommentDialog) {
                                 val currentCommentCount =  
                                     postSnapshot  
                                         .getLong("commentCount")  
+                                        ?.toInt()  
+                                        ?: 0  
+
+                                val parentSnapshot =  
+                                    parentReference?.let {  
+                                        transaction.get(it)  
+                                    }  
+
+                                if (  
+                                    parentReference != null &&  
+                                    parentSnapshot != null &&  
+                                    !parentSnapshot.exists()  
+                                ) {  
+                                    throw IllegalStateException(  
+                                        "Could not find the comment you're replying to."  
+                                    )  
+                                }  
+
+                                val currentReplyCount =  
+                                    parentSnapshot  
+                                        ?.getLong("replyCount")  
                                         ?.toInt()  
                                         ?: 0  
 
@@ -1840,31 +2028,63 @@ if (showCommentDialog) {
                                     currentCommentCount + 1  
                                 )  
 
+                                if (parentReference != null) {  
+                                    transaction.update(  
+                                        parentReference,  
+                                        "replyCount",  
+                                        currentReplyCount + 1  
+                                    )  
+                                }  
+
                                 null  
 
                             }.addOnSuccessListener {  
 
                                 sendingComment = false  
 
-                                val postOwnerId =  
-                                    posts  
-                                        .firstOrNull { it.id == selectedPostId }  
-                                        ?.userId  
-                                        ?: ""  
+                                if (replyParentId.isBlank()) {  
 
-                                createPeejeeNotification(  
-                                    firestore = firestore,  
-                                    recipientUserId = postOwnerId,  
-                                    type = "comment",  
-                                    actorId = currentUser.uid,  
-                                    actorName = savedUserName,  
-                                    text = "commented on your post",  
-                                    postId = selectedPostId  
-                                )  
+                                    val postOwnerId =  
+                                        posts  
+                                            .firstOrNull {  
+                                                it.id == selectedPostId  
+                                            }  
+                                            ?.userId  
+                                            ?: ""  
+
+                                    createPeejeeNotification(  
+                                        firestore = firestore,  
+                                        recipientUserId = postOwnerId,  
+                                        type = "comment",  
+                                        actorId = currentUser.uid,  
+                                        actorName = savedUserName,  
+                                        text = "commented on your post",  
+                                        postId = selectedPostId  
+                                    )  
+
+                                } else {  
+
+                                    val parentComment =  
+                                        selectedComments.firstOrNull {  
+                                            it.id == replyParentId  
+                                        }  
+
+                                    if (parentComment != null) {  
+                                        createPeejeeNotification(  
+                                            firestore = firestore,  
+                                            recipientUserId = parentComment.userId,  
+                                            type = "reply",  
+                                            actorId = currentUser.uid,  
+                                            actorName = savedUserName,  
+                                            text = "replied to your comment",  
+                                            postId = selectedPostId  
+                                        )  
+                                    }  
+                                }  
 
                                 findMentionedUsers(  
                                     firestore = firestore,  
-                                    text = newComment.trim(),  
+                                    text = commentText,  
                                     currentUserId = currentUser.uid  
                                 ) { mentionedUsers ->  
                                     mentionedUsers.forEach { mentioned ->  
@@ -1874,13 +2094,23 @@ if (showCommentDialog) {
                                             type = "mention",  
                                             actorId = currentUser.uid,  
                                             actorName = savedUserName,  
-                                            text = "mentioned you in a comment",  
+                                            text = if (replyParentId.isBlank()) {  
+                                                "mentioned you in a comment"  
+                                            } else {  
+                                                "mentioned you in a reply"  
+                                            },  
                                             postId = selectedPostId  
                                         )  
                                     }  
                                 }  
 
+                                if (replyParentId.isNotBlank()) {  
+                                    expandedReplyCommentIds =  
+                                        expandedReplyCommentIds + replyParentId  
+                                }  
+
                                 newComment = ""  
+                                replyingToCommentId = ""  
 
                             }.addOnFailureListener { exception ->  
 
@@ -1888,7 +2118,11 @@ if (showCommentDialog) {
 
                                 commentError =  
                                     exception.message  
-                                        ?: "Could not post comment."  
+                                        ?: if (replyParentId.isBlank()) {  
+                                            "Could not post comment."  
+                                        } else {  
+                                            "Could not post reply."  
+                                        }  
                             }  
                         }  
                         .addOnFailureListener { exception ->  
@@ -1905,6 +2139,8 @@ if (showCommentDialog) {
                 Text(  
                     if (sendingComment) {  
                         "Posting..."  
+                    } else if (replyingToCommentId.isNotBlank()) {  
+                        "Reply"  
                     } else {  
                         "Comment"  
                     }  
@@ -1918,6 +2154,7 @@ if (showCommentDialog) {
                 enabled = !sendingComment,  
                 onClick = {  
                     showCommentDialog = false  
+                    replyingToCommentId = ""  
                 }  
             ) {  
                 Text("Close")  
