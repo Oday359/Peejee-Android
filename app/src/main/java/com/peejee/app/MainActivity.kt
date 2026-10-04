@@ -2224,20 +2224,6 @@ Card(
             modifier = Modifier.fillMaxWidth()  
         ) {  
 
-            if (post.sharedFromPostId.isNotBlank()) {  
-
-                Text(  
-                    "🔁 ${post.userName} shared a post",  
-                    fontSize = 14.sp,  
-                    fontWeight = FontWeight.Bold,  
-                    modifier = Modifier.padding(  
-                        start = 14.dp,  
-                        top = 12.dp,  
-                        end = 14.dp  
-                    )  
-                )  
-            }  
-
             Row(  
                 modifier = Modifier  
                     .fillMaxWidth()  
@@ -4089,6 +4075,9 @@ DisposableEffect(userId) {
 
                         profilePosts =  
                             snapshot.documents  
+                                .filter {  
+                                    (it.getString("sharedFromPostId") ?: "").isBlank()  
+                                }  
                                 .mapNotNull { document ->  
 
                                     PeejeePost(  
