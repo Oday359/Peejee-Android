@@ -9,6 +9,7 @@ import android.util.Base64
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 
@@ -1118,6 +1119,13 @@ DisposableEffect(
     }  
 }  
 
+// Android phone Back button: return from another user's profile to the wall.  
+if (selectedProfileUser != null) {  
+    BackHandler {  
+        selectedProfileUser = null  
+    }  
+}  
+
 Scaffold(  
 
     topBar = {  
@@ -1560,7 +1568,13 @@ Scaffold(
                 },  
 
                 onProfile = { person ->  
-                    selectedProfileUser = person  
+                    if (person.uid == currentUserId) {  
+                        selectedProfileUser = null  
+                        selectedChatUser = null  
+                        selectedTab = 4  
+                    } else {  
+                        selectedProfileUser = person  
+                    }  
                 },  
                 paddingValues = paddingValues  
             )  
@@ -2145,7 +2159,7 @@ Card(
                     .padding(  
                         start = 14.dp,  
                         top = 14.dp,  
-                        end = 14.dp  
+                        end = 78.dp  
                     ),  
                 verticalAlignment =  
                     Alignment.CenterVertically  
