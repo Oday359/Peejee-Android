@@ -1,9 +1,17 @@
 package com.peejee.app
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.media.MediaPlayer
+import android.media.MediaRecorder
 import android.media.RingtoneManager
+import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -46,15 +55,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.delay
+import java.io.File
+import java.io.FileOutputStream
 
 private data class PeejeeReplyInfo(
 val messageId: String,
 val text: String,
 val senderName: String
+)
+
+private data class PeejeeVoiceInfo(
+val base64: String,
+val durationMs: Long
 )
 
 private fun peejeeTypingDocumentId(
@@ -70,12 +87,7 @@ currentUserId: String,
 otherUserId: String,
 isTyping: Boolean
 ) {
-if (
-currentUserId.isBlank() ||
-otherUserId.isBlank()
-) {
-return
-}
+if (currentUserId.isBlank() || otherUserId.isBlank()) return
 
 val data = hashMapOf<String, Any>(  
     "userId" to currentUserId,  
@@ -84,54 +96,43 @@ val data = hashMapOf<String, Any>(
     "updatedAt" to System.currentTimeMillis()  
 )  
 
-firestore  
-    .collection("typing")  
-    .document(  
-        peejeeTypingDocumentId(  
-            currentUserId,  
-            otherUserId  
-        )  
-    )  
-    .set(  
-        data,  
-        SetOptions.merge()  
-    )
+firestore.collection("typing")  
+    .document(peejeeTypingDocumentId(currentUserId, otherUserId))  
+    .set(data, SetOptions.merge())
 
 }
 
-private fun playPeejeeMessageAlert(
-context: Context
-) {
+private fun playPeejeeMessageAlert(context: Context) {
 try {
 val soundUri =
-RingtoneManager.getDefaultUri(
-RingtoneManager.TYPE_NOTIFICATION
-)
+RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
-RingtoneManager  
-        .getRingtone(  
-            context,  
-            soundUri  
-        )  
-        ?.play()  
+RingtoneManager.getRingtone(context, soundUri)?.play()  
 } catch (_: Exception) {  
 }  
 
 try {  
     val vibrator =  
-        context.getSystemService(  
-            Context.VIBRATOR_SERVICE  
-        ) as? Vibrator  
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator  
 
-    vibrator?.vibrate(  
-        VibrationEffect.createOneShot(  
-            180L,  
-            VibrationEffect.DEFAULT_AMPLITUDE  
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {  
+        vibrator?.vibrate(  
+            VibrationEffect.createOneShot(  
+                180L,  
+                VibrationEffect.DEFAULT_AMPLITUDE  
+            )  
         )  
-    )  
+    }  
 } catch (_: Exception) {  
 }
 
+}
+
+private fun formatPeejeeVoiceDuration(durationMs: Long): String {
+val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
+val minutes = totalSeconds / 60L
+val seconds = totalSeconds % 60L
+return String.format("%d:%02d", minutes, seconds)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -143,99 +144,383 @@ onBack: () -> Unit
 ) {
 val context = LocalContext.current
 
-val firestore = remember {  
-    FirebaseFirestore.getInstance()  
-}  
-
-val auth = remember {  
-    FirebaseAuth.getInstance()  
-}  
-
-val currentUserId =  
-    auth.currentUser?.uid ?: ""  
+val firestore = remember { FirebaseFirestore.getInstance() }  
+val auth = remember { FirebaseAuth.getInstance() }  
+val currentUserId = auth.currentUser?.uid ?: ""  
 
 var messages by remember {  
-    mutableStateOf<List<PeejeeMessage>>(  
-        emptyList()  
-    )  
+    mutableStateOf<List<PeejeeMessage>>(emptyList())  
 }  
 
 var replyInfoByMessageId by remember {  
-    mutableStateOf<Map<String, PeejeeReplyInfo>>(  
-        emptyMap()  
-    )  
+    mutableStateOf<Map<String, PeejeeReplyInfo>>(emptyMap())  
 }  
 
-var newMessage by remember {  
-    mutableStateOf("")  
+var voiceInfoByMessageId by remember {  
+    mutableStateOf<Map<String, PeejeeVoiceInfo>>(emptyMap())  
 }  
 
-var sending by remember {  
-    mutableStateOf(false)  
-}  
+var newMessage by remember { mutableStateOf("") }  
+var sending by remember { mutableStateOf(false) }  
+var errorMessage by remember { mutableStateOf("") }  
+var personIsOnline by remember { mutableStateOf(person.isOnline) }  
+var otherPersonIsTyping by remember { mutableStateOf(false) }  
+var showEmojiPicker by remember { mutableStateOf(false) }  
+var selectedMessage by remember { mutableStateOf<PeejeeMessage?>(null) }  
+var selectedReply by remember { mutableStateOf<PeejeeMessage?>(null) }  
 
-var errorMessage by remember {  
-    mutableStateOf("")  
-}  
+var isRecording by remember { mutableStateOf(false) }  
+var recordingStartedAt by remember { mutableStateOf(0L) }  
+var recordingFilePath by remember { mutableStateOf("") }  
+var mediaRecorder by remember { mutableStateOf<MediaRecorder?>(null) }  
+var currentlyPlayingMessageId by remember { mutableStateOf<String?>(null) }  
+var currentPlayer by remember { mutableStateOf<MediaPlayer?>(null) }  
 
-var personIsOnline by remember {  
-    mutableStateOf(person.isOnline)  
-}  
-
-var otherPersonIsTyping by remember {  
-    mutableStateOf(false)  
-}  
-
-var showEmojiPicker by remember {  
-    mutableStateOf(false)  
-}  
-
-var selectedMessage by remember {  
-    mutableStateOf<PeejeeMessage?>(null)  
-}  
-
-var selectedReply by remember {  
-    mutableStateOf<PeejeeMessage?>(null)  
-}  
-
-LaunchedEffect(  
-    currentUserId,  
-    person.uid  
+fun rebuildMessages(  
+    sentDocuments: List<com.google.firebase.firestore.DocumentSnapshot>,  
+    receivedDocuments: List<com.google.firebase.firestore.DocumentSnapshot>  
 ) {  
+    val allDocuments = (sentDocuments + receivedDocuments).distinctBy { it.id }  
+
+    messages = allDocuments  
+        .mapNotNull { messageFromDocument(it) }  
+        .sortedBy { it.timestamp }  
+
+    replyInfoByMessageId = allDocuments  
+        .mapNotNull { document ->  
+            val replyText = document.getString("replyToText")  
+                ?: return@mapNotNull null  
+
+            val replySenderName =  
+                document.getString("replyToSenderName") ?: "Peejee User"  
+
+            PeejeeReplyInfo(  
+                messageId = document.id,  
+                text = replyText,  
+                senderName = replySenderName  
+            )  
+        }  
+        .associateBy { it.messageId }  
+
+    voiceInfoByMessageId = allDocuments  
+        .mapNotNull { document ->  
+            val base64 = document.getString("voiceBase64")  
+                ?: return@mapNotNull null  
+
+            if (base64.isBlank()) return@mapNotNull null  
+
+            PeejeeVoiceInfo(  
+                base64 = base64,  
+                durationMs = document.getLong("voiceDurationMs") ?: 0L  
+            ).let { document.id to it }  
+        }  
+        .toMap()  
+}  
+
+fun stopCurrentPlayback() {  
+    try {  
+        currentPlayer?.stop()  
+    } catch (_: Exception) {  
+    }  
+
+    try {  
+        currentPlayer?.release()  
+    } catch (_: Exception) {  
+    }  
+
+    currentPlayer = null  
+    currentlyPlayingMessageId = null  
+}  
+
+fun playVoiceMessage(messageId: String) {  
+    val voice = voiceInfoByMessageId[messageId] ?: return  
+
+    if (currentlyPlayingMessageId == messageId) {  
+        stopCurrentPlayback()  
+        return  
+    }  
+
+    stopCurrentPlayback()  
+
+    try {  
+        val bytes = Base64.decode(voice.base64, Base64.DEFAULT)  
+        val file = File(context.cacheDir, "peejee_voice_$messageId.3gp")  
+        FileOutputStream(file).use { it.write(bytes) }  
+
+        val player = MediaPlayer()  
+        currentPlayer = player  
+        currentlyPlayingMessageId = messageId  
+
+        player.setDataSource(file.absolutePath)  
+
+        player.setOnCompletionListener {  
+            try {  
+                player.release()  
+            } catch (_: Exception) {  
+            }  
+            if (currentPlayer === player) {  
+                currentPlayer = null  
+                currentlyPlayingMessageId = null  
+            }  
+        }  
+
+        player.setOnErrorListener { mp, _, _ ->  
+            try {  
+                mp.release()  
+            } catch (_: Exception) {  
+            }  
+            if (currentPlayer === mp) {  
+                currentPlayer = null  
+                currentlyPlayingMessageId = null  
+            }  
+            true  
+        }  
+
+        player.prepare()  
+        player.start()  
+    } catch (exception: Exception) {  
+        stopCurrentPlayback()  
+        errorMessage = exception.message ?: "Could not play voice note."  
+    }  
+}  
+
+fun sendVoiceNote(filePath: String, durationMs: Long) {  
     if (  
-        currentUserId.isNotBlank() &&  
-        person.uid.isNotBlank()  
+        currentUserId.isBlank() ||  
+        person.uid.isBlank() ||  
+        sending  
     ) {  
-        firestore  
-            .collection("messages")  
-            .whereEqualTo(  
-                "senderId",  
-                person.uid  
+        return  
+    }  
+
+    try {  
+        val file = File(filePath)  
+        if (!file.exists()) {  
+            errorMessage = "Voice recording was not found."  
+            return  
+        }  
+
+        val bytes = file.readBytes()  
+
+        // Keep the Firestore message safely below its 1 MiB document limit.  
+        if (bytes.size > 700_000) {  
+            errorMessage = "Voice note is too large. Please record a shorter note."  
+            file.delete()  
+            return  
+        }  
+
+        sending = true  
+        errorMessage = ""  
+
+        val messageReference =  
+            firestore.collection("messages").document()  
+
+        val messageData = hashMapOf<String, Any>(  
+            "messageId" to messageReference.id,  
+            "senderId" to currentUserId,  
+            "receiverId" to person.uid,  
+            "text" to "",  
+            "messageType" to "voice",  
+            "voiceBase64" to  
+                Base64.encodeToString(bytes, Base64.NO_WRAP),  
+            "voiceDurationMs" to durationMs.coerceAtMost(20_000L),  
+            "timestamp" to System.currentTimeMillis(),  
+            "read" to false  
+        )  
+
+        messageReference.set(messageData)  
+            .addOnSuccessListener {  
+                firestore.collection("users")  
+                    .document(currentUserId)  
+                    .get()  
+                    .addOnSuccessListener { userDocument ->  
+                        createPeejeeNotification(  
+                            firestore = firestore,  
+                            recipientUserId = person.uid,  
+                            type = "message",  
+                            actorId = currentUserId,  
+                            actorName =  
+                                userDocument.getString("name")  
+                                    ?: "Peejee User",  
+                            text = "sent you a voice note",  
+                            messageId = messageReference.id  
+                        )  
+                    }  
+
+                sending = false  
+                showEmojiPicker = false  
+                file.delete()  
+            }  
+            .addOnFailureListener { exception ->  
+                sending = false  
+                errorMessage =  
+                    exception.message ?: "Could not send voice note."  
+                file.delete()  
+            }  
+    } catch (exception: Exception) {  
+        sending = false  
+        errorMessage = exception.message ?: "Could not send voice note."  
+        try {  
+            File(filePath).delete()  
+        } catch (_: Exception) {  
+        }  
+    }  
+}  
+
+fun stopRecordingAndSend() {  
+    if (!isRecording) return  
+
+    val recorder = mediaRecorder  
+    val path = recordingFilePath  
+    val duration =  
+        (System.currentTimeMillis() - recordingStartedAt)  
+            .coerceIn(0L, 20_000L)  
+
+    isRecording = false  
+    mediaRecorder = null  
+    recordingFilePath = ""  
+
+    try {  
+        recorder?.stop()  
+    } catch (_: Exception) {  
+        try {  
+            File(path).delete()  
+        } catch (_: Exception) {  
+        }  
+        errorMessage = "Could not save the voice note."  
+        try {  
+            recorder?.release()  
+        } catch (_: Exception) {  
+        }  
+        return  
+    }  
+
+    try {  
+        recorder?.release()  
+    } catch (_: Exception) {  
+    }  
+
+    if (path.isNotBlank()) {  
+        sendVoiceNote(path, duration)  
+    }  
+}  
+
+fun startRecording() {  
+    if (  
+        isRecording ||  
+        sending ||  
+        currentUserId.isBlank() ||  
+        person.uid.isBlank()  
+    ) {  
+        return  
+    }  
+
+    try {  
+        val outputFile =  
+            File(  
+                context.cacheDir,  
+                "peejee_recording_${System.currentTimeMillis()}.3gp"  
             )  
-            .whereEqualTo(  
-                "receiverId",  
-                currentUserId  
-            )  
-            .whereEqualTo(  
-                "read",  
-                false  
-            )  
+
+        val recorder = MediaRecorder()  
+
+        recorder.setAudioSource(MediaRecorder.AudioSource.MIC)  
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)  
+        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)  
+        recorder.setOutputFile(outputFile.absolutePath)  
+        recorder.prepare()  
+        recorder.start()  
+
+        mediaRecorder = recorder  
+        recordingFilePath = outputFile.absolutePath  
+        recordingStartedAt = System.currentTimeMillis()  
+        isRecording = true  
+        errorMessage = ""  
+    } catch (exception: Exception) {  
+        try {  
+            mediaRecorder?.release()  
+        } catch (_: Exception) {  
+        }  
+        mediaRecorder = null  
+        isRecording = false  
+        errorMessage =  
+            exception.message ?: "Could not start voice recording."  
+    }  
+}  
+
+val recordAudioLauncher =  
+    rememberLauncherForActivityResult(  
+        contract = ActivityResultContracts.RequestPermission()  
+    ) { granted ->  
+        if (granted) {  
+            startRecording()  
+        } else {  
+            errorMessage =  
+                "Microphone permission is required to record a voice note."  
+        }  
+    }  
+
+fun requestOrStartRecording() {  
+    val granted =  
+        ContextCompat.checkSelfPermission(  
+            context,  
+            Manifest.permission.RECORD_AUDIO  
+        ) == PackageManager.PERMISSION_GRANTED  
+
+    if (granted) {  
+        startRecording()  
+    } else {  
+        recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)  
+    }  
+}  
+
+LaunchedEffect(isRecording) {  
+    if (isRecording) {  
+        delay(20_000L)  
+        if (isRecording) {  
+            stopRecordingAndSend()  
+        }  
+    }  
+}  
+
+DisposableEffect(Unit) {  
+    onDispose {  
+        try {  
+            mediaRecorder?.stop()  
+        } catch (_: Exception) {  
+        }  
+
+        try {  
+            mediaRecorder?.release()  
+        } catch (_: Exception) {  
+        }  
+
+        try {  
+            currentPlayer?.stop()  
+        } catch (_: Exception) {  
+        }  
+
+        try {  
+            currentPlayer?.release()  
+        } catch (_: Exception) {  
+        }  
+    }  
+}  
+
+LaunchedEffect(currentUserId, person.uid) {  
+    if (currentUserId.isNotBlank() && person.uid.isNotBlank()) {  
+        firestore.collection("messages")  
+            .whereEqualTo("senderId", person.uid)  
+            .whereEqualTo("receiverId", currentUserId)  
+            .whereEqualTo("read", false)  
             .get()  
             .addOnSuccessListener { snapshot ->  
+                if (snapshot.isEmpty) return@addOnSuccessListener  
 
-                if (snapshot.isEmpty) {  
-                    return@addOnSuccessListener  
-                }  
-
-                val batch =  
-                    firestore.batch()  
+                val batch = firestore.batch()  
 
                 snapshot.documents.forEach { document ->  
-                    batch.update(  
-                        document.reference,  
-                        "read",  
-                        true  
-                    )  
+                    batch.update(document.reference, "read", true)  
                 }  
 
                 batch.commit()  
@@ -245,232 +530,113 @@ LaunchedEffect(
 
 DisposableEffect(person.uid) {  
     val registration =  
-        firestore  
-            .collection("users")  
+        firestore.collection("users")  
             .document(person.uid)  
-            .addSnapshotListener {  
-                    document,  
-                    error ->  
-                if (  
-                    error == null &&  
-                    document != null  
-                ) {  
+            .addSnapshotListener { document, error ->  
+                if (error == null && document != null) {  
                     personIsOnline =  
-                        document.getBoolean(  
-                            "isOnline"  
-                        ) ?: false  
+                        document.getBoolean("isOnline") ?: false  
                 }  
             }  
 
-    onDispose {  
-        registration.remove()  
-    }  
+    onDispose { registration.remove() }  
 }  
 
-DisposableEffect(  
-    currentUserId,  
-    person.uid  
-) {  
-    if (  
-        currentUserId.isBlank() ||  
-        person.uid.isBlank()  
-    ) {  
+DisposableEffect(currentUserId, person.uid) {  
+    if (currentUserId.isBlank() || person.uid.isBlank()) {  
         onDispose { }  
     } else {  
         val registration =  
-            firestore  
-                .collection("typing")  
+            firestore.collection("typing")  
                 .document(  
                     peejeeTypingDocumentId(  
                         person.uid,  
                         currentUserId  
                     )  
                 )  
-                .addSnapshotListener {  
-                        document,  
-                        error ->  
-                    if (  
-                        error == null &&  
-                        document != null  
-                    ) {  
+                .addSnapshotListener { document, error ->  
+                    if (error == null && document != null) {  
                         otherPersonIsTyping =  
-                            document.getBoolean(  
-                                "typing"  
-                            ) ?: false  
+                            document.getBoolean("typing") ?: false  
                     }  
                 }  
 
-        onDispose {  
-            registration.remove()  
-        }  
+        onDispose { registration.remove() }  
     }  
 }  
 
-LaunchedEffect(  
-    newMessage,  
-    currentUserId,  
-    person.uid  
-) {  
-    if (  
-        currentUserId.isBlank() ||  
-        person.uid.isBlank()  
-    ) {  
+LaunchedEffect(newMessage, currentUserId, person.uid) {  
+    if (currentUserId.isBlank() || person.uid.isBlank()) {  
         return@LaunchedEffect  
     }  
 
     if (newMessage.isBlank()) {  
         setPeejeeTypingState(  
-            firestore = firestore,  
-            currentUserId = currentUserId,  
-            otherUserId = person.uid,  
-            isTyping = false  
+            firestore,  
+            currentUserId,  
+            person.uid,  
+            false  
         )  
     } else {  
         setPeejeeTypingState(  
-            firestore = firestore,  
-            currentUserId = currentUserId,  
-            otherUserId = person.uid,  
-            isTyping = true  
+            firestore,  
+            currentUserId,  
+            person.uid,  
+            true  
         )  
 
         delay(2500L)  
 
         setPeejeeTypingState(  
-            firestore = firestore,  
-            currentUserId = currentUserId,  
-            otherUserId = person.uid,  
-            isTyping = false  
+            firestore,  
+            currentUserId,  
+            person.uid,  
+            false  
         )  
     }  
 }  
 
-DisposableEffect(  
-    currentUserId,  
-    person.uid  
-) {  
+DisposableEffect(currentUserId, person.uid) {  
     onDispose {  
         setPeejeeTypingState(  
-            firestore = firestore,  
-            currentUserId = currentUserId,  
-            otherUserId = person.uid,  
-            isTyping = false  
+            firestore,  
+            currentUserId,  
+            person.uid,  
+            false  
         )  
     }  
 }  
 
-DisposableEffect(  
-    currentUserId,  
-    person.uid  
-) {  
-    if (  
-        currentUserId.isBlank() ||  
-        person.uid.isBlank()  
-    ) {  
+DisposableEffect(currentUserId, person.uid) {  
+    if (currentUserId.isBlank() || person.uid.isBlank()) {  
         onDispose { }  
     } else {  
         val sentRegistration =  
-            firestore  
-                .collection("messages")  
-                .whereEqualTo(  
-                    "senderId",  
-                    currentUserId  
-                )  
-                .whereEqualTo(  
-                    "receiverId",  
-                    person.uid  
-                )  
-                .addSnapshotListener {  
-                        sentSnapshot,  
-                        sentError ->  
+            firestore.collection("messages")  
+                .whereEqualTo("senderId", currentUserId)  
+                .whereEqualTo("receiverId", person.uid)  
+                .addSnapshotListener { sentSnapshot, sentError ->  
 
                     if (sentError != null) {  
                         errorMessage =  
-                            sentError.message  
-                                ?: "Could not load messages."  
-
+                            sentError.message ?: "Could not load messages."  
                         return@addSnapshotListener  
                     }  
 
-                    firestore  
-                        .collection("messages")  
-                        .whereEqualTo(  
-                            "senderId",  
-                            person.uid  
-                        )  
-                        .whereEqualTo(  
-                            "receiverId",  
-                            currentUserId  
-                        )  
+                    firestore.collection("messages")  
+                        .whereEqualTo("senderId", person.uid)  
+                        .whereEqualTo("receiverId", currentUserId)  
                         .get()  
-                        .addOnSuccessListener {  
-                                receivedSnapshot ->  
+                        .addOnSuccessListener { receivedSnapshot ->  
 
-                            val sentDocuments =  
-                                sentSnapshot  
-                                    ?.documents  
-                                    ?: emptyList()  
-
-                            val receivedDocuments =  
-                                receivedSnapshot  
-                                    .documents  
-
-                            val allDocuments =  
-                                (  
-                                    sentDocuments +  
-                                        receivedDocuments  
-                                    )  
-                                    .distinctBy {  
-                                        it.id  
-                                    }  
-
-                            messages =  
-                                allDocuments  
-                                    .mapNotNull {  
-                                        messageFromDocument(  
-                                            it  
-                                        )  
-                                    }  
-                                    .sortedBy {  
-                                        it.timestamp  
-                                    }  
-
-                            replyInfoByMessageId =  
-                                allDocuments  
-                                    .mapNotNull {  
-                                        document ->  
-
-                                        val replyText =  
-                                            document  
-                                                .getString(  
-                                                    "replyToText"  
-                                                )  
-                                                ?: return@mapNotNull null  
-
-                                        val replySenderName =  
-                                            document  
-                                                .getString(  
-                                                    "replyToSenderName"  
-                                                )  
-                                                ?: "Peejee User"  
-
-                                        PeejeeReplyInfo(  
-                                            messageId =  
-                                                document.id,  
-                                            text =  
-                                                replyText,  
-                                            senderName =  
-                                                replySenderName  
-                                        )  
-                                    }  
-                                    .associateBy {  
-                                        it.messageId  
-                                    }  
+                            rebuildMessages(  
+                                sentSnapshot?.documents ?: emptyList(),  
+                                receivedSnapshot.documents  
+                            )  
 
                             errorMessage = ""  
                         }  
-                        .addOnFailureListener {  
-                                exception ->  
-
+                        .addOnFailureListener { exception ->  
                             errorMessage =  
                                 exception.message  
                                     ?: "Could not load messages."  
@@ -478,182 +644,64 @@ DisposableEffect(
                 }  
 
         val receivedRegistration =  
-            firestore  
-                .collection("messages")  
-                .whereEqualTo(  
-                    "senderId",  
-                    person.uid  
-                )  
-                .whereEqualTo(  
-                    "receiverId",  
-                    currentUserId  
-                )  
-                .addSnapshotListener {  
-                        receivedSnapshot,  
-                        receivedError ->  
+            firestore.collection("messages")  
+                .whereEqualTo("senderId", person.uid)  
+                .whereEqualTo("receiverId", currentUserId)  
+                .addSnapshotListener { receivedSnapshot, receivedError ->  
 
-                    if (receivedError != null) {  
-                        return@addSnapshotListener  
-                    }  
+                    if (receivedError != null) return@addSnapshotListener  
 
-                    /*  
-                     * The initial Firestore snapshot also reports  
-                     * existing documents as ADDED. We only play  
-                     * the alert when there were already messages  
-                     * on screen and a new message appears.  
-                     */  
                     val addedIncoming =  
-                        receivedSnapshot  
-                            ?.documentChanges  
-                            ?.any { change ->  
-                                change.type.name == "ADDED"  
-                            } == true  
+                        receivedSnapshot?.documentChanges  
+                            ?.any { it.type.name == "ADDED" } == true  
 
-                    if (  
-                        addedIncoming &&  
-                        receivedSnapshot != null  
-                    ) {  
+                    if (addedIncoming && receivedSnapshot != null) {  
                         val newestIncoming =  
-                            receivedSnapshot  
-                                .documents  
-                                .mapNotNull {  
-                                    messageFromDocument(  
-                                        it  
-                                    )  
-                                }  
-                                .maxByOrNull {  
-                                    it.timestamp  
-                                }  
+                            receivedSnapshot.documents  
+                                .mapNotNull { messageFromDocument(it) }  
+                                .maxByOrNull { it.timestamp }  
 
                         if (  
                             newestIncoming != null &&  
-                            newestIncoming.senderId ==  
-                            person.uid  
+                            newestIncoming.senderId == person.uid  
                         ) {  
                             val previousIds =  
-                                messages  
-                                    .map { it.id }  
-                                    .toSet()  
+                                messages.map { it.id }.toSet()  
 
                             if (  
                                 previousIds.isNotEmpty() &&  
-                                !previousIds.contains(  
-                                    newestIncoming.id  
-                                )  
+                                !previousIds.contains(newestIncoming.id)  
                             ) {  
-                                playPeejeeMessageAlert(  
-                                    context  
-                                )  
+                                playPeejeeMessageAlert(context)  
                             }  
                         }  
                     }  
 
-                    /*  
-                     * This chat is open, so incoming messages  
-                     * become Seen.  
-                     */  
                     val unreadDocuments =  
-                        receivedSnapshot  
-                            ?.documents  
-                            ?.filter {  
-                                it.getBoolean(  
-                                    "read"  
-                                ) != true  
-                            }  
-                            ?: emptyList()  
+                        receivedSnapshot?.documents?.filter {  
+                            it.getBoolean("read") != true  
+                        } ?: emptyList()  
 
-                    if (  
-                        unreadDocuments.isNotEmpty()  
-                    ) {  
-                        val batch =  
-                            firestore.batch()  
+                    if (unreadDocuments.isNotEmpty()) {  
+                        val batch = firestore.batch()  
 
-                        unreadDocuments.forEach {  
-                                document ->  
-                            batch.update(  
-                                document.reference,  
-                                "read",  
-                                true  
-                            )  
+                        unreadDocuments.forEach { document ->  
+                            batch.update(document.reference, "read", true)  
                         }  
 
                         batch.commit()  
                     }  
 
-                    firestore  
-                        .collection("messages")  
-                        .whereEqualTo(  
-                            "senderId",  
-                            currentUserId  
-                        )  
-                        .whereEqualTo(  
-                            "receiverId",  
-                            person.uid  
-                        )  
+                    firestore.collection("messages")  
+                        .whereEqualTo("senderId", currentUserId)  
+                        .whereEqualTo("receiverId", person.uid)  
                         .get()  
-                        .addOnSuccessListener {  
-                                sentSnapshot ->  
+                        .addOnSuccessListener { sentSnapshot ->  
 
-                            val sentDocuments =  
-                                sentSnapshot  
-                                    .documents  
-
-                            val receivedDocuments =  
-                                receivedSnapshot  
-                                    ?.documents  
-                                    ?: emptyList()  
-
-                            val allDocuments =  
-                                (  
-                                    sentDocuments +  
-                                        receivedDocuments  
-                                    )  
-                                    .distinctBy {  
-                                        it.id  
-                                    }  
-
-                            messages =  
-                                allDocuments  
-                                    .mapNotNull {  
-                                        messageFromDocument(  
-                                            it  
-                                        )  
-                                    }  
-                                    .sortedBy {  
-                                        it.timestamp  
-                                    }  
-
-                            replyInfoByMessageId =  
-                                allDocuments  
-                                    .mapNotNull {  
-                                        document ->  
-
-                                        val replyText =  
-                                            document  
-                                                .getString(  
-                                                    "replyToText"  
-                                                )  
-                                                ?: return@mapNotNull null  
-
-                                        val replySenderName =  
-                                            document  
-                                                .getString(  
-                                                    "replyToSenderName"  
-                                                )  
-                                                ?: "Peejee User"  
-
-                                        PeejeeReplyInfo(  
-                                            messageId =  
-                                                document.id,  
-                                            text =  
-                                                replyText,  
-                                            senderName =  
-                                                replySenderName  
-                                        )  
-                                    }  
-                                    .associateBy {  
-                                        it.messageId  
-                                    }  
+                            rebuildMessages(  
+                                sentSnapshot.documents,  
+                                receivedSnapshot?.documents ?: emptyList()  
+                            )  
                         }  
                 }  
 
@@ -665,8 +713,7 @@ DisposableEffect(
 }  
 
 fun sendMessage() {  
-    val text =  
-        newMessage.trim()  
+    val text = newMessage.trim()  
 
     if (  
         text.isBlank() ||  
@@ -681,57 +728,33 @@ fun sendMessage() {
     errorMessage = ""  
 
     val messageReference =  
-        firestore  
-            .collection("messages")  
-            .document()  
+        firestore.collection("messages").document()  
 
-    val messageData =  
-        hashMapOf<String, Any>(  
-            "messageId" to  
-                messageReference.id,  
-            "senderId" to  
-                currentUserId,  
-            "receiverId" to  
-                person.uid,  
-            "text" to  
-                text,  
-            "timestamp" to  
-                System.currentTimeMillis(),  
-            "read" to  
-                false  
-        )  
+    val messageData = hashMapOf<String, Any>(  
+        "messageId" to messageReference.id,  
+        "senderId" to currentUserId,  
+        "receiverId" to person.uid,  
+        "text" to text,  
+        "timestamp" to System.currentTimeMillis(),  
+        "read" to false  
+    )  
 
-    val reply =  
-        selectedReply  
+    val reply = selectedReply  
 
     if (reply != null) {  
-        messageData[  
-            "replyToMessageId"  
-        ] = reply.id  
-
-        messageData[  
-            "replyToText"  
-        ] = reply.text  
-
-        messageData[  
-            "replyToSenderName"  
-        ] =  
-            if (  
-                reply.senderId ==  
-                currentUserId  
-            ) {  
+        messageData["replyToMessageId"] = reply.id  
+        messageData["replyToText"] = reply.text  
+        messageData["replyToSenderName"] =  
+            if (reply.senderId == currentUserId) {  
                 "You"  
             } else {  
                 person.name  
             }  
     }  
 
-    messageReference  
-        .set(messageData)  
+    messageReference.set(messageData)  
         .addOnSuccessListener {  
-
-            firestore  
-                .collection("users")  
+            firestore.collection("users")  
                 .document(currentUserId)  
                 .get()  
                 .addOnSuccessListener { userDocument ->  
@@ -743,10 +766,8 @@ fun sendMessage() {
                         actorName =  
                             userDocument.getString("name")  
                                 ?: "Peejee User",  
-                        text =  
-                            "sent you a message",  
-                        messageId =  
-                            messageReference.id  
+                        text = "sent you a message",  
+                        messageId = messageReference.id  
                     )  
                 }  
 
@@ -755,22 +776,18 @@ fun sendMessage() {
             showEmojiPicker = false  
 
             setPeejeeTypingState(  
-                firestore = firestore,  
-                currentUserId = currentUserId,  
-                otherUserId = person.uid,  
-                isTyping = false  
+                firestore,  
+                currentUserId,  
+                person.uid,  
+                false  
             )  
 
             sending = false  
         }  
-        .addOnFailureListener {  
-                exception ->  
-
+        .addOnFailureListener { exception ->  
             sending = false  
-
             errorMessage =  
-                exception.message  
-                    ?: "Could not send message."  
+                exception.message ?: "Could not send message."  
         }  
 }  
 
@@ -779,41 +796,25 @@ Column(
         .fillMaxSize()  
         .padding(paddingValues)  
 ) {  
-
     Row(  
         modifier = Modifier  
             .fillMaxWidth()  
-            .padding(  
-                horizontal = 12.dp,  
-                vertical = 10.dp  
-            ),  
-        verticalAlignment =  
-            Alignment.CenterVertically  
+            .padding(horizontal = 12.dp, vertical = 10.dp),  
+        verticalAlignment = Alignment.CenterVertically  
     ) {  
-
-        TextButton(  
-            onClick = onBack  
-        ) {  
+        TextButton(onClick = onBack) {  
             Text("← Back")  
         }  
 
-        DefaultProfileIcon(  
-            size = 45  
-        )  
+        DefaultProfileIcon(size = 45)  
 
-        Spacer(  
-            Modifier.width(10.dp)  
-        )  
+        Spacer(Modifier.width(10.dp))  
 
-        Column(  
-            modifier =  
-                Modifier.weight(1f)  
-        ) {  
+        Column(modifier = Modifier.weight(1f)) {  
             Text(  
                 person.name,  
                 fontSize = 19.sp,  
-                fontWeight =  
-                    FontWeight.Bold  
+                fontWeight = FontWeight.Bold  
             )  
 
             Text(  
@@ -841,32 +842,22 @@ Column(
                 .padding(8.dp)  
         ) {  
             Row(  
-                modifier =  
-                    Modifier  
-                        .fillMaxWidth()  
-                        .padding(10.dp),  
-                verticalAlignment =  
-                    Alignment.CenterVertically  
+                modifier = Modifier  
+                    .fillMaxWidth()  
+                    .padding(10.dp),  
+                verticalAlignment = Alignment.CenterVertically  
             ) {  
-                Column(  
-                    modifier =  
-                        Modifier.weight(1f)  
-                ) {  
+                Column(modifier = Modifier.weight(1f)) {  
                     Text(  
                         "Replying to ${  
-                            if (  
-                                selectedReply!!  
-                                    .senderId ==  
-                                currentUserId  
-                            ) {  
+                            if (selectedReply!!.senderId == currentUserId) {  
                                 "your message"  
                             } else {  
                                 person.name  
                             }  
                         }",  
                         fontSize = 12.sp,  
-                        fontWeight =  
-                            FontWeight.Bold  
+                        fontWeight = FontWeight.Bold  
                     )  
 
                     Text(  
@@ -877,9 +868,7 @@ Column(
                 }  
 
                 TextButton(  
-                    onClick = {  
-                        selectedReply = null  
-                    }  
+                    onClick = { selectedReply = null }  
                 ) {  
                     Text("Cancel")  
                 }  
@@ -891,171 +880,130 @@ Column(
         modifier = Modifier  
             .weight(1f)  
             .fillMaxWidth()  
-            .padding(  
-                horizontal = 10.dp  
-            ),  
+            .padding(horizontal = 10.dp),  
         reverseLayout = false  
     ) {  
-
         itemsIndexed(  
             messages,  
-            key = { _, message ->  
-                message.id  
-            }  
+            key = { _, message -> message.id }  
         ) { _, message ->  
 
-            val mine =  
-                message.senderId ==  
-                    currentUserId  
-
-            val replyInfo =  
-                replyInfoByMessageId[  
-                    message.id  
-                ]  
+            val mine = message.senderId == currentUserId  
+            val replyInfo = replyInfoByMessageId[message.id]  
+            val voiceInfo = voiceInfoByMessageId[message.id]  
 
             Row(  
                 modifier = Modifier  
                     .fillMaxWidth()  
-                    .padding(  
-                        vertical = 4.dp  
-                    ),  
+                    .padding(vertical = 4.dp),  
                 horizontalArrangement =  
-                    if (mine) {  
-                        Arrangement.End  
-                    } else {  
-                        Arrangement.Start  
-                    }  
+                    if (mine) Arrangement.End else Arrangement.Start  
             ) {  
-
                 Box {  
-
                     Surface(  
-                        modifier =  
-                            Modifier  
-                                .widthIn(  
-                                    max = 300.dp  
-                                )  
-                                .combinedClickable(  
-                                    onClick = { },  
-                                    onLongClick = {  
-                                        selectedMessage =  
-                                            message  
-                                    }  
-                                ),  
-                        shape =  
-                            RoundedCornerShape(  
-                                topStart = 18.dp,  
-                                topEnd = 18.dp,  
-                                bottomStart =  
-                                    if (mine) {  
-                                        18.dp  
-                                    } else {  
-                                        4.dp  
-                                    },  
-                                bottomEnd =  
-                                    if (mine) {  
-                                        4.dp  
-                                    } else {  
-                                        18.dp  
-                                    }  
+                        modifier = Modifier  
+                            .widthIn(max = 300.dp)  
+                            .combinedClickable(  
+                                onClick = { },  
+                                onLongClick = {  
+                                    selectedMessage = message  
+                                }  
                             ),  
+                        shape = RoundedCornerShape(  
+                            topStart = 18.dp,  
+                            topEnd = 18.dp,  
+                            bottomStart = if (mine) 18.dp else 4.dp,  
+                            bottomEnd = if (mine) 4.dp else 18.dp  
+                        ),  
                         color =  
                             if (mine) {  
-                                MaterialTheme  
-                                    .colorScheme  
-                                    .primaryContainer  
+                                MaterialTheme.colorScheme.primaryContainer  
                             } else {  
-                                MaterialTheme  
-                                    .colorScheme  
-                                    .surfaceVariant  
+                                MaterialTheme.colorScheme.surfaceVariant  
                             }  
                     ) {  
-
                         Column(  
-                            modifier =  
-                                Modifier.padding(  
-                                    horizontal = 14.dp,  
-                                    vertical = 9.dp  
-                                )  
+                            modifier = Modifier.padding(  
+                                horizontal = 14.dp,  
+                                vertical = 9.dp  
+                            )  
                         ) {  
-
-                            if (  
-                                replyInfo != null  
-                            ) {  
+                            if (replyInfo != null) {  
                                 Card(  
-                                    modifier =  
-                                        Modifier  
-                                            .fillMaxWidth()  
-                                            .padding(  
-                                                bottom = 7.dp  
-                                            )  
+                                    modifier = Modifier  
+                                        .fillMaxWidth()  
+                                        .padding(bottom = 7.dp)  
                                 ) {  
                                     Column(  
-                                        modifier =  
-                                            Modifier  
-                                                .padding(  
-                                                    7.dp  
-                                                )  
+                                        modifier = Modifier.padding(7.dp)  
                                     ) {  
                                         Text(  
                                             "↩ ${replyInfo.senderName}",  
-                                            fontSize =  
-                                                10.sp,  
-                                            fontWeight =  
-                                                FontWeight.Bold  
+                                            fontSize = 10.sp,  
+                                            fontWeight = FontWeight.Bold  
                                         )  
 
                                         Text(  
                                             replyInfo.text,  
                                             maxLines = 2,  
-                                            fontSize =  
-                                                11.sp  
+                                            fontSize = 11.sp  
                                         )  
                                     }  
                                 }  
                             }  
 
-                            Text(  
-                                message.text,  
-                                fontSize = 16.sp  
-                            )  
-
-                            Spacer(  
-                                Modifier.height(  
-                                    3.dp  
+                            if (voiceInfo != null) {  
+                                Button(  
+                                    onClick = {  
+                                        playVoiceMessage(message.id)  
+                                    },  
+                                    enabled = !sending,  
+                                    modifier = Modifier.fillMaxWidth()  
+                                ) {  
+                                    Text(  
+                                        if (  
+                                            currentlyPlayingMessageId ==  
+                                            message.id  
+                                        ) {  
+                                            "⏹ Stop  ${formatPeejeeVoiceDuration(voiceInfo.durationMs)}"  
+                                        } else {  
+                                            "▶ Voice note  ${  
+                                                formatPeejeeVoiceDuration(  
+                                                    voiceInfo.durationMs  
+                                                )  
+                                            }"  
+                                        }  
+                                    }  
                                 )  
-                            )  
+                            } else {  
+                                Text(  
+                                    message.text,  
+                                    fontSize = 16.sp  
+                                )  
+                            }  
+
+                            Spacer(Modifier.height(3.dp))  
 
                             Row(  
                                 verticalAlignment =  
                                     Alignment.CenterVertically  
                             ) {  
-
                                 Text(  
-                                    formatPostTime(  
-                                        message.timestamp  
-                                    ),  
+                                    formatPostTime(message.timestamp),  
                                     fontSize = 9.sp  
                                 )  
 
                                 if (mine) {  
-                                    Spacer(  
-                                        Modifier.width(  
-                                            5.dp  
-                                        )  
-                                    )  
+                                    Spacer(Modifier.width(5.dp))  
 
                                     Text(  
-                                        if (  
-                                            message.read  
-                                        ) {  
+                                        if (message.read) {  
                                             "✓✓ Seen"  
                                         } else {  
                                             "✓ Sent"  
                                         },  
                                         fontSize = 9.sp,  
-                                        fontWeight =  
-                                            FontWeight.Bold  
+                                        fontWeight = FontWeight.Bold  
                                     )  
                                 }  
                             }  
@@ -1064,21 +1012,17 @@ Column(
 
                     DropdownMenu(  
                         expanded =  
-                            selectedMessage?.id ==  
-                                message.id,  
+                            selectedMessage?.id == message.id,  
                         onDismissRequest = {  
-                            selectedMessage =  
-                                null  
+                            selectedMessage = null  
                         }  
                     ) {  
-
                         TextButton(  
                             onClick = {  
-                                selectedReply =  
-                                    message  
-
-                                selectedMessage =  
-                                    null  
+                                if (voiceInfo == null) {  
+                                    selectedReply = message  
+                                }  
+                                selectedMessage = null  
                             }  
                         ) {  
                             Text("↩ Reply")  
@@ -1087,22 +1031,22 @@ Column(
                         if (mine) {  
                             TextButton(  
                                 onClick = {  
-
-                                    firestore  
-                                        .collection(  
-                                            "messages"  
-                                        )  
-                                        .document(  
-                                            message.id  
-                                        )  
+                                    firestore.collection("messages")  
+                                        .document(message.id)  
                                         .delete()  
                                         .addOnFailureListener {  
                                             errorMessage =  
                                                 "Could not delete message."  
                                         }  
 
-                                    selectedMessage =  
-                                        null  
+                                    if (  
+                                        currentlyPlayingMessageId ==  
+                                        message.id  
+                                    ) {  
+                                        stopCurrentPlayback()  
+                                    }  
+
+                                    selectedMessage = null  
                                 }  
                             ) {  
                                 Text("🗑 Delete")  
@@ -1114,19 +1058,11 @@ Column(
         }  
     }  
 
-    if (  
-        errorMessage.isNotBlank()  
-    ) {  
+    if (errorMessage.isNotBlank()) {  
         Text(  
             errorMessage,  
-            color =  
-                MaterialTheme  
-                    .colorScheme  
-                    .error,  
-            modifier =  
-                Modifier.padding(  
-                    horizontal = 12.dp  
-                )  
+            color = MaterialTheme.colorScheme.error,  
+            modifier = Modifier.padding(horizontal = 12.dp)  
         )  
     }  
 
@@ -1134,18 +1070,13 @@ Column(
         Card(  
             modifier = Modifier  
                 .fillMaxWidth()  
-                .padding(  
-                    horizontal = 8.dp,  
-                    vertical = 4.dp  
-                )  
+                .padding(horizontal = 8.dp, vertical = 4.dp)  
         ) {  
             LazyRow(  
-                modifier =  
-                    Modifier  
-                        .fillMaxWidth()  
-                        .padding(6.dp),  
-                horizontalArrangement =  
-                    Arrangement.spacedBy(2.dp)  
+                modifier = Modifier  
+                    .fillMaxWidth()  
+                    .padding(6.dp),  
+                horizontalArrangement = Arrangement.spacedBy(2.dp)  
             ) {  
                 itemsIndexed(  
                     listOf(  
@@ -1156,22 +1087,44 @@ Column(
                         "😇", "😉", "😮", "😴"  
                     )  
                 ) { _, emoji ->  
-
                     TextButton(  
                         onClick = {  
-                            newMessage +=  
-                                emoji  
-
-                            showEmojiPicker =  
-                                false  
+                            newMessage += emoji  
+                            showEmojiPicker = false  
                         },  
-                        enabled = !sending  
+                        enabled = !sending && !isRecording  
                     ) {  
-                        Text(  
-                            emoji,  
-                            fontSize = 23.sp  
-                        )  
+                        Text(emoji, fontSize = 23.sp)  
                     }  
+                }  
+            }  
+        }  
+    }  
+
+    if (isRecording) {  
+        Card(  
+            modifier = Modifier  
+                .fillMaxWidth()  
+                .padding(horizontal = 8.dp, vertical = 4.dp)  
+        ) {  
+            Row(  
+                modifier = Modifier  
+                    .fillMaxWidth()  
+                    .padding(8.dp),  
+                verticalAlignment = Alignment.CenterVertically  
+            ) {  
+                Text(  
+                    "🔴 Recording voice note…",  
+                    fontWeight = FontWeight.Bold,  
+                    modifier = Modifier.weight(1f)  
+                )  
+
+                TextButton(  
+                    onClick = {  
+                        stopRecordingAndSend()  
+                    }  
+                ) {  
+                    Text("Stop & Send")  
                 }  
             }  
         }  
@@ -1181,62 +1134,69 @@ Column(
         modifier = Modifier  
             .fillMaxWidth()  
             .padding(8.dp),  
-        verticalAlignment =  
-            Alignment.CenterVertically  
+        verticalAlignment = Alignment.CenterVertically  
     ) {  
-
         IconButton(  
             onClick = {  
-                showEmojiPicker =  
-                    !showEmojiPicker  
+                showEmojiPicker = !showEmojiPicker  
             },  
-            enabled = !sending  
+            enabled = !sending && !isRecording  
         ) {  
-            Text(  
-                "😊",  
-                fontSize = 25.sp  
-            )  
+            Text("😊", fontSize = 25.sp)  
         }  
 
         OutlinedTextField(  
             value = newMessage,  
-            onValueChange = {  
-                newMessage = it  
-            },  
-            modifier =  
-                Modifier.weight(1f),  
+            onValueChange = { newMessage = it },  
+            modifier = Modifier.weight(1f),  
             placeholder = {  
-                Text(  
-                    "Write a message…"  
-                )  
+                Text("Write a message…")  
             },  
             maxLines = 4,  
-            enabled = !sending  
+            enabled = !sending && !isRecording  
         )  
 
-        Spacer(  
-            Modifier.width(6.dp)  
-        )  
+        Spacer(Modifier.width(4.dp))  
 
-        Button(  
+        IconButton(  
             onClick = {  
-                sendMessage()  
+                if (isRecording) {  
+                    stopRecordingAndSend()  
+                } else {  
+                    requestOrStartRecording()  
+                }  
             },  
-            enabled =  
-                !sending &&  
-                    newMessage  
-                        .trim()  
-                        .isNotBlank()  
+            enabled = !sending && newMessage.isBlank()  
         ) {  
             Text(  
-                if (sending) {  
-                    "..."  
-                } else {  
-                    "Send"  
-                }  
+                if (isRecording) "⏹" else "🎙️",  
+                fontSize = 25.sp  
+            )  
+        }  
+
+        Spacer(Modifier.width(2.dp))  
+
+        Button(  
+            onClick = { sendMessage() },  
+            enabled =  
+                !sending &&  
+                    !isRecording &&  
+                    newMessage.trim().isNotBlank()  
+        ) {  
+            Text(  
+                if (sending) "..." else "Send"  
             )  
         }  
     }  
+}  
+
+if (false) {  
+    AlertDialog(  
+        onDismissRequest = { },  
+        confirmButton = { },  
+        title = { Text("") },  
+        text = { Text("") }  
+    )  
 }
 
 }
