@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 
 private data class PeejeeConversationRow(
@@ -53,8 +54,7 @@ fun MessagesPageNew(
     paddingValues: PaddingValues
 ) {
     val firestore = remember { FirebaseFirestore.getInstance() }
-    val currentUser = FirebaseAuth.getInstance().currentUser
-    val currentUserId = currentUser?.uid.orEmpty()
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
 
     var searchText by remember { mutableStateOf("") }
 
@@ -71,15 +71,14 @@ fun MessagesPageNew(
     }
 
     /*
-     * Listen to both messages sent by the current user
-     * and messages received by the current user.
-     *
-     * We keep these as two separate snapshots and combine them
-     * into one message list.
+     * Listen to all messages belonging to the current user.
+     * We use separate listeners for sent and received messages,
+     * then combine them.
      */
     DisposableEffect(currentUserId) {
 
         if (currentUserId.isBlank()) {
+            allMessages = emptyList()
             onDispose { }
         } else {
 
@@ -87,12 +86,11 @@ fun MessagesPageNew(
             var receivedMessages = emptyList<PeejeeMessage>()
 
             fun updateCombinedMessages() {
-                val combined = (sentMessages + receivedMessages)
-                    .associateBy { it.id }
-                    .values
-                    .sortedByDescending { it.timestamp }
-
-                allMessages = combined
+                allMessages =
+                    (sentMessages + receivedMessages)
+                        .associateBy { it.id }
+                        .values
+                        .sortedByDescending { it.timestamp }
             }
 
             val sentListener =
@@ -105,9 +103,10 @@ fun MessagesPageNew(
                             return@addSnapshotListener
                         }
 
-                        sentMessages = snapshot.documents.mapNotNull {
-                            messageFromDocument(it)
-                        }
+                        sentMessages =
+                            snapshot.documents.mapNotNull {
+                                peejeeMessageFromDocument(it)
+                            }
 
                         updateCombinedMessages()
                     }
@@ -122,9 +121,10 @@ fun MessagesPageNew(
                             return@addSnapshotListener
                         }
 
-                        receivedMessages = snapshot.documents.mapNotNull {
-                            messageFromDocument(it)
-                        }
+                        receivedMessages =
+                            snapshot.documents.mapNotNull {
+                                peejeeMessageFromDocument(it)
+                            }
 
                         updateCombinedMessages()
                     }
@@ -137,24 +137,45 @@ fun MessagesPageNew(
     }
 
     /*
-     * Find the other user for every conversation.
+     * Make sure every conversation has a user object immediately.
+     *
+     * The old version waited for the users/{uid} read to succeed
+     * before showing a conversation. If that profile read was delayed
+     * or failed, the whole conversation disappeared.
+     *
+     * We now create a temporary Peejee User immediately, then replace
+     * it with the real profile when Firestore returns it.
      */
-    LaunchedEffect(allMessages) {
+    LaunchedEffect(allMessages, currentUserId) {
 
-        val otherUserIds = allMessages
-            .map {
-                if (it.senderId == currentUserId) {
-                    it.receiverId
-                } else {
-                    it.senderId
+        val otherUserIds =
+            allMessages
+                .mapNotNull { message ->
+
+                    when {
+                        message.senderId == currentUserId ->
+                            message.receiverId.takeIf { it.isNotBlank() }
+
+                        message.receiverId == currentUserId ->
+                            message.senderId.takeIf { it.isNotBlank() }
+
+                        else ->
+                            null
+                    }
                 }
-            }
-            .filter { it.isNotBlank() }
-            .distinct()
+                .distinct()
 
         otherUserIds.forEach { uid ->
 
             if (!userCache.containsKey(uid)) {
+
+                userCache[uid] =
+                    PeejeePerson(
+                        uid = uid,
+                        name = "Peejee User",
+                        email = "",
+                        isOnline = false
+                    )
 
                 firestore
                     .collection("users")
@@ -166,7 +187,11 @@ fun MessagesPageNew(
 
                             val name =
                                 document.getString("name")
+                                    ?.trim()
+                                    ?.takeIf { it.isNotBlank() }
                                     ?: document.getString("displayName")
+                                        ?.trim()
+                                        ?.takeIf { it.isNotBlank() }
                                     ?: "Peejee User"
 
                             val email =
@@ -188,6 +213,16 @@ fun MessagesPageNew(
                     }
             }
         }
+
+        /*
+         * Remove cached users who are no longer part of the
+         * current message list.
+         */
+        userCache.keys
+            .filter { it !in otherUserIds }
+            .forEach { uid ->
+                userCache.remove(uid)
+            }
     }
 
     /*
@@ -198,8 +233,11 @@ fun MessagesPageNew(
         val queryText = searchText.trim()
 
         if (queryText.isBlank()) {
+
             searchUsers = emptyList()
+
             onDispose { }
+
         } else {
 
             val listener =
@@ -227,22 +265,22 @@ fun MessagesPageNew(
 
                                     val name =
                                         document.getString("name")
+                                            ?.trim()
+                                            ?.takeIf { it.isNotBlank() }
                                             ?: document.getString("displayName")
+                                                ?.trim()
+                                                ?.takeIf { it.isNotBlank() }
                                             ?: "Peejee User"
-
-                                    val email =
-                                        document.getString("email")
-                                            ?: ""
-
-                                    val isOnline =
-                                        document.getBoolean("isOnline")
-                                            ?: false
 
                                     PeejeePerson(
                                         uid = uid,
                                         name = name,
-                                        email = email,
-                                        isOnline = isOnline
+                                        email =
+                                            document.getString("email")
+                                                ?: "",
+                                        isOnline =
+                                            document.getBoolean("isOnline")
+                                                ?: false
                                     )
                                 }
                     }
@@ -254,7 +292,11 @@ fun MessagesPageNew(
     }
 
     /*
-     * Build conversation rows from the message list.
+     * Build conversation rows.
+     *
+     * Unread messages are counted only when:
+     * - the current user is the receiver
+     * - read == false
      */
     val conversations = remember(
         allMessages,
@@ -262,41 +304,47 @@ fun MessagesPageNew(
         currentUserId
     ) {
 
-        val grouped =
-            allMessages
-                .groupBy { message ->
+        allMessages
+            .groupBy { message ->
 
-                    if (message.senderId == currentUserId) {
-                        message.receiverId
-                    } else {
-                        message.senderId
+                if (message.senderId == currentUserId) {
+                    message.receiverId
+                } else {
+                    message.senderId
+                }
+            }
+            .mapNotNull { entry ->
+
+                val otherUserId = entry.key
+
+                if (otherUserId.isBlank()) {
+                    return@mapNotNull null
+                }
+
+                val person =
+                    userCache[otherUserId]
+                        ?: PeejeePerson(
+                            uid = otherUserId,
+                            name = "Peejee User"
+                        )
+
+                val latestMessage =
+                    entry.value.maxByOrNull { it.timestamp }
+                        ?: return@mapNotNull null
+
+                val unreadCount =
+                    entry.value.count { message ->
+                        message.receiverId == currentUserId &&
+                            !message.read
                     }
-                }
 
-        grouped.mapNotNull { entry ->
-
-            val otherUserId = entry.key
-
-            val person = userCache[otherUserId]
-                ?: return@mapNotNull null
-
-            val latestMessage =
-                entry.value.maxByOrNull { it.timestamp }
-                    ?: return@mapNotNull null
-
-            val unreadCount =
-                entry.value.count {
-                    it.receiverId == currentUserId &&
-                        !it.read
-                }
-
-            PeejeeConversationRow(
-                user = person,
-                lastMessage = latestMessage.text,
-                timestamp = latestMessage.timestamp,
-                unreadCount = unreadCount
-            )
-        }
+                PeejeeConversationRow(
+                    user = person,
+                    lastMessage = latestMessage.text,
+                    timestamp = latestMessage.timestamp,
+                    unreadCount = unreadCount
+                )
+            }
             .sortedByDescending { it.timestamp }
     }
 
@@ -334,9 +382,6 @@ fun MessagesPageNew(
 
         Spacer(modifier = Modifier.size(10.dp))
 
-        /*
-         * SEARCH RESULTS
-         */
         if (searchText.trim().isNotBlank()) {
 
             if (searchUsers.isEmpty()) {
@@ -371,9 +416,6 @@ fun MessagesPageNew(
 
         } else {
 
-            /*
-             * PREVIOUS CONVERSATIONS
-             */
             if (conversations.isEmpty()) {
 
                 Column(
@@ -518,8 +560,7 @@ private fun ConversationRow(
                 ) {
 
                     Box(
-                        modifier = Modifier
-                            .size(28.dp),
+                        modifier = Modifier.size(28.dp),
                         contentAlignment = Alignment.Center
                     ) {
 
@@ -622,4 +663,40 @@ private fun MessagesPageProfileIcon(
             color = MaterialTheme.colorScheme.onPrimaryContainer
         )
     }
+}
+
+/*
+ * Local message parser for MessagesPageNew.
+ *
+ * This is deliberately separate from the global messageFromDocument()
+ * so this page correctly reads the Firestore "read" field.
+ */
+private fun peejeeMessageFromDocument(
+    document: DocumentSnapshot
+): PeejeeMessage? {
+
+    val senderId =
+        document.getString("senderId")
+            ?: return null
+
+    val receiverId =
+        document.getString("receiverId")
+            ?: return null
+
+    val text =
+        document.getString("text")
+            ?: return null
+
+    return PeejeeMessage(
+        id = document.id,
+        senderId = senderId,
+        receiverId = receiverId,
+        text = text,
+        timestamp =
+            document.getLong("timestamp")
+                ?: 0L,
+        read =
+            document.getBoolean("read")
+                ?: false
+    )
 }
