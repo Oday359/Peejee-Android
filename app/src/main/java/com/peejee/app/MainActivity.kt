@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Base64
 
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -264,6 +265,13 @@ val receiverId: String,
 val text: String,
 val timestamp: Long,
 val read: Boolean = false
+)
+
+data class PeejeeConversation(
+val user: PeejeePerson,
+val lastMessage: String,
+val timestamp: Long,
+val unreadCount: Int
 )
 
 fun createPeejeeNotification(
@@ -913,6 +921,7 @@ var selectedProfileUser by remember {
 
 var showActivity by remember { mutableStateOf(false) }  
 var unreadNotificationCount by remember { mutableStateOf(0) }  
+var unreadMessageCount by remember { mutableStateOf(0) }  
 
 val firestore = remember {  
     FirebaseFirestore.getInstance()  
@@ -940,6 +949,29 @@ DisposableEffect(currentUserId) {
                 .addSnapshotListener { snapshot, error ->  
                     if (error == null) {  
                         unreadNotificationCount = snapshot?.size() ?: 0  
+                    }  
+                }  
+
+        onDispose {  
+            registration.remove()  
+        }  
+    }  
+}  
+
+DisposableEffect(currentUserId) {  
+
+    if (currentUserId.isBlank()) {  
+        unreadMessageCount = 0  
+        onDispose { }  
+    } else {  
+        val registration =  
+            firestore  
+                .collection("messages")  
+                .whereEqualTo("receiverId", currentUserId)  
+                .whereEqualTo("read", false)  
+                .addSnapshotListener { snapshot, error ->  
+                    if (error == null) {  
+                        unreadMessageCount = snapshot?.size() ?: 0  
                     }  
                 }  
 
@@ -1144,6 +1176,20 @@ DisposableEffect(
     }  
 }  
 
+if (showActivity) {  
+    BackHandler {  
+        showActivity = false  
+    }  
+} else if (selectedProfileUser != null) {  
+    BackHandler {  
+        selectedProfileUser = null  
+    }  
+} else if (selectedTab == 3 && selectedChatUser != null) {  
+    BackHandler {  
+        selectedChatUser = null  
+    }  
+}  
+
 Scaffold(  
 
     topBar = {  
@@ -1230,7 +1276,28 @@ Scaffold(
                 onClick = {  
                     selectedTab = 3  
                 },  
-                icon = { Text("💬") },  
+                icon = {  
+                    Row(  
+                        verticalAlignment = Alignment.CenterVertically  
+                    ) {  
+                        Text("💬")  
+                        if (unreadMessageCount > 0) {  
+                            Spacer(Modifier.width(4.dp))  
+                            Surface(  
+                                shape = CircleShape,  
+                                color = MaterialTheme.colorScheme.error  
+                            ) {  
+                                Text(  
+                                    if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),  
+                                    color = Color.White,  
+                                    fontSize = 9.sp,  
+                                    fontWeight = FontWeight.Bold,  
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)  
+                                )  
+                            }  
+                        }  
+                    }  
+                },  
                 label = { Text("Messages") }  
             )  
 
@@ -1255,21 +1322,7 @@ Scaffold(
                 showActivity = false  
             }  
         )  
-    } else if (  
-        selectedTab == 3 &&  
-        selectedChatUser != null  
-    ) {  
-
-        PrivateChatPageNew(  
-            person = selectedChatUser!!,  
-            paddingValues = paddingValues,  
-            onBack = {  
-                selectedChatUser = null  
-            }  
-        )  
-
     } else if (selectedProfileUser != null) {  
-
         OtherUserProfilePage(  
             person = selectedProfileUser!!,  
             paddingValues = paddingValues,  
@@ -1280,6 +1333,18 @@ Scaffold(
                 selectedProfileUser = null  
                 selectedChatUser = person  
                 selectedTab = 3  
+            }  
+        )  
+    } else if (  
+        selectedTab == 3 &&  
+        selectedChatUser != null  
+    ) {  
+
+        PrivateChatPageNew(  
+            person = selectedChatUser!!,  
+            paddingValues = paddingValues,  
+            onBack = {  
+                selectedChatUser = null  
             }  
         )  
 
@@ -1381,113 +1446,113 @@ Scaffold(
 
                 onFollow = { targetUserId ->  
 
-                val currentUser = auth.currentUser  
+                    val currentUser = auth.currentUser  
 
-                if (  
-                    currentUser == null ||  
-                    targetUserId.isBlank() ||  
-                    targetUserId == currentUser.uid ||  
-                    processingFollowUserId == targetUserId  
-                ) {  
-                    return@HomeFeed  
-                }  
-
-                val wasFollowing = followedUserIds.contains(targetUserId)  
-
-                processingFollowUserId = targetUserId  
-                followedUserIds = if (wasFollowing) {  
-                    followedUserIds - targetUserId  
-                } else {  
-                    followedUserIds + targetUserId  
-                }  
-
-                val currentUserRef = firestore.collection("users").document(currentUser.uid)  
-                val targetUserRef = firestore.collection("users").document(targetUserId)  
-                val followingRef = currentUserRef.collection("following").document(targetUserId)  
-                val followerRef = targetUserRef.collection("followers").document(currentUser.uid)  
-
-                var actorName = name  
-
-                firestore.runTransaction { transaction ->  
-                    val followingSnapshot = transaction.get(followingRef)  
-                    val currentUserSnapshot = transaction.get(currentUserRef)  
-                    val targetUserSnapshot = transaction.get(targetUserRef)  
-
-                    val currentFollowingCount = currentUserSnapshot.getLong("followingCount")?.toInt() ?: 0  
-                    val targetFollowersCount = targetUserSnapshot.getLong("followersCount")?.toInt() ?: 0  
-
-                    if (followingSnapshot.exists()) {  
-                        actorName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name  
-
-                        transaction.delete(followingRef)  
-                        transaction.delete(followerRef)  
-                        transaction.set(  
-                            currentUserRef,  
-                            mapOf("followingCount" to (currentFollowingCount - 1).coerceAtLeast(0)),  
-                            SetOptions.merge()  
-                        )  
-                        transaction.set(  
-                            targetUserRef,  
-                            mapOf("followersCount" to (targetFollowersCount - 1).coerceAtLeast(0)),  
-                            SetOptions.merge()  
-                        )  
-                    } else {  
-                        val currentUserName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name  
-                        actorName = currentUserName  
-                        val targetUserName = targetUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: "Peejee User"  
-                        val now = System.currentTimeMillis()  
-
-                        transaction.set(  
-                            followingRef,  
-                            hashMapOf<String, Any>(  
-                                "uid" to targetUserId,  
-                                "name" to targetUserName,  
-                                "timestamp" to now  
-                            )  
-                        )  
-                        transaction.set(  
-                            followerRef,  
-                            hashMapOf<String, Any>(  
-                                "uid" to currentUser.uid,  
-                                "name" to currentUserName,  
-                                "timestamp" to now  
-                            )  
-                        )  
-                        transaction.set(  
-                            currentUserRef,  
-                            mapOf("followingCount" to currentFollowingCount + 1),  
-                            SetOptions.merge()  
-                        )  
-                        transaction.set(  
-                            targetUserRef,  
-                            mapOf("followersCount" to targetFollowersCount + 1),  
-                            SetOptions.merge()  
-                        )  
+                    if (  
+                        currentUser == null ||  
+                        targetUserId.isBlank() ||  
+                        targetUserId == currentUser.uid ||  
+                        processingFollowUserId == targetUserId  
+                    ) {  
+                        return@HomeFeed  
                     }  
-                    null  
-                }.addOnSuccessListener {  
-                    processingFollowUserId = null  
-                    if (!wasFollowing) {  
-                        createPeejeeNotification(  
-                            firestore = firestore,  
-                            recipientUserId = targetUserId,  
-                            type = "follow",  
-                            actorId = currentUser.uid,  
-                            actorName = actorName,  
-                            text = "started following you"  
-                        )  
-                    }  
-                }.addOnFailureListener {  
+
+                    val wasFollowing = followedUserIds.contains(targetUserId)  
+
+                    processingFollowUserId = targetUserId  
                     followedUserIds = if (wasFollowing) {  
-                        followedUserIds + targetUserId  
-                    } else {  
                         followedUserIds - targetUserId  
+                    } else {  
+                        followedUserIds + targetUserId  
                     }  
-                    processingFollowUserId = null  
-                }  
-            },  
 
-            onComment = { postId ->  
+                    val currentUserRef = firestore.collection("users").document(currentUser.uid)  
+                    val targetUserRef = firestore.collection("users").document(targetUserId)  
+                    val followingRef = currentUserRef.collection("following").document(targetUserId)  
+                    val followerRef = targetUserRef.collection("followers").document(currentUser.uid)  
+
+                    var actorName = name  
+
+                    firestore.runTransaction { transaction ->  
+                        val followingSnapshot = transaction.get(followingRef)  
+                        val currentUserSnapshot = transaction.get(currentUserRef)  
+                        val targetUserSnapshot = transaction.get(targetUserRef)  
+
+                        val currentFollowingCount = currentUserSnapshot.getLong("followingCount")?.toInt() ?: 0  
+                        val targetFollowersCount = targetUserSnapshot.getLong("followersCount")?.toInt() ?: 0  
+
+                        if (followingSnapshot.exists()) {  
+                            actorName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name  
+
+                            transaction.delete(followingRef)  
+                            transaction.delete(followerRef)  
+                            transaction.set(  
+                                currentUserRef,  
+                                mapOf("followingCount" to (currentFollowingCount - 1).coerceAtLeast(0)),  
+                                SetOptions.merge()  
+                            )  
+                            transaction.set(  
+                                targetUserRef,  
+                                mapOf("followersCount" to (targetFollowersCount - 1).coerceAtLeast(0)),  
+                                SetOptions.merge()  
+                            )  
+                        } else {  
+                            val currentUserName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name  
+                            actorName = currentUserName  
+                            val targetUserName = targetUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: "Peejee User"  
+                            val now = System.currentTimeMillis()  
+
+                            transaction.set(  
+                                followingRef,  
+                                hashMapOf<String, Any>(  
+                                    "uid" to targetUserId,  
+                                    "name" to targetUserName,  
+                                    "timestamp" to now  
+                                )  
+                            )  
+                            transaction.set(  
+                                followerRef,  
+                                hashMapOf<String, Any>(  
+                                    "uid" to currentUser.uid,  
+                                    "name" to currentUserName,  
+                                    "timestamp" to now  
+                                )  
+                            )  
+                            transaction.set(  
+                                currentUserRef,  
+                                mapOf("followingCount" to currentFollowingCount + 1),  
+                                SetOptions.merge()  
+                            )  
+                            transaction.set(  
+                                targetUserRef,  
+                                mapOf("followersCount" to targetFollowersCount + 1),  
+                                SetOptions.merge()  
+                            )  
+                        }  
+                        null  
+                    }.addOnSuccessListener {  
+                        processingFollowUserId = null  
+                        if (!wasFollowing) {  
+                            createPeejeeNotification(  
+                                firestore = firestore,  
+                                recipientUserId = targetUserId,  
+                                type = "follow",  
+                                actorId = currentUser.uid,  
+                                actorName = actorName,  
+                                text = "started following you"  
+                            )  
+                        }  
+                    }.addOnFailureListener {  
+                        followedUserIds = if (wasFollowing) {  
+                            followedUserIds + targetUserId  
+                        } else {  
+                            followedUserIds - targetUserId  
+                        }  
+                        processingFollowUserId = null  
+                    }  
+                },  
+
+                onComment = { postId ->  
                     selectedPostId = postId  
                     newComment = ""  
                     commentError = ""  
@@ -1588,9 +1653,14 @@ Scaffold(
                 },  
 
                 onProfile = { person ->  
-                    selectedProfileUser = person  
+                    if (person.uid == currentUserId) {  
+                        selectedProfileUser = null  
+                        selectedChatUser = null  
+                        selectedTab = 4  
+                    } else {  
+                        selectedProfileUser = person  
+                    }  
                 },  
-
                 paddingValues = paddingValues  
             )  
 
@@ -1598,6 +1668,15 @@ Scaffold(
                 onMessage = { person ->  
                     selectedChatUser = person  
                     selectedTab = 3  
+                },  
+                onProfile = { person ->  
+                    if (person.uid == currentUserId) {  
+                        selectedProfileUser = null  
+                        selectedChatUser = null  
+                        selectedTab = 4  
+                    } else {  
+                        selectedProfileUser = person  
+                    }  
                 },  
                 paddingValues = paddingValues  
             )  
@@ -1609,7 +1688,7 @@ Scaffold(
                 paddingValues = paddingValues  
             )  
 
-            3 -> MessagesPage(  
+            3 -> MessagesPageNew(  
                 onMessage = { person ->  
                     selectedChatUser = person  
                 },  
@@ -2457,6 +2536,7 @@ Column(
 @Composable
 fun SearchPage(
 onMessage: (PeejeePerson) -> Unit,
+onProfile: (PeejeePerson) -> Unit,
 paddingValues: PaddingValues
 ) {
 
@@ -2631,7 +2711,9 @@ Column(
                     Spacer(Modifier.width(12.dp))  
 
                     Column(  
-                        modifier = Modifier.weight(1f)  
+                        modifier = Modifier  
+                            .weight(1f)  
+                            .clickable { onProfile(person) }  
                     ) {  
 
                         Text(  
@@ -2670,91 +2752,93 @@ onMessage: (PeejeePerson) -> Unit,
 paddingValues: PaddingValues
 ) {
 
-val firestore = remember {  
-    FirebaseFirestore.getInstance()  
-}  
+val firestore = remember { FirebaseFirestore.getInstance() }  
+val auth = remember { FirebaseAuth.getInstance() }  
+val currentUserId = auth.currentUser?.uid ?: ""  
 
-val auth = remember {  
-    FirebaseAuth.getInstance()  
-}  
+var searchText by remember { mutableStateOf("") }  
+var results by remember { mutableStateOf<List<PeejeePerson>>(emptyList()) }  
+var conversations by remember { mutableStateOf<List<PeejeeConversation>>(emptyList()) }  
+var searching by remember { mutableStateOf(false) }  
+var loadingConversations by remember { mutableStateOf(true) }  
+var errorMessage by remember { mutableStateOf("") }  
 
-var searchText by remember {  
-    mutableStateOf("")  
-}  
+DisposableEffect(currentUserId) {  
+    if (currentUserId.isBlank()) {  
+        conversations = emptyList()  
+        loadingConversations = false  
+        onDispose { }  
+    } else {  
+        val receivedRegistration = firestore  
+            .collection("messages")  
+            .whereEqualTo("receiverId", currentUserId)  
+            .addSnapshotListener { _, error ->  
+                if (error != null) {  
+                    loadingConversations = false  
+                    errorMessage = error.message ?: "Could not load messages."  
+                    return@addSnapshotListener  
+                }  
+                rebuildPeejeeConversations(firestore, currentUserId) { list ->  
+                    conversations = list  
+                    loadingConversations = false  
+                }  
+            }  
 
-var results by remember {  
-    mutableStateOf<List<PeejeePerson>>(emptyList())  
-}  
+        val sentRegistration = firestore  
+            .collection("messages")  
+            .whereEqualTo("senderId", currentUserId)  
+            .addSnapshotListener { _, error ->  
+                if (error != null) {  
+                    loadingConversations = false  
+                    errorMessage = error.message ?: "Could not load messages."  
+                    return@addSnapshotListener  
+                }  
+                rebuildPeejeeConversations(firestore, currentUserId) { list ->  
+                    conversations = list  
+                    loadingConversations = false  
+                }  
+            }  
 
-var searching by remember {  
-    mutableStateOf(false)  
-}  
+        rebuildPeejeeConversations(firestore, currentUserId) { list ->  
+            conversations = list  
+            loadingConversations = false  
+        }  
 
-var errorMessage by remember {  
-    mutableStateOf("")  
+        onDispose {  
+            receivedRegistration.remove()  
+            sentRegistration.remove()  
+        }  
+    }  
 }  
 
 LaunchedEffect(searchText) {  
-
     val queryText = searchText.trim()  
-
     if (queryText.isBlank()) {  
-
         results = emptyList()  
         searching = false  
-        errorMessage = ""  
-
     } else {  
-
         searching = true  
-        errorMessage = ""  
-
-        firestore  
-            .collection("users")  
+        firestore.collection("users")  
             .orderBy("name")  
             .startAt(queryText)  
             .endAt(queryText + "\uf8ff")  
             .limit(30)  
             .get()  
             .addOnSuccessListener { snapshot ->  
-
-                val currentId =  
-                    auth.currentUser?.uid  
-
-                results =  
-                    snapshot.documents.mapNotNull { document ->  
-
-                        val uid =  
-                            document.id  
-
-                        if (uid == currentId) {  
-                            null  
-                        } else {  
-
-                            PeejeePerson(  
-                                uid = uid,  
-                                name =  
-                                    document.getString("name")  
-                                        ?: "Peejee User",  
-                                email =  
-                                    document.getString("email")  
-                                        ?: "",  
-                                isOnline =  
-                                    document.getBoolean("isOnline")  
-                                        ?: false  
-                            )  
-                        }  
-                    }  
-
+                results = snapshot.documents.mapNotNull { document ->  
+                    val uid = document.id  
+                    if (uid == currentUserId) null else PeejeePerson(  
+                        uid = uid,  
+                        name = document.getString("name") ?: "Peejee User",  
+                        email = document.getString("email") ?: "",  
+                        isOnline = document.getBoolean("isOnline") ?: false  
+                    )  
+                }  
                 searching = false  
             }  
             .addOnFailureListener { exception ->  
-
                 searching = false  
-
-                errorMessage =  
-                    exception.message  
-                        ?: "Could not search users."  
+                errorMessage = exception.message ?: "Could not search users."  
             }  
     }  
 }  
@@ -2765,133 +2849,169 @@ Column(
         .padding(paddingValues)  
         .padding(20.dp)  
 ) {  
-
     PeejeeLogo(size = 70)  
-
     Spacer(Modifier.height(8.dp))  
-
-    Text(  
-        "Private Messages",  
-        fontSize = 30.sp,  
-        fontWeight = FontWeight.Bold  
-    )  
-
+    Text("Private Messages", fontSize = 30.sp, fontWeight = FontWeight.Bold)  
     Spacer(Modifier.height(8.dp))  
-
-    Text(  
-        "Search a Peejee user to start a private chat."  
-    )  
-
-    Spacer(Modifier.height(18.dp))  
+    Text("Your conversations")  
+    Spacer(Modifier.height(16.dp))  
 
     OutlinedTextField(  
         value = searchText,  
-        onValueChange = {  
-            searchText = it  
-        },  
-        label = {  
-            Text("Search user")  
-        },  
+        onValueChange = { searchText = it },  
+        label = { Text("Search user") },  
         singleLine = true,  
         modifier = Modifier.fillMaxWidth()  
     )  
 
-    Spacer(Modifier.height(16.dp))  
+    Spacer(Modifier.height(14.dp))  
 
     if (searching) {  
-
-        Row(  
-            modifier = Modifier.fillMaxWidth(),  
-            horizontalArrangement =  
-                Arrangement.Center  
-        ) {  
-            CircularProgressIndicator()  
-        }  
-
-    } else if (errorMessage.isNotBlank()) {  
-
-        Text(  
-            errorMessage,  
-            color = MaterialTheme.colorScheme.error  
-        )  
-
-    } else if (  
-        searchText.isNotBlank() &&  
-        results.isEmpty()  
-    ) {  
-
-        Text("No user found.")  
-
-    } else if (searchText.isBlank()) {  
-
-        Card(  
-            modifier = Modifier.fillMaxWidth()  
-        ) {  
-
-            Column(  
-                modifier = Modifier.padding(20.dp),  
-                horizontalAlignment =  
-                    Alignment.CenterHorizontally  
-            ) {  
-
-                Text(  
-                    "💬",  
-                    fontSize = 45.sp  
-                )  
-
-                Spacer(Modifier.height(8.dp))  
-
-                Text(  
-                    "Find someone and start chatting."  
-                )  
-            }  
-        }  
-
-    } else {  
-
-        results.forEach { person ->  
-
-            Card(  
+        CircularProgressIndicator()  
+    } else if (searchText.isNotBlank()) {  
+        if (results.isEmpty()) {  
+            Text("No user found.")  
+        } else {  
+            LazyColumn(  
                 modifier = Modifier  
                     .fillMaxWidth()  
-                    .padding(bottom = 10.dp)  
+                    .heightIn(max = 260.dp)  
             ) {  
-
-                Row(  
-                    modifier = Modifier  
-                        .fillMaxWidth()  
-                        .padding(14.dp),  
-                    verticalAlignment =  
-                        Alignment.CenterVertically  
-                ) {  
-
-                    DefaultProfileIcon(size = 52)  
-
-                    Spacer(Modifier.width(12.dp))  
-
-                    Column(  
-                        modifier = Modifier.weight(1f)  
-                    ) {  
-
-                        Text(  
-                            person.name,  
-                            fontSize = 18.sp,  
-                            fontWeight = FontWeight.Bold  
-                        )  
-                    }  
-
-                    Button(  
-                        onClick = {  
-                            onMessage(person)  
+                itemsIndexed(results, key = { _, person -> person.uid }) { _, person ->  
+                    Card(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {  
+                        Row(  
+                            Modifier.fillMaxWidth().padding(12.dp),  
+                            verticalAlignment = Alignment.CenterVertically  
+                        ) {  
+                            DefaultProfileIcon(size = 48)  
+                            Spacer(Modifier.width(10.dp))  
+                            Column(Modifier.weight(1f)) {  
+                                Text(person.name, fontWeight = FontWeight.Bold)  
+                                Text(if (person.isOnline) "Online" else "Offline", fontSize = 11.sp)  
+                            }  
+                            Button(onClick = { onMessage(person) }) { Text("Message") }  
                         }  
-                    ) {  
-                        Text("Message")  
                     }  
                 }  
             }  
         }  
+        Spacer(Modifier.height(10.dp))  
+    }  
+
+    if (errorMessage.isNotBlank()) {  
+        Text(errorMessage, color = MaterialTheme.colorScheme.error)  
+    }  
+
+    Text("Conversations", fontSize = 20.sp, fontWeight = FontWeight.Bold)  
+    Spacer(Modifier.height(8.dp))  
+
+    if (loadingConversations) {  
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {  
+            CircularProgressIndicator()  
+        }  
+    } else if (conversations.isEmpty()) {  
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {  
+            Text("No messages yet.")  
+        }  
+    } else {  
+        LazyColumn(Modifier.fillMaxWidth().weight(1f)) {  
+            itemsIndexed(conversations, key = { _, item -> item.user.uid }) { _, conversation ->  
+                Row(  
+                    modifier = Modifier  
+                        .fillMaxWidth()  
+                        .clickable { onMessage(conversation.user) }  
+                        .padding(vertical = 12.dp),  
+                    verticalAlignment = Alignment.CenterVertically  
+                ) {  
+                    DefaultProfileIcon(size = 54)  
+                    Spacer(Modifier.width(12.dp))  
+                    Column(Modifier.weight(1f)) {  
+                        Text(conversation.user.name, fontSize = 17.sp, fontWeight = FontWeight.Bold)  
+                        Text(conversation.lastMessage, maxLines = 1, fontSize = 14.sp)  
+                    }  
+                    if (conversation.unreadCount > 0) {  
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.error) {  
+                            Text(  
+                                if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),  
+                                color = Color.White,  
+                                fontSize = 10.sp,  
+                                fontWeight = FontWeight.Bold,  
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)  
+                            )  
+                        }  
+                    }  
+                }  
+                HorizontalDivider()  
+            }  
+        }  
     }  
 }
+
+}
+
+fun rebuildPeejeeConversations(
+firestore: FirebaseFirestore,
+currentUserId: String,
+onResult: (List<PeejeeConversation>) -> Unit
+) {
+val receivedTask = firestore.collection("messages")
+.whereEqualTo("receiverId", currentUserId)
+.get()
+val sentTask = firestore.collection("messages")
+.whereEqualTo("senderId", currentUserId)
+.get()
+
+com.google.android.gms.tasks.Tasks.whenAllSuccess<Any>(receivedTask, sentTask)  
+    .addOnSuccessListener { rawResults ->  
+        val allMessages = rawResults.flatMap { result ->  
+            (result as? com.google.firebase.firestore.QuerySnapshot)?.documents  
+                ?.mapNotNull { messageFromDocument(it) } ?: emptyList()  
+        }.distinctBy { it.id }  
+
+        val otherIds = allMessages.map {  
+            if (it.senderId == currentUserId) it.receiverId else it.senderId  
+        }.filter { it.isNotBlank() }.distinct()  
+
+        if (otherIds.isEmpty()) {  
+            onResult(emptyList())  
+            return@addOnSuccessListener  
+        }  
+
+        val people = mutableMapOf<String, PeejeePerson>()  
+        val remaining = java.util.concurrent.atomic.AtomicInteger(otherIds.size)  
+
+        otherIds.forEach { uid ->  
+            firestore.collection("users").document(uid).get()  
+                .addOnSuccessListener { document ->  
+                    people[uid] = PeejeePerson(  
+                        uid = uid,  
+                        name = document.getString("name") ?: "Peejee User",  
+                        email = document.getString("email") ?: "",  
+                        isOnline = document.getBoolean("isOnline") ?: false  
+                    )  
+                }  
+                .addOnCompleteListener {  
+                    if (remaining.decrementAndGet() == 0) {  
+                        val conversations = otherIds.mapNotNull { uid ->  
+                            val person = people[uid] ?: return@mapNotNull null  
+                            val personMessages = allMessages.filter {  
+                                (it.senderId == currentUserId && it.receiverId == uid) ||  
+                                    (it.senderId == uid && it.receiverId == currentUserId)  
+                            }.sortedByDescending { it.timestamp }  
+                            val latest = personMessages.firstOrNull() ?: return@mapNotNull null  
+                            val unread = personMessages.count {  
+                                it.receiverId == currentUserId && it.read == false  
+                            }  
+                            PeejeeConversation(person, latest.text, latest.timestamp, unread)  
+                        }.sortedByDescending { it.timestamp }  
+                        onResult(conversations)  
+                    }  
+                }  
+        }  
+    }  
+    .addOnFailureListener {  
+        onResult(emptyList())  
+    }
 
 }
 
@@ -2913,6 +3033,25 @@ val auth = remember {
 val currentUserId =  
     auth.currentUser?.uid ?: ""  
 
+LaunchedEffect(currentUserId, person.uid) {  
+    if (currentUserId.isNotBlank() && person.uid.isNotBlank()) {  
+        firestore.collection("messages")  
+            .whereEqualTo("senderId", person.uid)  
+            .whereEqualTo("receiverId", currentUserId)  
+            .whereEqualTo("read", false)  
+            .get()  
+            .addOnSuccessListener { snapshot ->  
+                val batch = firestore.batch()  
+                snapshot.documents.forEach { document ->  
+                    batch.update(document.reference, "read", true)  
+                }  
+                if (!snapshot.isEmpty) {  
+                    batch.commit()  
+                }  
+            }  
+    }  
+}  
+
 var messages by remember {  
     mutableStateOf<List<PeejeeMessage>>(emptyList())  
 }  
@@ -2921,41 +3060,12 @@ var newMessage by remember {
     mutableStateOf("")  
 }  
 
-var showEmojiPicker by remember {  
-    mutableStateOf(false)  
-}  
-
 var sending by remember {  
     mutableStateOf(false)  
 }  
 
 var errorMessage by remember {  
     mutableStateOf("")  
-}  
-
-var personIsOnline by remember {  
-    mutableStateOf(person.isOnline)  
-}  
-
-DisposableEffect(person.uid) {  
-
-    if (person.uid.isBlank()) {  
-        onDispose { }  
-    } else {  
-        val presenceRegistration =  
-            firestore  
-                .collection("users")  
-                .document(person.uid)  
-                .addSnapshotListener { document, error ->  
-                    if (error != null || document == null) return@addSnapshotListener  
-                    personIsOnline =  
-                        document.getBoolean("isOnline") ?: false  
-                }  
-
-        onDispose {  
-            presenceRegistration.remove()  
-        }  
-    }  
 }  
 
 DisposableEffect(  
@@ -3129,7 +3239,7 @@ Column(
             )  
 
             Text(  
-                if (personIsOnline) "🟢 Online" else "⚪ Offline",  
+                "Private chat",  
                 fontSize = 12.sp  
             )  
         }  
@@ -3220,49 +3330,6 @@ Column(
         )  
     }  
 
-    if (showEmojiPicker) {  
-
-        Card(  
-            modifier = Modifier  
-                .fillMaxWidth()  
-                .padding(10.dp)  
-        ) {  
-
-            LazyRow(  
-                modifier = Modifier  
-                    .fillMaxWidth()  
-                    .padding(8.dp),  
-                horizontalArrangement =  
-                    Arrangement.spacedBy(4.dp)  
-            ) {  
-
-                itemsIndexed(  
-                    listOf(  
-                        "😀", "😂", "🤣", "😊", "😍",  
-                        "🥰", "😘", "😎", "🤔", "😢",  
-                        "😭", "😡", "👍", "👎", "👏",  
-                        "🙏", "❤️", "🔥", "🎉", "💯"  
-                    )  
-                ) { _, emoji ->  
-
-                    TextButton(  
-                        onClick = {  
-                            newMessage += emoji  
-                            errorMessage = ""  
-                            showEmojiPicker = false  
-                        },  
-                        enabled = !sending  
-                    ) {  
-                        Text(  
-                            emoji,  
-                            fontSize = 24.sp  
-                        )  
-                    }  
-                }  
-            }  
-        }  
-    }  
-
     Row(  
         modifier = Modifier  
             .fillMaxWidth()  
@@ -3270,18 +3337,6 @@ Column(
         verticalAlignment =  
             Alignment.CenterVertically  
     ) {  
-
-        IconButton(  
-            onClick = {  
-                showEmojiPicker = !showEmojiPicker  
-            },  
-            enabled = !sending  
-        ) {  
-            Text(  
-                "😊",  
-                fontSize = 25.sp  
-            )  
-        }  
 
         OutlinedTextField(  
             value = newMessage,  
@@ -3337,7 +3392,8 @@ Column(
                             person.uid,  
                         "text" to text,  
                         "timestamp" to  
-                            System.currentTimeMillis()  
+                            System.currentTimeMillis(),  
+                        "read" to false  
                     )  
 
                 messageReference  
@@ -3412,9 +3468,7 @@ return PeejeeMessage(
     timestamp =  
         document.getLong("timestamp")  
             ?: 0L,  
-    read =  
-        document.getBoolean("read")  
-            ?: false  
+    read = document.getBoolean("read") ?: false  
 )
 
 }
