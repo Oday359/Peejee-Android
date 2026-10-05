@@ -63,4 +63,7 @@ dependencies {
 
     // Image loading for posts/profiles
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // WebRTC for Peejee voice and video calls
+    implementation("io.github.webrtc-sdk:android:150.7871.01")
 }
