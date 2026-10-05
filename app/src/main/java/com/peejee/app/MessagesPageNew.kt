@@ -137,22 +137,20 @@ DisposableEffect(currentUserId) {
 }  
 
 /*  
- * Load the real profile names for everyone involved in the  
- * current user's conversations.  
+ * Resolve conversation participants to their real Peejee profile.  
  *  
- * Peejee saves each profile as users/{userId}, where userId is  
- * the Firebase Authentication UID. Load each conversation  
- * partner directly by that UID instead of reading the entire  
- * users collection. This also works when Firestore security  
- * rules allow a user's own profile document to be read but  
- * do not allow a collection-wide read.  
+ * Search already proves that the users collection contains the  
+ * real profile name. Older messages can contain a participant ID  
+ * that is stored in a different user field, so build an alias map  
+ * from the users collection. IMPORTANT: when a match is found, keep  
+ * the original message participant ID as PeejeePerson.uid so that  
+ * opening the existing conversation still uses the same ID.  
  */  
 LaunchedEffect(allMessages, currentUserId) {  
 
     val otherUserIds =  
         allMessages  
             .mapNotNull { message ->  
-
                 when {  
                     message.senderId == currentUserId ->  
                         message.receiverId.takeIf { it.isNotBlank() }  
@@ -160,20 +158,23 @@ LaunchedEffect(allMessages, currentUserId) {
                     message.receiverId == currentUserId ->  
                         message.senderId.takeIf { it.isNotBlank() }  
 
-                    else ->  
-                        null  
+                    else -> null  
                 }  
             }  
             .distinct()  
 
     /*  
-     * Keep the conversation visible immediately while the  
-     * profile names are loading.  
+     * IMPORTANT:  
+     * Existing messages store the other person's Firebase user ID  
+     * directly in senderId/receiverId. We now resolve that exact ID  
+     * directly from users/{ID}.  
+     *  
+     * This is more reliable than downloading the whole users  
+     * collection and trying to match aliases.  
      */  
     otherUserIds.forEach { uid ->  
 
         if (!userCache.containsKey(uid)) {  
-
             userCache[uid] =  
                 PeejeePerson(  
                     uid = uid,  
@@ -182,15 +183,6 @@ LaunchedEffect(allMessages, currentUserId) {
                     isOnline = false  
                 )  
         }  
-    }  
-
-    /*  
-     * IMPORTANT:  
-     * Profiles are saved as users/{FirebaseAuth UID}.  
-     * Read each profile directly using the same UID used by  
-     * senderId/receiverId in the messages collection.  
-     */  
-    otherUserIds.forEach { uid ->  
 
         firestore  
             .collection("users")  
@@ -215,29 +207,27 @@ LaunchedEffect(allMessages, currentUserId) {
                         ?: document.getString("username")  
                             ?.trim()  
                             ?.takeIf { it.isNotBlank() }  
+                        ?: "Peejee User"  
 
-                if (name.isNullOrBlank()) {  
-                    return@addOnSuccessListener  
-                }  
+                val email =  
+                    document.getString("email")  
+                        ?.trim()  
+                        .orEmpty()  
+
+                val isOnline =  
+                    document.getBoolean("isOnline")  
+                        ?: false  
 
                 userCache[uid] =  
                     PeejeePerson(  
                         uid = uid,  
                         name = name,  
-                        email =  
-                            document.getString("email")  
-                                ?: "",  
-                        isOnline =  
-                            document.getBoolean("isOnline")  
-                                ?: false  
+                        email = email,  
+                        isOnline = isOnline  
                     )  
             }  
     }  
 
-    /*  
-     * Remove cached users who are no longer part of the  
-     * current message list.  
-     */  
     userCache.keys  
         .filter { it !in otherUserIds }  
         .forEach { uid ->  
@@ -320,7 +310,7 @@ DisposableEffect(searchText.trim()) {
  */  
 val conversations = remember(  
     allMessages,  
-    userCache,  
+    userCache.toMap(),  
     currentUserId  
 ) {  
 
