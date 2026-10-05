@@ -176,6 +176,58 @@ var mediaRecorder by remember { mutableStateOf<MediaRecorder?>(null) }
 var currentlyPlayingMessageId by remember { mutableStateOf<String?>(null) }  
 var currentPlayer by remember { mutableStateOf<MediaPlayer?>(null) }  
 
+val chatBackgroundKey = remember(currentUserId, person.uid) {  
+    peejeeChatBackgroundKey(currentUserId, person.uid)  
+}  
+
+var chatBackground by remember(chatBackgroundKey) {  
+    mutableStateOf(  
+        loadPeejeeChatBackground(context, chatBackgroundKey)  
+    )  
+}  
+
+var chatPhotoPath by remember(chatBackgroundKey) {  
+    mutableStateOf(  
+        loadPeejeeChatPhotoPath(context, chatBackgroundKey)  
+    )  
+}  
+
+var showBackgroundPicker by remember {  
+    mutableStateOf(false)  
+}  
+
+val chatPhotoLauncher =  
+    rememberLauncherForActivityResult(  
+        contract = ActivityResultContracts.OpenDocument()  
+    ) { uri ->  
+        if (uri != null) {  
+            val savedPath =  
+                copyPeejeeChatPhoto(  
+                    context = context,  
+                    uri = uri,  
+                    chatKey = chatBackgroundKey  
+                )  
+
+            if (savedPath != null) {  
+                chatPhotoPath = savedPath  
+                chatBackground = PEEJEE_BG_PHOTO  
+                savePeejeeChatPhotoPath(  
+                    context,  
+                    chatBackgroundKey,  
+                    savedPath  
+                )  
+                savePeejeeChatBackground(  
+                    context,  
+                    chatBackgroundKey,  
+                    PEEJEE_BG_PHOTO  
+                )  
+            } else {  
+                errorMessage =  
+                    "Could not use that photo. Please try another photo."  
+            }  
+        }  
+    }  
+
 fun rebuildMessages(  
     sentDocuments: List<com.google.firebase.firestore.DocumentSnapshot>,  
     receivedDocuments: List<com.google.firebase.firestore.DocumentSnapshot>  
@@ -791,11 +843,20 @@ fun sendMessage() {
         }  
 }  
 
-Column(  
+Box(  
     modifier = Modifier  
         .fillMaxSize()  
         .padding(paddingValues)  
 ) {  
+    PeejeeChatBackgroundLayer(  
+        backgroundId = chatBackground,  
+        photoPath = chatPhotoPath,  
+        modifier = Modifier.fillMaxSize()  
+    )  
+
+    Column(  
+        modifier = Modifier.fillMaxSize()  
+    ) {  
     Row(  
         modifier = Modifier  
             .fillMaxWidth()  
@@ -830,6 +891,13 @@ Column(
                 },  
                 fontSize = 12.sp  
             )  
+        }  
+
+        IconButton(  
+            onClick = { showBackgroundPicker = true },  
+            enabled = !isRecording && !sending  
+        ) {  
+            Text("🎨", fontSize = 24.sp)  
         }  
     }  
 
@@ -1188,6 +1256,28 @@ Column(
             )  
         }  
     }  
+    }  
+}  
+
+if (showBackgroundPicker) {  
+    PeejeeChatBackgroundPicker(  
+        selectedBackground = chatBackground,  
+        onBackgroundSelected = { selected ->  
+            chatBackground = selected  
+            savePeejeeChatBackground(  
+                context,  
+                chatBackgroundKey,  
+                selected  
+            )  
+            showBackgroundPicker = false  
+        },  
+        onChoosePhoto = {  
+            chatPhotoLauncher.launch(arrayOf("image/*"))  
+        },  
+        onDismiss = {  
+            showBackgroundPicker = false  
+        }  
+    )  
 }  
 
 if (false) {  
