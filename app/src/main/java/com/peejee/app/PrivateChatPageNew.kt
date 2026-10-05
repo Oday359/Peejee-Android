@@ -973,8 +973,8 @@ Column(
                                                 )  
                                             }"  
                                         }  
-                                    }  
-                                )  
+                                    )  
+                                }  
                             } else {  
                                 Text(  
                                     message.text,  
