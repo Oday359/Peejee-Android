@@ -1,31 +1,17 @@
 package com.peejee.app
 
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 
-/**
- * Peejee Firestore signaling manager.
- *
- * Firestore is used to exchange:
- * - Call information
- * - WebRTC offer
- * - WebRTC answer
- * - ICE candidates
- * - Call state
- *
- * The actual audio/video will continue to travel through WebRTC.
- */
 class PeejeeCallSignaling {
 
     companion object {
-
         private const val CALLS_COLLECTION = "calls"
-
         private const val OFFER_FIELD = "offer"
         private const val ANSWER_FIELD = "answer"
-
         private const val CALLER_CANDIDATES = "callerCandidates"
         private const val CALLEE_CANDIDATES = "calleeCandidates"
     }
@@ -33,9 +19,6 @@ class PeejeeCallSignaling {
     private val firestore =
         FirebaseFirestore.getInstance()
 
-    /**
-     * Create a new call.
-     */
     fun createCall(
         callerId: String,
         receiverId: String,
@@ -45,8 +28,7 @@ class PeejeeCallSignaling {
         onSuccess: (String) -> Unit,
         onError: (Exception) -> Unit
     ) {
-
-        val callReference =
+        val reference =
             firestore
                 .collection(CALLS_COLLECTION)
                 .document()
@@ -54,9 +36,9 @@ class PeejeeCallSignaling {
         val now =
             System.currentTimeMillis()
 
-        val call =
-            hashMapOf(
-                "callId" to callReference.id,
+        val data =
+            hashMapOf<String, Any>(
+                "callId" to reference.id,
                 "callerId" to callerId,
                 "receiverId" to receiverId,
                 "callerName" to callerName,
@@ -67,19 +49,16 @@ class PeejeeCallSignaling {
                 "updatedAt" to now
             )
 
-        callReference
-            .set(call)
+        reference
+            .set(data)
             .addOnSuccessListener {
-                onSuccess(callReference.id)
+                onSuccess(reference.id)
             }
-            .addOnFailureListener { exception ->
-                onError(exception)
+            .addOnFailureListener { error ->
+                onError(error)
             }
     }
 
-    /**
-     * Listen for changes to one call.
-     */
     fun listenToCall(
         callId: String,
         onChanged: (PeejeeCall?) -> Unit,
@@ -107,9 +86,6 @@ class PeejeeCallSignaling {
             }
     }
 
-    /**
-     * Listen for incoming ringing calls for a user.
-     */
     fun listenForIncomingCalls(
         receiverId: String,
         onCall: (PeejeeCall) -> Unit,
@@ -147,9 +123,6 @@ class PeejeeCallSignaling {
             }
     }
 
-    /**
-     * Update the current call state.
-     */
     fun updateCallState(
         callId: String,
         state: PeejeeCallState,
@@ -157,26 +130,24 @@ class PeejeeCallSignaling {
         onError: (Exception) -> Unit = {}
     ) {
 
+        val updates =
+            hashMapOf<String, Any>(
+                "state" to state.name,
+                "updatedAt" to System.currentTimeMillis()
+            )
+
         firestore
             .collection(CALLS_COLLECTION)
             .document(callId)
-            .update(
-                mapOf(
-                    "state" to state.name,
-                    "updatedAt" to System.currentTimeMillis()
-                )
-            )
+            .update(updates)
             .addOnSuccessListener {
                 onSuccess()
             }
-            .addOnFailureListener { exception ->
-                onError(exception)
+            .addOnFailureListener { error ->
+                onError(error)
             }
     }
 
-    /**
-     * Save a WebRTC offer.
-     */
     fun saveOffer(
         callId: String,
         description: PeejeeSessionDescription,
@@ -185,32 +156,32 @@ class PeejeeCallSignaling {
     ) {
 
         val offer =
-            hashMapOf(
+            hashMapOf<String, Any>(
                 "type" to description.type,
                 "sdp" to description.sdp
+            )
+
+        val updates =
+            hashMapOf<String, Any>(
+                OFFER_FIELD to offer,
+                "updatedAt" to System.currentTimeMillis()
             )
 
         firestore
             .collection(CALLS_COLLECTION)
             .document(callId)
             .set(
-                mapOf(
-                    OFFER_FIELD to offer,
-                    "updatedAt" to System.currentTimeMillis()
-                ),
+                updates,
                 SetOptions.merge()
             )
             .addOnSuccessListener {
                 onSuccess()
             }
-            .addOnFailureListener { exception ->
-                onError(exception)
+            .addOnFailureListener { error ->
+                onError(error)
             }
     }
 
-    /**
-     * Save a WebRTC answer.
-     */
     fun saveAnswer(
         callId: String,
         description: PeejeeSessionDescription,
@@ -219,32 +190,32 @@ class PeejeeCallSignaling {
     ) {
 
         val answer =
-            hashMapOf(
+            hashMapOf<String, Any>(
                 "type" to description.type,
                 "sdp" to description.sdp
+            )
+
+        val updates =
+            hashMapOf<String, Any>(
+                ANSWER_FIELD to answer,
+                "updatedAt" to System.currentTimeMillis()
             )
 
         firestore
             .collection(CALLS_COLLECTION)
             .document(callId)
             .set(
-                mapOf(
-                    ANSWER_FIELD to answer,
-                    "updatedAt" to System.currentTimeMillis()
-                ),
+                updates,
                 SetOptions.merge()
             )
             .addOnSuccessListener {
                 onSuccess()
             }
-            .addOnFailureListener { exception ->
-                onError(exception)
+            .addOnFailureListener { error ->
+                onError(error)
             }
     }
 
-    /**
-     * Read the WebRTC offer.
-     */
     fun listenForOffer(
         callId: String,
         onOffer: (PeejeeSessionDescription?) -> Unit,
@@ -259,9 +230,6 @@ class PeejeeCallSignaling {
         )
     }
 
-    /**
-     * Read the WebRTC answer.
-     */
     fun listenForAnswer(
         callId: String,
         onAnswer: (PeejeeSessionDescription?) -> Unit,
@@ -276,16 +244,12 @@ class PeejeeCallSignaling {
         )
     }
 
-    /**
-     * Add an ICE candidate from the caller.
-     */
     fun addCallerCandidate(
         callId: String,
         candidate: PeejeeIceCandidate,
         onSuccess: () -> Unit = {},
         onError: (Exception) -> Unit = {}
     ) {
-
         addIceCandidate(
             callId = callId,
             collectionName = CALLER_CANDIDATES,
@@ -295,16 +259,12 @@ class PeejeeCallSignaling {
         )
     }
 
-    /**
-     * Add an ICE candidate from the receiver.
-     */
     fun addCalleeCandidate(
         callId: String,
         candidate: PeejeeIceCandidate,
         onSuccess: () -> Unit = {},
         onError: (Exception) -> Unit = {}
     ) {
-
         addIceCandidate(
             callId = callId,
             collectionName = CALLEE_CANDIDATES,
@@ -314,9 +274,6 @@ class PeejeeCallSignaling {
         )
     }
 
-    /**
-     * Listen for caller ICE candidates.
-     */
     fun listenForCallerCandidates(
         callId: String,
         onCandidate: (PeejeeIceCandidate) -> Unit,
@@ -331,9 +288,6 @@ class PeejeeCallSignaling {
         )
     }
 
-    /**
-     * Listen for receiver ICE candidates.
-     */
     fun listenForCalleeCandidates(
         callId: String,
         onCandidate: (PeejeeIceCandidate) -> Unit,
@@ -348,15 +302,11 @@ class PeejeeCallSignaling {
         )
     }
 
-    /**
-     * Stop a call by marking it ended.
-     */
     fun endCall(
         callId: String,
         onSuccess: () -> Unit = {},
         onError: (Exception) -> Unit = {}
     ) {
-
         updateCallState(
             callId = callId,
             state = PeejeeCallState.ENDED,
@@ -365,9 +315,6 @@ class PeejeeCallSignaling {
         )
     }
 
-    /**
-     * Remove a listener safely.
-     */
     fun removeListener(
         registration: ListenerRegistration?
     ) {
@@ -391,26 +338,24 @@ class PeejeeCallSignaling {
                     return@addSnapshotListener
                 }
 
-                val data =
-                    snapshot
-                        ?.get(field) as? Map<*, *>
+                val raw =
+                    snapshot?.get(field)
 
-                if (data == null) {
+                if (raw !is Map<*, *>) {
                     onDescription(null)
                     return@addSnapshotListener
                 }
 
                 val type =
-                    data["type"]
-                        ?.toString()
-                        ?: ""
+                    raw["type"]?.toString() ?: ""
 
                 val sdp =
-                    data["sdp"]
-                        ?.toString()
-                        ?: ""
+                    raw["sdp"]?.toString() ?: ""
 
-                if (type.isBlank() || sdp.isBlank()) {
+                if (
+                    type.isBlank() ||
+                    sdp.isBlank()
+                ) {
                     onDescription(null)
                     return@addSnapshotListener
                 }
@@ -432,8 +377,8 @@ class PeejeeCallSignaling {
         onError: (Exception) -> Unit
     ) {
 
-        val candidateData =
-            hashMapOf(
+        val data =
+            hashMapOf<String, Any?>(
                 "sdpMid" to candidate.sdpMid,
                 "sdpMLineIndex" to candidate.sdpMLineIndex,
                 "candidate" to candidate.candidate
@@ -443,12 +388,12 @@ class PeejeeCallSignaling {
             .collection(CALLS_COLLECTION)
             .document(callId)
             .collection(collectionName)
-            .add(candidateData)
+            .add(data)
             .addOnSuccessListener {
                 onSuccess()
             }
-            .addOnFailureListener { exception ->
-                onError(exception)
+            .addOnFailureListener { error ->
+                onError(error)
             }
     }
 
@@ -476,17 +421,16 @@ class PeejeeCallSignaling {
 
                         if (
                             change.type ==
-                            com.google.firebase.firestore.DocumentChange.Type.ADDED
+                            DocumentChange.Type.ADDED
                         ) {
 
                             val data =
                                 change.document.data
 
-                            val sdpMid =
-                                data["sdpMid"]
-                                    ?.toString()
+                            val sdpMid: String? =
+                                data["sdpMid"]?.toString()
 
-                            val sdpMLineIndex =
+                            val sdpMLineIndex: Int =
                                 when (
                                     val value =
                                         data["sdpMLineIndex"]
@@ -494,16 +438,21 @@ class PeejeeCallSignaling {
                                     is Number ->
                                         value.toInt()
 
+                                    is String ->
+                                        value.toIntOrNull()
+                                            ?: 0
+
                                     else ->
                                         0
                                 }
 
-                            val candidate =
-                                data["candidate"]
-                                    ?.toString()
+                            val candidateText: String =
+                                data["candidate"]?.toString()
                                     ?: ""
 
-                            if (candidate.isNotBlank()) {
+                            if (
+                                candidateText.isNotBlank()
+                            ) {
 
                                 onCandidate(
                                     PeejeeIceCandidate(
@@ -511,7 +460,7 @@ class PeejeeCallSignaling {
                                         sdpMLineIndex =
                                             sdpMLineIndex,
                                         candidate =
-                                            candidate
+                                            candidateText
                                     )
                                 )
                             }
