@@ -47,8 +47,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    
-    // ✅ ADDED: Vertical swipe feed support
+
+    // Vertical swipe feed support
     implementation("androidx.compose.foundation:foundation:1.7.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
@@ -57,7 +57,10 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
-    
-    // ✅ ADDED: Image loading for posts/profiles
+
+    // Firebase Cloud Messaging for push notifications
+    implementation("com.google.firebase:firebase-messaging")
+
+    // Image loading for posts/profiles
     implementation("io.coil-kt:coil-compose:2.6.0")
 }
