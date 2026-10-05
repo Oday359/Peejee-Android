@@ -1691,6 +1691,7 @@ Scaffold(
             3 -> MessagesPageNew(  
                 onMessage = { person ->  
                     selectedChatUser = person  
+                    selectedTab = 3  
                 },  
                 paddingValues = paddingValues  
             )  
