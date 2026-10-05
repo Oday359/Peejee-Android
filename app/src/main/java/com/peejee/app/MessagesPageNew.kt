@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.*
-import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -138,16 +140,12 @@ DisposableEffect(currentUserId) {
  * Load the real profile names for everyone involved in the  
  * current user's conversations.  
  *  
- * Some older conversations may contain a user ID that is not  
- * directly usable as the Firestore document path. To make the  
- * conversation list reliable, we load the users collection and  
- * match BOTH:  
- *  
- *   1. the Firestore document ID  
- *   2. the user's stored "uid" field  
- *  
- * This prevents the list from incorrectly staying on  
- * "Peejee User" when the real profile exists.  
+ * Peejee saves each profile as users/{userId}, where userId is  
+ * the Firebase Authentication UID. Load each conversation  
+ * partner directly by that UID instead of reading the entire  
+ * users collection. This also works when Firestore security  
+ * rules allow a user's own profile document to be read but  
+ * do not allow a collection-wide read.  
  */  
 LaunchedEffect(allMessages, currentUserId) {  
 
@@ -186,108 +184,53 @@ LaunchedEffect(allMessages, currentUserId) {
         }  
     }  
 
-    if (otherUserIds.isNotEmpty()) {  
+    /*  
+     * IMPORTANT:  
+     * Profiles are saved as users/{FirebaseAuth UID}.  
+     * Read each profile directly using the same UID used by  
+     * senderId/receiverId in the messages collection.  
+     */  
+    otherUserIds.forEach { uid ->  
 
         firestore  
             .collection("users")  
+            .document(uid)  
             .get()  
-            .addOnSuccessListener { snapshot ->  
+            .addOnSuccessListener { document ->  
 
-                val profilesById =  
-                    mutableMapOf<String, PeejeePerson>()  
+                if (!document.exists()) {  
+                    return@addOnSuccessListener  
+                }  
 
-                snapshot.documents.forEach { document ->  
-
-                    val documentUid = document.id  
-
-                    /*  
-                     * Peejee profiles created by different versions  
-                     * of the app may contain the user identifier in  
-                     * different fields. Support all of the existing  
-                     * profile fields without changing the message data.  
-                     */  
-                    val storedUid =  
-                        document.getString("uid")  
-                            ?.trim()  
-                            .orEmpty()  
-
-                    val storedUserId =  
-                        document.getString("userId")  
-                            ?.trim()  
-                            .orEmpty()  
-
-                    val storedId =  
-                        document.getString("id")  
-                            ?.trim()  
-                            .orEmpty()  
-
-                    val name =  
-                        document.getString("name")  
+                val name =  
+                    document.getString("name")  
+                        ?.trim()  
+                        ?.takeIf { it.isNotBlank() }  
+                        ?: document.getString("displayName")  
                             ?.trim()  
                             ?.takeIf { it.isNotBlank() }  
-                            ?: document.getString("displayName")  
-                                ?.trim()  
-                                ?.takeIf { it.isNotBlank() }  
-                            ?: document.getString("fullName")  
-                                ?.trim()  
-                                ?.takeIf { it.isNotBlank() }  
-                            ?: document.getString("username")  
-                                ?.trim()  
-                                ?.takeIf { it.isNotBlank() }  
-                            ?: ""  
+                        ?: document.getString("fullName")  
+                            ?.trim()  
+                            ?.takeIf { it.isNotBlank() }  
+                        ?: document.getString("username")  
+                            ?.trim()  
+                            ?.takeIf { it.isNotBlank() }  
 
-                    val email =  
-                        document.getString("email")  
-                            ?: ""  
-
-                    val isOnline =  
-                        document.getBoolean("isOnline")  
-                            ?: false  
-
-                    if (name.isNotBlank()) {  
-
-                        val person =  
-                            PeejeePerson(  
-                                uid = documentUid,  
-                                name = name,  
-                                email = email,  
-                                isOnline = isOnline  
-                            )  
-
-                        profilesById[documentUid] = person  
-
-                        if (storedUid.isNotBlank()) {  
-                            profilesById[storedUid] =  
-                                person.copy(  
-                                    uid = storedUid  
-                                )  
-                        }  
-
-                        if (storedUserId.isNotBlank()) {  
-                            profilesById[storedUserId] =  
-                                person.copy(  
-                                    uid = storedUserId  
-                                )  
-                        }  
-
-                        if (storedId.isNotBlank()) {  
-                            profilesById[storedId] =  
-                                person.copy(  
-                                    uid = storedId  
-                                )  
-                        }  
-                    }  
+                if (name.isNullOrBlank()) {  
+                    return@addOnSuccessListener  
                 }  
 
-                otherUserIds.forEach { uid ->  
-
-                    val person =  
-                        profilesById[uid]  
-
-                    if (person != null) {  
-                        userCache[uid] = person  
-                    }  
-                }  
+                userCache[uid] =  
+                    PeejeePerson(  
+                        uid = uid,  
+                        name = name,  
+                        email =  
+                            document.getString("email")  
+                                ?: "",  
+                        isOnline =  
+                            document.getBoolean("isOnline")  
+                                ?: false  
+                    )  
             }  
     }  
 
