@@ -202,8 +202,24 @@ LaunchedEffect(allMessages, currentUserId) {
 
                     val documentUid = document.id  
 
+                    /*  
+                     * Peejee profiles created by different versions  
+                     * of the app may contain the user identifier in  
+                     * different fields. Support all of the existing  
+                     * profile fields without changing the message data.  
+                     */  
                     val storedUid =  
                         document.getString("uid")  
+                            ?.trim()  
+                            .orEmpty()  
+
+                    val storedUserId =  
+                        document.getString("userId")  
+                            ?.trim()  
+                            .orEmpty()  
+
+                    val storedId =  
+                        document.getString("id")  
                             ?.trim()  
                             .orEmpty()  
 
@@ -215,6 +231,9 @@ LaunchedEffect(allMessages, currentUserId) {
                                 ?.trim()  
                                 ?.takeIf { it.isNotBlank() }  
                             ?: document.getString("fullName")  
+                                ?.trim()  
+                                ?.takeIf { it.isNotBlank() }  
+                            ?: document.getString("username")  
                                 ?.trim()  
                                 ?.takeIf { it.isNotBlank() }  
                             ?: ""  
@@ -243,6 +262,20 @@ LaunchedEffect(allMessages, currentUserId) {
                             profilesById[storedUid] =  
                                 person.copy(  
                                     uid = storedUid  
+                                )  
+                        }  
+
+                        if (storedUserId.isNotBlank()) {  
+                            profilesById[storedUserId] =  
+                                person.copy(  
+                                    uid = storedUserId  
+                                )  
+                        }  
+
+                        if (storedId.isNotBlank()) {  
+                            profilesById[storedId] =  
+                                person.copy(  
+                                    uid = storedId  
                                 )  
                         }  
                     }  
