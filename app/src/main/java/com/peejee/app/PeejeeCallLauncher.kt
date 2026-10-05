@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,7 +32,7 @@ fun PeejeeChatCallControls(
     }
 
     val signaling = remember {
-        PeejeeCallSignaling(firestore)
+        PeejeeCallSignaling()
     }
 
     var activeCallId by remember {
@@ -90,6 +88,7 @@ fun PeejeeChatCallControls(
                                         PeejeeCallType.AUDIO
                                 },
                                 onError = {
+
                                     activeCallId = null
                                     activeCallType = null
                                 }
@@ -137,6 +136,7 @@ fun PeejeeChatCallControls(
                                         PeejeeCallType.VIDEO
                                 },
                                 onError = {
+
                                     activeCallId = null
                                     activeCallType = null
                                 }
