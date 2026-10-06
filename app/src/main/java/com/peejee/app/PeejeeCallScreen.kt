@@ -3,7 +3,9 @@ package com.peejee.app
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
@@ -66,8 +67,7 @@ fun PeejeeCallScreen(
 
     var cameraEnabled by remember {
         mutableStateOf(
-            callType ==
-                PeejeeCallType.VIDEO
+            callType == PeejeeCallType.VIDEO
         )
     }
 
@@ -101,16 +101,12 @@ fun PeejeeCallScreen(
                 &&
 
                 (
-                    callType !=
-                        PeejeeCallType.VIDEO
-
+                    callType != PeejeeCallType.VIDEO
                         ||
-
-                        ContextCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.CAMERA
-                        ) ==
-                            PackageManager.PERMISSION_GRANTED
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_GRANTED
                 )
         )
     }
@@ -124,22 +120,17 @@ fun PeejeeCallScreen(
                 ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.RECORD_AUDIO
-                ) ==
-                    PackageManager.PERMISSION_GRANTED
+                ) == PackageManager.PERMISSION_GRANTED
 
                     &&
 
                     (
-                        callType !=
-                            PeejeeCallType.VIDEO
-
+                        callType != PeejeeCallType.VIDEO
                             ||
-
-                            ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.CAMERA
-                            ) ==
-                                PackageManager.PERMISSION_GRANTED
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
                     )
         }
 
@@ -169,52 +160,97 @@ fun PeejeeCallScreen(
 
                 onStateChanged = { state ->
 
-                    callState =
-                        state
+                    callState = state
 
                     if (
                         state ==
                             PeejeeCallState.CONNECTED
                     ) {
-
                         onCallConnected()
                     }
                 },
 
                 onError = { error ->
-
-                    errorMessage =
-                        error
+                    errorMessage = error
                 },
 
                 onRemoteVideoTrack = { track ->
-
-                    remoteVideoTrack =
-                        track
+                    remoteVideoTrack = track
                 },
 
                 onLocalVideoTrack = { track ->
-
-                    localVideoTrack =
-                        track
+                    localVideoTrack = track
                 }
             )
         }
+
+    /*
+     * Turn the phone into communication mode
+     * and start with loudspeaker ON.
+     */
+    fun setSpeaker(enabled: Boolean) {
+
+        try {
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+
+                if (enabled) {
+
+                    val speakerDevice =
+                        audioManager
+                            .availableCommunicationDevices
+                            .firstOrNull {
+                                it.type ==
+                                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                            }
+
+                    if (speakerDevice != null) {
+
+                        audioManager
+                            .setCommunicationDevice(
+                                speakerDevice
+                            )
+                    }
+
+                } else {
+
+                    audioManager
+                        .clearCommunicationDevice()
+                }
+
+            } else {
+
+                @Suppress("DEPRECATION")
+                audioManager.isSpeakerphoneOn =
+                    enabled
+            }
+
+        } catch (_: Exception) {
+
+            try {
+
+                @Suppress("DEPRECATION")
+                audioManager.isSpeakerphoneOn =
+                    enabled
+
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     LaunchedEffect(hasPermissions) {
 
         if (hasPermissions) {
 
-            /*
-             * Start with the loudspeaker enabled.
-             */
             try {
 
-                audioManager.isSpeakerphoneOn =
-                    true
+                audioManager.mode =
+                    AudioManager.MODE_IN_COMMUNICATION
 
             } catch (_: Exception) {
             }
+
+            setSpeaker(true)
 
             controller.start()
         }
@@ -226,8 +262,23 @@ fun PeejeeCallScreen(
 
             try {
 
-                audioManager.isSpeakerphoneOn =
-                    false
+                if (
+                    Build.VERSION.SDK_INT >=
+                        Build.VERSION_CODES.S
+                ) {
+
+                    audioManager
+                        .clearCommunicationDevice()
+
+                } else {
+
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn =
+                        false
+                }
+
+                audioManager.mode =
+                    AudioManager.MODE_NORMAL
 
             } catch (_: Exception) {
             }
@@ -268,9 +319,8 @@ fun PeejeeCallScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(
-                        Color.Black
-                    ),
+                    .background(Color.Black),
+
             contentAlignment =
                 Alignment.Center
         ) {
@@ -290,6 +340,7 @@ fun PeejeeCallScreen(
                         } else {
                             "microphone"
                         },
+
                     color = Color.White
                 )
 
@@ -338,9 +389,7 @@ fun PeejeeCallScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(
-                    Color.Black
-                )
+                .background(Color.Black)
     ) {
 
         if (
@@ -379,9 +428,7 @@ fun PeejeeCallScreen(
                     )
 
                     Text(
-                        when (
-                            callState
-                        ) {
+                        when (callState) {
 
                             PeejeeCallState.CONNECTING ->
                                 "Connecting…"
@@ -449,9 +496,7 @@ fun PeejeeCallScreen(
                 )
 
                 Text(
-                    when (
-                        callState
-                    ) {
+                    when (callState) {
 
                         PeejeeCallState.CONNECTING ->
                             "Calling…"
@@ -487,11 +532,14 @@ fun PeejeeCallScreen(
         }
 
         /*
-         * CALL CONTROLS
+         * CALL CONTROL BAR
          *
-         * navigationBarsPadding()
-         * keeps the buttons above the
-         * Android navigation buttons.
+         * IMPORTANT:
+         * No microphone button.
+         *
+         * The bar is deliberately lifted
+         * well above the Android navigation
+         * buttons, similar to WhatsApp.
          */
         Row(
 
@@ -501,9 +549,8 @@ fun PeejeeCallScreen(
                     .align(
                         Alignment.BottomCenter
                     )
-                    .navigationBarsPadding()
                     .padding(
-                        bottom = 14.dp
+                        bottom = 62.dp
                     ),
 
             horizontalArrangement =
@@ -514,36 +561,6 @@ fun PeejeeCallScreen(
         ) {
 
             /*
-             * MICROPHONE
-             */
-            IconButton(
-                onClick = {
-
-                    microphoneEnabled =
-                        !microphoneEnabled
-
-                    controller
-                        .setMicrophoneEnabled(
-                            microphoneEnabled
-                        )
-                }
-            ) {
-
-                Text(
-                    if (
-                        microphoneEnabled
-                    ) {
-                        "🎤"
-                    } else {
-                        "🔇"
-                    },
-
-                    color =
-                        Color.White
-                )
-            }
-
-            /*
              * LOUDSPEAKER
              */
             IconButton(
@@ -552,13 +569,9 @@ fun PeejeeCallScreen(
                     speakerEnabled =
                         !speakerEnabled
 
-                    try {
-
-                        audioManager.isSpeakerphoneOn =
-                            speakerEnabled
-
-                    } catch (_: Exception) {
-                    }
+                    setSpeaker(
+                        speakerEnabled
+                    )
                 }
             ) {
 
@@ -571,13 +584,12 @@ fun PeejeeCallScreen(
                         "🔈"
                     },
 
-                    color =
-                        Color.White
+                    color = Color.White
                 )
             }
 
             /*
-             * VIDEO CAMERA
+             * CAMERA
              */
             if (
                 callType ==
@@ -606,8 +618,7 @@ fun PeejeeCallScreen(
                             "🚫"
                         },
 
-                        color =
-                            Color.White
+                        color = Color.White
                     )
                 }
 
@@ -624,9 +635,7 @@ fun PeejeeCallScreen(
 
                     Text(
                         "🔄",
-
-                        color =
-                            Color.White
+                        color = Color.White
                     )
                 }
             }
@@ -637,13 +646,7 @@ fun PeejeeCallScreen(
             Button(
                 onClick = {
 
-                    try {
-
-                        audioManager.isSpeakerphoneOn =
-                            false
-
-                    } catch (_: Exception) {
-                    }
+                    setSpeaker(false)
 
                     controller.end()
 
@@ -687,9 +690,7 @@ private fun PeejeeRemoteVideoView(
                     RendererCommon.ScalingType.SCALE_ASPECT_FILL
                 )
 
-                setMirror(
-                    false
-                )
+                setMirror(false)
 
                 init(
                     null,
@@ -706,9 +707,7 @@ private fun PeejeeRemoteVideoView(
 
         update = {
 
-            videoTrack.addSink(
-                it
-            )
+            videoTrack.addSink(it)
         }
     )
 
@@ -765,9 +764,7 @@ private fun PeejeeLocalVideoView(
                     RendererCommon.ScalingType.SCALE_ASPECT_FILL
                 )
 
-                setMirror(
-                    true
-                )
+                setMirror(true)
 
                 init(
                     null,
@@ -784,9 +781,7 @@ private fun PeejeeLocalVideoView(
 
         update = {
 
-            videoTrack.addSink(
-                it
-            )
+            videoTrack.addSink(it)
         }
     )
 
