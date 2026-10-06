@@ -1,8 +1,9 @@
 package com.peejee.app
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
-import android.view.ViewGroup
+import android.media.AudioManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -12,9 +13,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,16 +49,32 @@ fun PeejeeCallScreen(
 
     val context = LocalContext.current
 
+    val audioManager =
+        remember {
+            context.getSystemService(
+                Context.AUDIO_SERVICE
+            ) as AudioManager
+        }
+
     var microphoneEnabled by remember {
         mutableStateOf(true)
     }
 
+    var speakerEnabled by remember {
+        mutableStateOf(true)
+    }
+
     var cameraEnabled by remember {
-        mutableStateOf(callType == PeejeeCallType.VIDEO)
+        mutableStateOf(
+            callType ==
+                PeejeeCallType.VIDEO
+        )
     }
 
     var callState by remember {
-        mutableStateOf(PeejeeCallState.CONNECTING)
+        mutableStateOf(
+            PeejeeCallState.CONNECTING
+        )
     }
 
     var localVideoTrack by remember {
@@ -73,18 +90,28 @@ fun PeejeeCallScreen(
     }
 
     var hasPermissions by remember {
+
         mutableStateOf(
+
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED &&
+            ) == PackageManager.PERMISSION_GRANTED
+
+                &&
+
                 (
-                    callType != PeejeeCallType.VIDEO ||
+                    callType !=
+                        PeejeeCallType.VIDEO
+
+                        ||
+
                         ContextCompat.checkSelfPermission(
                             context,
                             Manifest.permission.CAMERA
-                        ) == PackageManager.PERMISSION_GRANTED
-                    )
+                        ) ==
+                            PackageManager.PERMISSION_GRANTED
+                )
         )
     }
 
@@ -92,18 +119,28 @@ fun PeejeeCallScreen(
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) {
+
             hasPermissions =
                 ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.RECORD_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED &&
+                ) ==
+                    PackageManager.PERMISSION_GRANTED
+
+                    &&
+
                     (
-                        callType != PeejeeCallType.VIDEO ||
+                        callType !=
+                            PeejeeCallType.VIDEO
+
+                            ||
+
                             ContextCompat.checkSelfPermission(
                                 context,
                                 Manifest.permission.CAMERA
-                            ) == PackageManager.PERMISSION_GRANTED
-                        )
+                            ) ==
+                                PackageManager.PERMISSION_GRANTED
+                    )
         }
 
     val signaling =
@@ -119,33 +156,47 @@ fun PeejeeCallScreen(
         ) {
 
             PeejeeWebRtcCallController(
+
                 context = context,
+
                 callId = callId,
+
                 isCaller = isCaller,
+
                 callType = callType,
+
                 signaling = signaling,
 
                 onStateChanged = { state ->
-                    callState = state
+
+                    callState =
+                        state
 
                     if (
                         state ==
-                        PeejeeCallState.CONNECTED
+                            PeejeeCallState.CONNECTED
                     ) {
+
                         onCallConnected()
                     }
                 },
 
                 onError = { error ->
-                    errorMessage = error
+
+                    errorMessage =
+                        error
                 },
 
                 onRemoteVideoTrack = { track ->
-                    remoteVideoTrack = track
+
+                    remoteVideoTrack =
+                        track
                 },
 
                 onLocalVideoTrack = { track ->
-                    localVideoTrack = track
+
+                    localVideoTrack =
+                        track
                 }
             )
         }
@@ -153,6 +204,18 @@ fun PeejeeCallScreen(
     LaunchedEffect(hasPermissions) {
 
         if (hasPermissions) {
+
+            /*
+             * Start with the loudspeaker enabled.
+             */
+            try {
+
+                audioManager.isSpeakerphoneOn =
+                    true
+
+            } catch (_: Exception) {
+            }
+
             controller.start()
         }
     }
@@ -160,6 +223,15 @@ fun PeejeeCallScreen(
     DisposableEffect(controller) {
 
         onDispose {
+
+            try {
+
+                audioManager.isSpeakerphoneOn =
+                    false
+
+            } catch (_: Exception) {
+            }
+
             controller.release()
         }
     }
@@ -169,15 +241,19 @@ fun PeejeeCallScreen(
         LaunchedEffect(Unit) {
 
             val permissions =
+
                 if (
                     callType ==
-                    PeejeeCallType.VIDEO
+                        PeejeeCallType.VIDEO
                 ) {
+
                     arrayOf(
                         Manifest.permission.RECORD_AUDIO,
                         Manifest.permission.CAMERA
                     )
+
                 } else {
+
                     arrayOf(
                         Manifest.permission.RECORD_AUDIO
                     )
@@ -192,7 +268,9 @@ fun PeejeeCallScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black),
+                    .background(
+                        Color.Black
+                    ),
             contentAlignment =
                 Alignment.Center
         ) {
@@ -206,7 +284,7 @@ fun PeejeeCallScreen(
                     "Peejee needs permission to use your " +
                         if (
                             callType ==
-                            PeejeeCallType.VIDEO
+                                PeejeeCallType.VIDEO
                         ) {
                             "microphone and camera"
                         } else {
@@ -219,15 +297,19 @@ fun PeejeeCallScreen(
                     onClick = {
 
                         val permissions =
+
                             if (
                                 callType ==
-                                PeejeeCallType.VIDEO
+                                    PeejeeCallType.VIDEO
                             ) {
+
                                 arrayOf(
                                     Manifest.permission.RECORD_AUDIO,
                                     Manifest.permission.CAMERA
                                 )
+
                             } else {
+
                                 arrayOf(
                                     Manifest.permission.RECORD_AUDIO
                                 )
@@ -237,11 +319,13 @@ fun PeejeeCallScreen(
                             permissions
                         )
                     },
+
                     modifier =
                         Modifier.padding(
                             top = 16.dp
                         )
                 ) {
+
                     Text("Allow")
                 }
             }
@@ -254,19 +338,24 @@ fun PeejeeCallScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(
+                    Color.Black
+                )
     ) {
 
         if (
             callType ==
-            PeejeeCallType.VIDEO
+                PeejeeCallType.VIDEO
         ) {
 
-            if (remoteVideoTrack != null) {
+            if (
+                remoteVideoTrack != null
+            ) {
 
                 PeejeeRemoteVideoView(
                     videoTrack =
                         remoteVideoTrack!!,
+
                     modifier =
                         Modifier.fillMaxSize()
                 )
@@ -276,8 +365,10 @@ fun PeejeeCallScreen(
                 Column(
                     modifier =
                         Modifier.fillMaxSize(),
+
                     horizontalAlignment =
                         Alignment.CenterHorizontally,
+
                     verticalArrangement =
                         Arrangement.Center
                 ) {
@@ -291,6 +382,7 @@ fun PeejeeCallScreen(
                         when (
                             callState
                         ) {
+
                             PeejeeCallState.CONNECTING ->
                                 "Connecting…"
 
@@ -300,7 +392,9 @@ fun PeejeeCallScreen(
                             else ->
                                 callState.name
                         },
+
                         color = Color.White,
+
                         modifier =
                             Modifier.padding(
                                 top = 8.dp
@@ -309,11 +403,14 @@ fun PeejeeCallScreen(
                 }
             }
 
-            if (localVideoTrack != null) {
+            if (
+                localVideoTrack != null
+            ) {
 
                 PeejeeLocalVideoView(
                     videoTrack =
                         localVideoTrack!!,
+
                     modifier =
                         Modifier
                             .size(
@@ -326,28 +423,36 @@ fun PeejeeCallScreen(
                             .padding(12.dp)
                 )
             }
+
         } else {
 
             Column(
                 modifier =
                     Modifier.fillMaxSize(),
+
                 horizontalAlignment =
                     Alignment.CenterHorizontally,
+
                 verticalArrangement =
                     Arrangement.Center
             ) {
 
                 Text(
                     "📞",
+
                     color = Color.White,
+
                     style =
-                        MaterialTheme.typography.displayLarge
+                        MaterialTheme
+                            .typography
+                            .displayLarge
                 )
 
                 Text(
                     when (
                         callState
                     ) {
+
                         PeejeeCallState.CONNECTING ->
                             "Calling…"
 
@@ -357,16 +462,21 @@ fun PeejeeCallScreen(
                         else ->
                             callState.name
                     },
+
                     color = Color.White
                 )
             }
         }
 
-        if (errorMessage.isNotBlank()) {
+        if (
+            errorMessage.isNotBlank()
+        ) {
 
             Text(
                 errorMessage,
+
                 color = Color.White,
+
                 modifier =
                     Modifier
                         .align(
@@ -376,22 +486,36 @@ fun PeejeeCallScreen(
             )
         }
 
+        /*
+         * CALL CONTROLS
+         *
+         * navigationBarsPadding()
+         * keeps the buttons above the
+         * Android navigation buttons.
+         */
         Row(
+
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .align(
                         Alignment.BottomCenter
                     )
+                    .navigationBarsPadding()
                     .padding(
-                        bottom = 30.dp
+                        bottom = 14.dp
                     ),
+
             horizontalArrangement =
                 Arrangement.SpaceEvenly,
+
             verticalAlignment =
                 Alignment.CenterVertically
         ) {
 
+            /*
+             * MICROPHONE
+             */
             IconButton(
                 onClick = {
 
@@ -413,13 +537,51 @@ fun PeejeeCallScreen(
                     } else {
                         "🔇"
                     },
-                    color = Color.White
+
+                    color =
+                        Color.White
                 )
             }
 
+            /*
+             * LOUDSPEAKER
+             */
+            IconButton(
+                onClick = {
+
+                    speakerEnabled =
+                        !speakerEnabled
+
+                    try {
+
+                        audioManager.isSpeakerphoneOn =
+                            speakerEnabled
+
+                    } catch (_: Exception) {
+                    }
+                }
+            ) {
+
+                Text(
+                    if (
+                        speakerEnabled
+                    ) {
+                        "🔊"
+                    } else {
+                        "🔈"
+                    },
+
+                    color =
+                        Color.White
+                )
+            }
+
+            /*
+             * VIDEO CAMERA
+             */
             if (
                 callType ==
-                PeejeeCallType.VIDEO
+                    PeejeeCallType.VIDEO
             ) {
 
                 IconButton(
@@ -439,31 +601,52 @@ fun PeejeeCallScreen(
                         if (
                             cameraEnabled
                         ) {
-                            "📹"
+                            "📷"
                         } else {
                             "🚫"
                         },
-                        color = Color.White
+
+                        color =
+                            Color.White
                     )
                 }
 
+                /*
+                 * SWITCH CAMERA
+                 */
                 IconButton(
                     onClick = {
-                        controller.switchCamera()
+
+                        controller
+                            .switchCamera()
                     }
                 ) {
 
                     Text(
                         "🔄",
-                        color = Color.White
+
+                        color =
+                            Color.White
                     )
                 }
             }
 
+            /*
+             * END CALL
+             */
             Button(
                 onClick = {
 
+                    try {
+
+                        audioManager.isSpeakerphoneOn =
+                            false
+
+                    } catch (_: Exception) {
+                    }
+
                     controller.end()
+
                     onEndCall()
                 }
             ) {
@@ -480,14 +663,18 @@ private fun PeejeeRemoteVideoView(
     modifier: Modifier
 ) {
 
-    val context = LocalContext.current
+    val context =
+        LocalContext.current
 
     val renderer =
         remember {
-            SurfaceViewRenderer(context)
+            SurfaceViewRenderer(
+                context
+            )
         }
 
     AndroidView(
+
         factory = {
 
             renderer.apply {
@@ -500,20 +687,28 @@ private fun PeejeeRemoteVideoView(
                     RendererCommon.ScalingType.SCALE_ASPECT_FILL
                 )
 
-                setMirror(false)
+                setMirror(
+                    false
+                )
 
                 init(
                     null,
                     null
                 )
 
-                videoTrack.addSink(this)
+                videoTrack.addSink(
+                    this
+                )
             }
-
         },
+
         modifier = modifier,
+
         update = {
-            videoTrack.addSink(it)
+
+            videoTrack.addSink(
+                it
+            )
         }
     )
 
@@ -522,14 +717,18 @@ private fun PeejeeRemoteVideoView(
         onDispose {
 
             try {
+
                 videoTrack.removeSink(
                     renderer
                 )
+
             } catch (_: Exception) {
             }
 
             try {
+
                 renderer.release()
+
             } catch (_: Exception) {
             }
         }
@@ -542,14 +741,18 @@ private fun PeejeeLocalVideoView(
     modifier: Modifier
 ) {
 
-    val context = LocalContext.current
+    val context =
+        LocalContext.current
 
     val renderer =
         remember {
-            SurfaceViewRenderer(context)
+            SurfaceViewRenderer(
+                context
+            )
         }
 
     AndroidView(
+
         factory = {
 
             renderer.apply {
@@ -562,20 +765,28 @@ private fun PeejeeLocalVideoView(
                     RendererCommon.ScalingType.SCALE_ASPECT_FILL
                 )
 
-                setMirror(true)
+                setMirror(
+                    true
+                )
 
                 init(
                     null,
                     null
                 )
 
-                videoTrack.addSink(this)
+                videoTrack.addSink(
+                    this
+                )
             }
-
         },
+
         modifier = modifier,
+
         update = {
-            videoTrack.addSink(it)
+
+            videoTrack.addSink(
+                it
+            )
         }
     )
 
@@ -584,14 +795,18 @@ private fun PeejeeLocalVideoView(
         onDispose {
 
             try {
+
                 videoTrack.removeSink(
                     renderer
                 )
+
             } catch (_: Exception) {
             }
 
             try {
+
                 renderer.release()
+
             } catch (_: Exception) {
             }
         }
