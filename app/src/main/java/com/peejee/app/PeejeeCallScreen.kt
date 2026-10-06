@@ -32,7 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import org.webrtc.RendererCommon
@@ -534,12 +536,10 @@ fun PeejeeCallScreen(
         /*
          * CALL CONTROL BAR
          *
-         * IMPORTANT:
          * No microphone button.
          *
-         * The bar is deliberately lifted
-         * well above the Android navigation
-         * buttons, similar to WhatsApp.
+         * Controls are lifted only slightly
+         * above the Android navigation buttons.
          */
         Row(
 
@@ -550,7 +550,7 @@ fun PeejeeCallScreen(
                         Alignment.BottomCenter
                     )
                     .padding(
-                        bottom = 62.dp
+                        bottom = 70.dp
                     ),
 
             horizontalArrangement =
@@ -584,7 +584,12 @@ fun PeejeeCallScreen(
                         "🔈"
                     },
 
-                    color = Color.White
+                    color = Color.White,
+
+                    fontSize = 28.sp,
+
+                    fontWeight =
+                        FontWeight.Bold
                 )
             }
 
@@ -618,7 +623,12 @@ fun PeejeeCallScreen(
                             "🚫"
                         },
 
-                        color = Color.White
+                        color = Color.White,
+
+                        fontSize = 28.sp,
+
+                        fontWeight =
+                            FontWeight.Bold
                     )
                 }
 
@@ -635,7 +645,13 @@ fun PeejeeCallScreen(
 
                     Text(
                         "🔄",
-                        color = Color.White
+
+                        color = Color.White,
+
+                        fontSize = 28.sp,
+
+                        fontWeight =
+                            FontWeight.Bold
                     )
                 }
             }
@@ -654,7 +670,12 @@ fun PeejeeCallScreen(
                 }
             ) {
 
-                Text("🔴 End")
+                Text(
+                    "🔴 End",
+
+                    fontWeight =
+                        FontWeight.Bold
+                )
             }
         }
     }
