@@ -21,9 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PullToRefreshBox
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +56,6 @@ private data class PeejeeTrendingTag(
     val count: Int
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeejeeDiscoverPage(
     onUserClick: (String) -> Unit = {},
@@ -161,8 +158,7 @@ fun PeejeeDiscoverPage(
                     .addOnSuccessListener { postSnapshot ->
 
                         posts =
-                            postSnapshot.documents.mapNotNull {
-                                document ->
+                            postSnapshot.documents.mapNotNull { document ->
 
                                 try {
 
@@ -359,11 +355,7 @@ fun PeejeeDiscoverPage(
             }
             .take(12)
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            loadDiscoverContent(true)
-        },
+    Box(
         modifier = Modifier.fillMaxSize()
     ) {
 
@@ -422,9 +414,37 @@ fun PeejeeDiscoverPage(
                             fontWeight = FontWeight.Bold,
                             modifier =
                                 Modifier.clickable {
+
                                     loadDiscoverContent(true)
                                 }
                         )
+                    }
+                }
+
+                if (isRefreshing) {
+
+                    item {
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement =
+                                Arrangement.Center,
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp)
+                            )
+
+                            Spacer(
+                                Modifier.size(8.dp)
+                            )
+
+                            Text(
+                                "Refreshing Discover..."
+                            )
+                        }
                     }
                 }
 
