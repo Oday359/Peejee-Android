@@ -1257,8 +1257,8 @@ Scaffold(
                     selectedTab = 1  
                     selectedChatUser = null  
                 },  
-                icon = { Text("🔍") },  
-                label = { Text("Search") }  
+                icon = { Text("✨") },  
+                label = { Text("Discover") }  
             )  
 
             NavigationBarItem(  
@@ -1664,21 +1664,31 @@ Scaffold(
                 paddingValues = paddingValues  
             )  
 
-            1 -> SearchPage(  
-                onMessage = { person ->  
-                    selectedChatUser = person  
-                    selectedTab = 3  
+            1 -> PeejeeDiscoverPage(  
+                onUserClick = { userId ->  
+                    firestore  
+                        .collection("users")  
+                        .document(userId)  
+                        .get()  
+                        .addOnSuccessListener { document ->  
+                            selectedProfileUser = PeejeePerson(  
+                                uid = document.id,  
+                                name = document.getString("name")  
+                                    ?: "Peejee User",  
+                                email = document.getString("email")  
+                                    ?: ""  
+                            )  
+                        }  
                 },  
-                onProfile = { person ->  
-                    if (person.uid == currentUserId) {  
-                        selectedProfileUser = null  
-                        selectedChatUser = null  
-                        selectedTab = 4  
-                    } else {  
-                        selectedProfileUser = person  
+                onPostClick = { postId ->  
+                    val post = posts.firstOrNull { it.id == postId }  
+                    if (post != null) {  
+                        selectedPostId = post.id  
+                        newComment = ""  
+                        commentError = ""  
+                        showCommentDialog = true  
                     }  
-                },  
-                paddingValues = paddingValues  
+                }  
             )  
 
             2 -> CreatePostPage(  
