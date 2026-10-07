@@ -32,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -44,13 +45,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -60,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.Offset
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -88,11 +87,13 @@ fun PeejeeDiscoverPage(
         FirebaseFirestore.getInstance()
     }
 
-    val currentUserId =
-        remember {
-            FirebaseAuth.getInstance()
-                .currentUser?.uid ?: ""
-        }
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val currentUserId = remember {
+        auth.currentUser?.uid ?: ""
+    }
 
     val listState = rememberLazyListState()
 
@@ -124,65 +125,33 @@ fun PeejeeDiscoverPage(
         mutableFloatStateOf(0f)
     }
 
-    /*
-     * The currently opened Discover post.
-     */
     var selectedDiscoverPost by remember {
         mutableStateOf<PeejeePost?>(null)
     }
 
-    /*
-     * Comments state.
-     */
-    var showCommentsDialog by remember {
-        mutableStateOf(false)
+    var commentsPost by remember {
+        mutableStateOf<PeejeePost?>(null)
     }
 
-    var comments by remember {
-        mutableStateOf<List<PeejeeComment>>(emptyList())
-    }
-
-    var newComment by remember {
-        mutableStateOf("")
-    }
-
-    var commentsLoading by remember {
-        mutableStateOf(false)
-    }
-
-    var sendingComment by remember {
-        mutableStateOf(false)
-    }
-
-    var commentError by remember {
-        mutableStateOf("")
-    }
-
-    /*
-     * Post options dialog.
-     */
     var showPostOptions by remember {
         mutableStateOf(false)
     }
 
     fun replacePost(updatedPost: PeejeePost) {
+        posts = posts.map {
+            if (it.id == updatedPost.id) updatedPost else it
+        }
 
-        posts =
-            posts.map { post ->
-                if (post.id == updatedPost.id) {
-                    updatedPost
-                } else {
-                    post
-                }
-            }
+        if (selectedDiscoverPost?.id == updatedPost.id) {
+            selectedDiscoverPost = updatedPost
+        }
 
-        selectedDiscoverPost = updatedPost
+        if (commentsPost?.id == updatedPost.id) {
+            commentsPost = updatedPost
+        }
     }
 
-    fun loadDiscoverContent(
-        refreshing: Boolean = false
-    ) {
-
+    fun loadDiscoverContent(refreshing: Boolean = false) {
         if (refreshing) {
             isRefreshing = true
         } else {
@@ -191,52 +160,37 @@ fun PeejeeDiscoverPage(
 
         errorMessage = ""
 
-        firestore
-            .collection("users")
+        firestore.collection("users")
             .limit(50)
             .get()
             .addOnSuccessListener { userSnapshot ->
 
-                users =
-                    userSnapshot.documents
-                        .mapNotNull { document ->
+                users = userSnapshot.documents.mapNotNull { document ->
 
-                            val id = document.id
+                    val id = document.id
 
-                            if (id == currentUserId) {
-                                return@mapNotNull null
-                            }
+                    if (id == currentUserId) {
+                        return@mapNotNull null
+                    }
 
-                            PeejeeDiscoverUser(
-                                id = id,
-                                name =
-                                    document
-                                        .getString("name")
-                                        ?: "Peejee User",
-                                bio =
-                                    document
-                                        .getString("bio")
-                                        ?: "",
-                                profilePhoto =
-                                    document
-                                        .getString("profilePhoto")
-                                        ?: "",
-                                followersCount =
-                                    document
-                                        .getLong("followersCount")
-                                        ?: 0L,
-                                updatedAt =
-                                    document
-                                        .getLong("updatedAt")
-                                        ?: 0L
-                            )
-                        }
-                        .sortedByDescending {
-                            it.updatedAt
-                        }
+                    PeejeeDiscoverUser(
+                        id = id,
+                        name = document.getString("name")
+                            ?: "Peejee User",
+                        bio = document.getString("bio")
+                            ?: "",
+                        profilePhoto = document.getString("profilePhoto")
+                            ?: "",
+                        followersCount = document.getLong("followersCount")
+                            ?: 0L,
+                        updatedAt = document.getLong("updatedAt")
+                            ?: 0L
+                    )
+                }.sortedByDescending {
+                    it.updatedAt
+                }
 
-                firestore
-                    .collection("posts")
+                firestore.collection("posts")
                     .orderBy(
                         "timestamp",
                         Query.Direction.DESCENDING
@@ -245,82 +199,53 @@ fun PeejeeDiscoverPage(
                     .get()
                     .addOnSuccessListener { postSnapshot ->
 
-                        posts =
-                            postSnapshot.documents
-                                .mapNotNull { document ->
+                        posts = postSnapshot.documents.mapNotNull { document ->
 
-                                    try {
-
-                                        PeejeePost(
-                                            id = document.id,
-                                            userId =
-                                                document
-                                                    .getString("userId")
-                                                    ?: "",
-                                            userName =
-                                                document
-                                                    .getString("userName")
-                                                    ?: "Peejee User",
-                                            text =
-                                                document
-                                                    .getString("text")
-                                                    ?: "",
-                                            timestamp =
-                                                document
-                                                    .getLong("timestamp")
-                                                    ?: 0L,
-                                            mediaUrl =
-                                                document
-                                                    .getString("mediaUrl")
-                                                    ?: "",
-                                            mediaType =
-                                                document
-                                                    .getString("mediaType")
-                                                    ?: "",
-                                            likeCount =
-                                                (
-                                                    document
-                                                        .getLong("likes")
-                                                        ?: 0L
-                                                ).toInt(),
-                                            likedBy =
-                                                getLikedBy(document),
-                                            commentCount =
-                                                (
-                                                    document
-                                                        .getLong("commentCount")
-                                                        ?: 0L
-                                                ).toInt(),
-                                            shareCount =
-                                                (
-                                                    document
-                                                        .getLong("shareCount")
-                                                        ?: 0L
-                                                ).toInt(),
-                                            sharedFromPostId =
-                                                document
-                                                    .getString(
-                                                        "sharedFromPostId"
-                                                    )
-                                                    ?: "",
-                                            sharedFromUserName =
-                                                document
-                                                    .getString(
-                                                        "sharedFromUserName"
-                                                    )
-                                                    ?: "",
-                                            sharedFromText =
-                                                document
-                                                    .getString(
-                                                        "sharedFromText"
-                                                    )
-                                                    ?: ""
-                                        )
-
-                                    } catch (_: Exception) {
-                                        null
-                                    }
-                                }
+                            try {
+                                PeejeePost(
+                                    id = document.id,
+                                    userId = document.getString("userId")
+                                        ?: "",
+                                    userName = document.getString("userName")
+                                        ?: "Peejee User",
+                                    text = document.getString("text")
+                                        ?: "",
+                                    timestamp = document.getLong("timestamp")
+                                        ?: 0L,
+                                    mediaUrl = document.getString("mediaUrl")
+                                        ?: "",
+                                    mediaType = document.getString("mediaType")
+                                        ?: "",
+                                    likeCount = (
+                                        document.getLong("likes")
+                                            ?: 0L
+                                        ).toInt(),
+                                    likedBy = getLikedBy(document),
+                                    commentCount = (
+                                        document.getLong("commentCount")
+                                            ?: 0L
+                                        ).toInt(),
+                                    shareCount = (
+                                        document.getLong("shareCount")
+                                            ?: 0L
+                                        ).toInt(),
+                                    sharedFromPostId =
+                                        document.getString(
+                                            "sharedFromPostId"
+                                        ) ?: "",
+                                    sharedFromUserName =
+                                        document.getString(
+                                            "sharedFromUserName"
+                                        ) ?: "",
+                                    sharedFromText =
+                                        document.getString(
+                                            "sharedFromText"
+                                        ) ?: ""
+                                )
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
 
                         val tagCounter =
                             mutableMapOf<String, Int>()
@@ -335,26 +260,21 @@ fun PeejeeDiscoverPage(
                                         word.startsWith("#") &&
                                         word.length > 1
                                     ) {
-
-                                        val tag =
-                                            word
-                                                .trim()
-                                                .trimEnd(
-                                                    '.',
-                                                    ',',
-                                                    '!',
-                                                    '?',
-                                                    ':',
-                                                    ';'
-                                                )
-                                                .lowercase()
+                                        val tag = word
+                                            .trim()
+                                            .trimEnd(
+                                                '.',
+                                                ',',
+                                                '!',
+                                                '?',
+                                                ':',
+                                                ';'
+                                            )
+                                            .lowercase()
 
                                         if (tag.length > 1) {
                                             tagCounter[tag] =
-                                                (
-                                                    tagCounter[tag]
-                                                        ?: 0
-                                                ) + 1
+                                                (tagCounter[tag] ?: 0) + 1
                                         }
                                     }
                                 }
@@ -376,22 +296,6 @@ fun PeejeeDiscoverPage(
                         isLoading = false
                         isRefreshing = false
                         pullDistance = 0f
-
-                        /*
-                         * If the opened post still exists,
-                         * refresh the opened copy too.
-                         */
-                        selectedDiscoverPost?.let { opened ->
-
-                            posts
-                                .firstOrNull {
-                                    it.id == opened.id
-                                }
-                                ?.let { freshPost ->
-                                    selectedDiscoverPost =
-                                        freshPost
-                                }
-                        }
                     }
                     .addOnFailureListener { exception ->
 
@@ -416,14 +320,9 @@ fun PeejeeDiscoverPage(
             }
     }
 
-    /*
-     * LIKE POST
-     */
     fun toggleLike(post: PeejeePost) {
 
-        val userId = currentUserId
-
-        if (userId.isBlank()) {
+        if (currentUserId.isBlank()) {
             return
         }
 
@@ -437,107 +336,62 @@ fun PeejeeDiscoverPage(
             val snapshot =
                 transaction.get(postReference)
 
-            val currentLikes =
-                (
-                    snapshot.getLong("likes")
-                        ?: 0L
-                ).toInt()
+            val existingLikedBy =
+                getLikedBy(snapshot).toMutableMap()
 
-            val rawLikedBy =
-                snapshot.get("likedBy")
+            val currentlyLiked =
+                existingLikedBy[currentUserId] == true
 
-            val likedBy =
-                mutableMapOf<String, Boolean>()
+            val newLikedState =
+                !currentlyLiked
 
-            if (rawLikedBy is Map<*, *>) {
-
-                rawLikedBy.forEach { entry ->
-
-                    val key =
-                        entry.key as? String
-
-                    val value =
-                        entry.value as? Boolean
-
-                    if (
-                        key != null &&
-                        value != null
-                    ) {
-                        likedBy[key] = value
-                    }
-                }
-            }
-
-            val alreadyLiked =
-                likedBy[userId] == true
-
-            if (alreadyLiked) {
-
-                likedBy.remove(userId)
-
-                transaction.update(
-                    postReference,
-                    "likes",
-                    maxOf(0, currentLikes - 1)
-                )
-
+            if (newLikedState) {
+                existingLikedBy[currentUserId] = true
             } else {
-
-                likedBy[userId] = true
-
-                transaction.update(
-                    postReference,
-                    "likes",
-                    currentLikes + 1
-                )
+                existingLikedBy.remove(currentUserId)
             }
+
+            val currentLikes =
+                snapshot.getLong("likes")
+                    ?.toInt()
+                    ?: 0
+
+            val newLikeCount =
+                if (newLikedState) {
+                    currentLikes + 1
+                } else {
+                    maxOf(0, currentLikes - 1)
+                }
 
             transaction.update(
                 postReference,
                 "likedBy",
-                likedBy
+                existingLikedBy
+            )
+
+            transaction.update(
+                postReference,
+                "likes",
+                newLikeCount
             )
 
             Pair(
-                !alreadyLiked,
-                if (alreadyLiked) {
-                    maxOf(0, currentLikes - 1)
-                } else {
-                    currentLikes + 1
-                }
+                newLikeCount,
+                existingLikedBy
             )
-
         }.addOnSuccessListener { result ->
-
-            val wasLiked = result.first
-            val newLikeCount = result.second
-
-            val updatedLikedBy =
-                post.likedBy.toMutableMap()
-
-            if (wasLiked) {
-                updatedLikedBy[userId] = true
-            } else {
-                updatedLikedBy.remove(userId)
-            }
 
             val updatedPost =
                 post.copy(
-                    likeCount = newLikeCount,
-                    likedBy = updatedLikedBy
+                    likeCount = result.first,
+                    likedBy = result.second
                 )
 
             replacePost(updatedPost)
         }
     }
 
-    /*
-     * LOAD COMMENTS
-     */
     fun loadComments(postId: String) {
-
-        commentsLoading = true
-        commentError = ""
 
         firestore
             .collection("posts")
@@ -545,12 +399,12 @@ fun PeejeeDiscoverPage(
             .collection("comments")
             .orderBy(
                 "timestamp",
-                Query.Direction.DESCENDING
+                Query.Direction.ASCENDING
             )
             .get()
             .addOnSuccessListener { snapshot ->
 
-                comments =
+                val comments =
                     snapshot.documents.mapNotNull { document ->
 
                         PeejeeComment(
@@ -570,319 +424,158 @@ fun PeejeeDiscoverPage(
                         )
                     }
 
-                commentsLoading = false
-            }
-            .addOnFailureListener { exception ->
+                commentsPost =
+                    commentsPost?.let { currentPost ->
 
-                commentsLoading = false
-
-                commentError =
-                    exception.message
-                        ?: "Unable to load comments."
-            }
-    }
-
-    /*
-     * OPEN COMMENTS
-     */
-    fun openComments(post: PeejeePost) {
-
-        showCommentsDialog = true
-        comments = emptyList()
-        newComment = ""
-        commentError = ""
-
-        loadComments(post.id)
-    }
-
-    /*
-     * SEND COMMENT
-     */
-    fun sendComment(post: PeejeePost) {
-
-        val user =
-            FirebaseAuth
-                .getInstance()
-                .currentUser
-                ?: return
-
-        val text =
-            newComment.trim()
-
-        if (text.isBlank() || sendingComment) {
-            return
-        }
-
-        sendingComment = true
-        commentError = ""
-
-        firestore
-            .collection("users")
-            .document(user.uid)
-            .get()
-            .addOnSuccessListener { userDocument ->
-
-                val userName =
-                    userDocument
-                        .getString("name")
-                        ?.trim()
-                        ?.takeIf {
-                            it.isNotBlank()
-                        }
-                        ?: "Peejee User"
-
-                val commentReference =
-                    firestore
-                        .collection("posts")
-                        .document(post.id)
-                        .collection("comments")
-                        .document()
-
-                val commentData =
-                    hashMapOf<String, Any>(
-                        "commentId" to commentReference.id,
-                        "userId" to user.uid,
-                        "userName" to userName,
-                        "text" to text,
-                        "timestamp" to
-                            System.currentTimeMillis()
-                    )
-
-                val postReference =
-                    firestore
-                        .collection("posts")
-                        .document(post.id)
-
-                firestore.runTransaction { transaction ->
-
-                    val postSnapshot =
-                        transaction.get(postReference)
-
-                    val currentCommentCount =
-                        (
-                            postSnapshot
-                                .getLong("commentCount")
-                                ?: 0L
-                        ).toInt()
-
-                    transaction.set(
-                        commentReference,
-                        commentData
-                    )
-
-                    transaction.update(
-                        postReference,
-                        "commentCount",
-                        currentCommentCount + 1
-                    )
-
-                    currentCommentCount + 1
-
-                }.addOnSuccessListener { newCount ->
-
-                    val newCommentObject =
-                        PeejeeComment(
-                            id = commentReference.id,
-                            userId = user.uid,
-                            userName = userName,
-                            text = text,
-                            timestamp =
-                                System.currentTimeMillis()
+                        currentPost.copy(
+                            commentCount = comments.size
                         )
-
-                    comments =
-                        listOf(
-                            newCommentObject
-                        ) + comments
-
-                    newComment = ""
-                    sendingComment = false
-
-                    replacePost(
-                        post.copy(
-                            commentCount = newCount
-                        )
-                    )
-
-                }.addOnFailureListener { exception ->
-
-                    sendingComment = false
-
-                    commentError =
-                        exception.message
-                            ?: "Unable to send comment."
-                }
-            }
-            .addOnFailureListener { exception ->
-
-                sendingComment = false
-
-                commentError =
-                    exception.message
-                        ?: "Unable to send comment."
+                    }
             }
     }
 
-    /*
-     * SHARE POST
-     */
     fun sharePost(post: PeejeePost) {
 
-        val user =
-            FirebaseAuth
-                .getInstance()
-                .currentUser
+        val currentUser =
+            auth.currentUser
                 ?: return
 
-        firestore
-            .collection("users")
-            .document(user.uid)
-            .get()
-            .addOnSuccessListener { userDocument ->
+        val postReference =
+            firestore
+                .collection("posts")
+                .document(post.id)
 
-                val currentName =
-                    userDocument
-                        .getString("name")
-                        ?.trim()
-                        ?.takeIf {
-                            it.isNotBlank()
-                        }
-                        ?: "Peejee User"
+        val newPostReference =
+            firestore
+                .collection("posts")
+                .document()
 
-                val originalPostReference =
-                    firestore
-                        .collection("posts")
-                        .document(post.id)
+        val userReference =
+            firestore
+                .collection("users")
+                .document(currentUser.uid)
 
-                val newPostReference =
-                    firestore
-                        .collection("posts")
-                        .document()
+        firestore.runTransaction { transaction ->
 
-                firestore.runTransaction { transaction ->
+            val postSnapshot =
+                transaction.get(postReference)
 
-                    val postSnapshot =
-                        transaction.get(
-                            originalPostReference
-                        )
+            val userSnapshot =
+                transaction.get(userReference)
 
-                    val currentShares =
-                        (
-                            postSnapshot
-                                .getLong("shareCount")
-                                ?: 0L
-                        ).toInt()
+            val currentShares =
+                postSnapshot
+                    .getLong("shareCount")
+                    ?.toInt()
+                    ?: 0
 
-                    val sharedPostData =
-                        hashMapOf<String, Any>(
-                            "postId" to
-                                newPostReference.id,
-                            "userId" to
-                                user.uid,
-                            "userName" to
-                                currentName,
-                            "text" to
-                                post.text,
-                            "likes" to
-                                0,
-                            "likedBy" to
-                                emptyMap<String, Boolean>(),
-                            "commentCount" to
-                                0,
-                            "shareCount" to
-                                0,
-                            "timestamp" to
-                                System.currentTimeMillis(),
-                            "sharedFromPostId" to
-                                post.id,
-                            "sharedFromUserName" to
-                                post.userName,
-                            "sharedFromText" to
-                                post.text
-                        )
-
-                    if (post.mediaUrl.isNotBlank()) {
-
-                        sharedPostData["mediaUrl"] =
-                            post.mediaUrl
-
-                        sharedPostData["mediaType"] =
-                            post.mediaType
+            val currentName =
+                userSnapshot
+                    .getString("name")
+                    ?.trim()
+                    ?.takeIf {
+                        it.isNotBlank()
                     }
+                    ?: "Peejee User"
 
-                    transaction.set(
-                        newPostReference,
-                        sharedPostData
-                    )
+            val sharedPostData =
+                hashMapOf<String, Any>(
+                    "postId" to newPostReference.id,
+                    "userId" to currentUser.uid,
+                    "userName" to currentName,
+                    "text" to post.text,
+                    "likes" to 0,
+                    "likedBy" to emptyMap<String, Boolean>(),
+                    "commentCount" to 0,
+                    "shareCount" to 0,
+                    "timestamp" to System.currentTimeMillis(),
+                    "sharedFromPostId" to post.id,
+                    "sharedFromUserName" to post.userName,
+                    "sharedFromText" to post.text
+                )
 
-                    transaction.update(
-                        originalPostReference,
-                        "shareCount",
-                        currentShares + 1
-                    )
+            if (post.mediaUrl.isNotBlank()) {
 
-                    currentShares + 1
+                sharedPostData["mediaUrl"] =
+                    post.mediaUrl
 
-                }.addOnSuccessListener { newShareCount ->
-
-                    replacePost(
-                        post.copy(
-                            shareCount =
-                                newShareCount
-                        )
-                    )
-                }
+                sharedPostData["mediaType"] =
+                    post.mediaType
             }
+
+            transaction.set(
+                newPostReference,
+                sharedPostData
+            )
+
+            transaction.update(
+                postReference,
+                "shareCount",
+                currentShares + 1
+            )
+
+            currentShares + 1
+        }.addOnSuccessListener { newShareCount ->
+
+            replacePost(
+                post.copy(
+                    shareCount = newShareCount
+                )
+            )
+        }
     }
 
     LaunchedEffect(Unit) {
         loadDiscoverContent()
     }
 
-    val refreshConnection = remember {
+    val refreshConnection =
+        remember {
 
-        object : NestedScrollConnection {
+            object : NestedScrollConnection {
 
-            override fun onPreScroll(
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
+                override fun onPreScroll(
+                    available: Offset,
+                    source: NestedScrollSource
+                ): Offset {
 
-                if (
-                    available.y > 0f &&
-                    !isRefreshing &&
-                    !isLoading &&
-                    listState.firstVisibleItemIndex == 0 &&
-                    listState.firstVisibleItemScrollOffset == 0
-                ) {
+                    if (
+                        available.y > 0f &&
+                        !isRefreshing &&
+                        !isLoading &&
+                        listState.firstVisibleItemIndex == 0 &&
+                        listState.firstVisibleItemScrollOffset == 0
+                    ) {
 
-                    pullDistance += available.y
+                        pullDistance += available.y
 
-                    if (pullDistance >= 120f) {
+                        if (pullDistance >= 120f) {
+
+                            pullDistance = 0f
+
+                            loadDiscoverContent(
+                                refreshing = true
+                            )
+                        }
+
+                    } else if (available.y < 0f) {
 
                         pullDistance = 0f
-
-                        loadDiscoverContent(true)
                     }
 
-                } else if (available.y < 0f) {
-
-                    pullDistance = 0f
+                    return Offset.Zero
                 }
 
-                return Offset.Zero
-            }
+                override suspend fun onPreFling(
+                    available: Velocity
+                ): Velocity {
 
-            override suspend fun onPreFling(
-                available: Velocity
-            ): Velocity {
+                    pullDistance = 0f
 
-                pullDistance = 0f
-
-                return Velocity.Zero
+                    return Velocity.Zero
+                }
             }
         }
-    }
 
     val suggestedPeople =
         users
@@ -914,62 +607,18 @@ fun PeejeeDiscoverPage(
             }
             .take(12)
 
-    /*
-     * Android back button for the opened post.
-     */
-    if (selectedDiscoverPost != null) {
-
-        BackHandler {
-
-            selectedDiscoverPost = null
-        }
-    }
-
     Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .nestedScroll(
-                    refreshConnection
-                )
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(refreshConnection)
     ) {
 
-        if (selectedDiscoverPost != null) {
-
-            DiscoverPostViewer(
-                post = selectedDiscoverPost!!,
-                currentUserId = currentUserId,
-                onBack = {
-                    selectedDiscoverPost = null
-                },
-                onLike = {
-                    toggleLike(
-                        selectedDiscoverPost!!
-                    )
-                },
-                onComments = {
-                    openComments(
-                        selectedDiscoverPost!!
-                    )
-                },
-                onShare = {
-                    sharePost(
-                        selectedDiscoverPost!!
-                    )
-                },
-                onMore = {
-                    showPostOptions = true
-                }
-            )
-
-        } else if (isLoading) {
+        if (isLoading) {
 
             Box(
                 Modifier.fillMaxSize(),
-                contentAlignment =
-                    Alignment.Center
+                contentAlignment = Alignment.Center
             ) {
-
                 CircularProgressIndicator()
             }
 
@@ -977,8 +626,7 @@ fun PeejeeDiscoverPage(
 
             LazyColumn(
                 state = listState,
-                modifier =
-                    Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding =
                     PaddingValues(
                         start = 16.dp,
@@ -1005,8 +653,7 @@ fun PeejeeDiscoverPage(
                             Text(
                                 "Discover",
                                 fontSize = 28.sp,
-                                fontWeight =
-                                    FontWeight.Bold
+                                fontWeight = FontWeight.Bold
                             )
 
                             Text(
@@ -1018,12 +665,11 @@ fun PeejeeDiscoverPage(
                         Text(
                             "↻",
                             fontSize = 30.sp,
-                            fontWeight =
-                                FontWeight.Bold,
+                            fontWeight = FontWeight.Bold,
                             modifier =
                                 Modifier.clickable {
                                     loadDiscoverContent(
-                                        true
+                                        refreshing = true
                                     )
                                 }
                         )
@@ -1038,8 +684,7 @@ fun PeejeeDiscoverPage(
                     item {
 
                         PeejeeRefreshIndicator(
-                            isRefreshing =
-                                isRefreshing
+                            isRefreshing = isRefreshing
                         )
                     }
                 }
@@ -1050,28 +695,24 @@ fun PeejeeDiscoverPage(
 
                         Card(
                             colors =
-                                CardDefaults
-                                    .cardColors(
-                                        containerColor =
-                                            MaterialTheme
-                                                .colorScheme
-                                                .errorContainer
-                                    )
+                                CardDefaults.cardColors(
+                                    containerColor =
+                                        MaterialTheme
+                                            .colorScheme
+                                            .errorContainer
+                                )
                         ) {
 
                             Text(
                                 errorMessage,
                                 modifier =
-                                    Modifier.padding(
-                                        16.dp
-                                    )
+                                    Modifier.padding(16.dp)
                             )
                         }
                     }
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         "🔥 Trending Posts"
                     )
@@ -1080,7 +721,6 @@ fun PeejeeDiscoverPage(
                 if (popularPosts.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Trending posts will appear here."
                         )
@@ -1092,13 +732,9 @@ fun PeejeeDiscoverPage(
 
                         LazyRow(
                             horizontalArrangement =
-                                Arrangement.spacedBy(
-                                    12.dp
-                                ),
+                                Arrangement.spacedBy(12.dp),
                             contentPadding =
-                                PaddingValues(
-                                    end = 4.dp
-                                )
+                                PaddingValues(end = 4.dp)
                         ) {
 
                             items(
@@ -1121,7 +757,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         "👥 People You May Know"
                     )
@@ -1130,7 +765,6 @@ fun PeejeeDiscoverPage(
                 if (suggestedPeople.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "People will appear here as more users join Peejee."
                         )
@@ -1145,17 +779,15 @@ fun PeejeeDiscoverPage(
                         }
                     ) { user ->
 
-                        DiscoverUserCard(user) {
-
-                            onUserClick(
-                                user.id
-                            )
+                        DiscoverUserCard(
+                            user = user
+                        ) {
+                            onUserClick(user.id)
                         }
                     }
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         "⭐ Suggested People to Follow"
                     )
@@ -1164,7 +796,6 @@ fun PeejeeDiscoverPage(
                 if (suggestedPeople.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Suggested people will appear here."
                         )
@@ -1179,17 +810,15 @@ fun PeejeeDiscoverPage(
                         }
                     ) { user ->
 
-                        DiscoverUserCard(user) {
-
-                            onUserClick(
-                                user.id
-                            )
+                        DiscoverUserCard(
+                            user = user
+                        ) {
+                            onUserClick(user.id)
                         }
                     }
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         "🆕 New Peejee Users"
                     )
@@ -1198,7 +827,6 @@ fun PeejeeDiscoverPage(
                 if (newUsers.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "New users will appear here."
                         )
@@ -1213,17 +841,15 @@ fun PeejeeDiscoverPage(
                         }
                     ) { user ->
 
-                        DiscoverUserCard(user) {
-
-                            onUserClick(
-                                user.id
-                            )
+                        DiscoverUserCard(
+                            user = user
+                        ) {
+                            onUserClick(user.id)
                         }
                     }
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         "#️⃣ Trending Hashtags"
                     )
@@ -1232,7 +858,6 @@ fun PeejeeDiscoverPage(
                 if (trendingTags.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Hashtags from posts will appear here."
                         )
@@ -1244,27 +869,21 @@ fun PeejeeDiscoverPage(
 
                         Column(
                             verticalArrangement =
-                                Arrangement.spacedBy(
-                                    8.dp
-                                )
+                                Arrangement.spacedBy(8.dp)
                         ) {
 
                             trendingTags.forEach { trend ->
 
                                 Surface(
                                     Modifier.fillMaxWidth(),
-                                    RoundedCornerShape(
-                                        14.dp
-                                    ),
+                                    RoundedCornerShape(14.dp),
                                     tonalElevation = 2.dp
                                 ) {
 
                                     Row(
                                         Modifier
                                             .fillMaxWidth()
-                                            .padding(
-                                                14.dp
-                                            ),
+                                            .padding(14.dp),
                                         verticalAlignment =
                                             Alignment.CenterVertically
                                     ) {
@@ -1274,20 +893,13 @@ fun PeejeeDiscoverPage(
                                             fontWeight =
                                                 FontWeight.Bold,
                                             modifier =
-                                                Modifier.weight(
-                                                    1f
-                                                )
+                                                Modifier.weight(1f)
                                         )
 
                                         Text(
                                             "${trend.count} post${
-                                                if (
-                                                    trend.count == 1
-                                                ) {
-                                                    ""
-                                                } else {
-                                                    "s"
-                                                }
+                                                if (trend.count == 1) ""
+                                                else "s"
                                             }"
                                         )
                                     }
@@ -1298,7 +910,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         "📸🎥 Photo & Video Posts"
                     )
@@ -1307,7 +918,6 @@ fun PeejeeDiscoverPage(
                 if (mediaPosts.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Photo and video posts will appear here."
                         )
@@ -1322,7 +932,9 @@ fun PeejeeDiscoverPage(
                         }
                     ) { post ->
 
-                        DiscoverPostCard(post) {
+                        DiscoverPostCard(
+                            post = post
+                        ) {
 
                             selectedDiscoverPost =
                                 post
@@ -1331,178 +943,59 @@ fun PeejeeDiscoverPage(
                 }
             }
         }
+
+        if (selectedDiscoverPost != null) {
+
+            DiscoverPostViewer(
+                post = selectedDiscoverPost!!,
+                currentUserId = currentUserId,
+                onBack = {
+                    selectedDiscoverPost = null
+                },
+                onLike = {
+                    toggleLike(
+                        selectedDiscoverPost!!
+                    )
+                },
+                onComments = {
+
+                    commentsPost =
+                        selectedDiscoverPost
+
+                    loadComments(
+                        selectedDiscoverPost!!.id
+                    )
+                },
+                onShare = {
+                    sharePost(
+                        selectedDiscoverPost!!
+                    )
+                },
+                onOptions = {
+                    showPostOptions = true
+                }
+            )
+        }
     }
 
-    /*
-     * COMMENTS DIALOG
-     */
-    if (
-        showCommentsDialog &&
-        selectedDiscoverPost != null
-    ) {
+    if (commentsPost != null) {
 
-        AlertDialog(
-            onDismissRequest = {
-                showCommentsDialog = false
+        DiscoverCommentsDialog(
+            post = commentsPost!!,
+            firestore = firestore,
+            auth = auth,
+            onDismiss = {
+                commentsPost = null
             },
-            title = {
-                Text(
-                    "Comments",
-                    fontWeight =
-                        FontWeight.Bold
-                )
-            },
-            text = {
+            onPostUpdated = { updatedPost ->
 
-                Column(
-                    Modifier.fillMaxWidth()
-                ) {
+                replacePost(updatedPost)
 
-                    if (commentsLoading) {
-
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
-                            contentAlignment =
-                                Alignment.Center
-                        ) {
-
-                            CircularProgressIndicator()
-                        }
-
-                    } else if (
-                        comments.isEmpty()
-                    ) {
-
-                        Text(
-                            "No comments yet. Be the first to comment.",
-                            modifier =
-                                Modifier.padding(
-                                    vertical = 12.dp
-                                )
-                        )
-
-                    } else {
-
-                        LazyColumn(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(260.dp),
-                            verticalArrangement =
-                                Arrangement.spacedBy(
-                                    10.dp
-                                )
-                        ) {
-
-                            items(
-                                comments,
-                                key = {
-                                    it.id
-                                }
-                            ) { comment ->
-
-                                Column(
-                                    Modifier.fillMaxWidth()
-                                ) {
-
-                                    Text(
-                                        comment.userName,
-                                        fontWeight =
-                                            FontWeight.Bold
-                                    )
-
-                                    Text(
-                                        comment.text,
-                                        fontSize =
-                                            14.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (
-                        commentError.isNotBlank()
-                    ) {
-
-                        Spacer(
-                            Modifier.height(8.dp)
-                        )
-
-                        Text(
-                            commentError,
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .error,
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    Spacer(
-                        Modifier.height(10.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = newComment,
-                        onValueChange = {
-                            newComment = it
-                        },
-                        modifier =
-                            Modifier.fillMaxWidth(),
-                        label = {
-                            Text(
-                                "Write a comment..."
-                            )
-                        },
-                        maxLines = 4
-                    )
-                }
-            },
-            confirmButton = {
-
-                Button(
-                    onClick = {
-
-                        sendComment(
-                            selectedDiscoverPost!!
-                        )
-                    },
-                    enabled =
-                        newComment
-                            .trim()
-                            .isNotBlank() &&
-                            !sendingComment
-                ) {
-
-                    Text(
-                        if (sendingComment) {
-                            "Sending..."
-                        } else {
-                            "Send"
-                        }
-                    )
-                }
-            },
-            dismissButton = {
-
-                TextButton(
-                    onClick = {
-                        showCommentsDialog = false
-                    }
-                ) {
-
-                    Text("Close")
-                }
+                commentsPost = updatedPost
             }
         )
     }
 
-    /*
-     * POST OPTIONS
-     */
     if (showPostOptions) {
 
         AlertDialog(
@@ -1514,17 +1007,15 @@ fun PeejeeDiscoverPage(
             },
             text = {
                 Text(
-                    "More post options will be added here."
+                    "This is a Peejee post."
                 )
             },
             confirmButton = {
-
                 TextButton(
                     onClick = {
                         showPostOptions = false
                     }
                 ) {
-
                     Text("Close")
                 }
             }
@@ -1540,74 +1031,51 @@ private fun DiscoverPostViewer(
     onLike: () -> Unit,
     onComments: () -> Unit,
     onShare: () -> Unit,
-    onMore: () -> Unit
+    onOptions: () -> Unit
 ) {
+
+    BackHandler {
+        onBack()
+    }
 
     val isLiked =
         post.likedBy[currentUserId] == true
 
     Box(
-        Modifier
-            .fillMaxSize()
-            .background(
-                MaterialTheme
-                    .colorScheme
-                    .background
-            )
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    MaterialTheme.colorScheme.surface
+                )
     ) {
 
         Column(
-            Modifier.fillMaxSize()
+            modifier =
+                Modifier.fillMaxSize()
         ) {
 
-            /*
-             * TOP BAR
-             */
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = 10.dp,
-                        end = 10.dp,
-                        top = 10.dp,
-                        bottom = 8.dp
-                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = 8.dp,
+                            end = 8.dp,
+                            top = 8.dp
+                        ),
                 verticalAlignment =
                     Alignment.CenterVertically
             ) {
 
-                Surface(
-                    modifier =
-                        Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .clickable {
-                                onBack()
-                            },
-                    shape = CircleShape,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceVariant
+                IconButton(
+                    onClick = onBack
                 ) {
-
-                    Box(
-                        contentAlignment =
-                            Alignment.Center
-                    ) {
-
-                        Text(
-                            "←",
-                            fontSize = 27.sp,
-                            fontWeight =
-                                FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        "←",
+                        fontSize = 28.sp
+                    )
                 }
-
-                Spacer(
-                    Modifier.width(12.dp)
-                )
 
                 Column(
                     Modifier.weight(1f)
@@ -1615,167 +1083,93 @@ private fun DiscoverPostViewer(
 
                     Text(
                         post.userName,
-                        fontSize = 17.sp,
                         fontWeight =
-                            FontWeight.Bold
+                            FontWeight.Bold,
+                        fontSize = 17.sp
                     )
 
                     Text(
-                        "Peejee Post",
+                        "Peejee post",
                         fontSize = 12.sp
                     )
                 }
 
-                Surface(
-                    modifier =
-                        Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .clickable {
-                                onMore()
-                            },
-                    shape = CircleShape,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceVariant
+                IconButton(
+                    onClick = onOptions
                 ) {
 
+                    Text(
+                        "⋮",
+                        fontSize = 28.sp,
+                        fontWeight =
+                            FontWeight.Bold
+                    )
+                }
+            }
+
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+            ) {
+
+                if (post.mediaUrl.isNotBlank()) {
+
+                    AsyncImage(
+                        model = post.mediaUrl,
+                        contentDescription =
+                            "Peejee post media",
+                        modifier =
+                            Modifier.fillMaxSize(),
+                        contentScale =
+                            ContentScale.Fit
+                    )
+
+                } else {
+
                     Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(30.dp),
                         contentAlignment =
                             Alignment.Center
                     ) {
 
                         Text(
-                            "⋮",
-                            fontSize = 28.sp,
+                            post.text.ifBlank {
+                                "Peejee Post"
+                            },
+                            fontSize = 24.sp,
                             fontWeight =
                                 FontWeight.Bold
                         )
                     }
                 }
-            }
 
-            /*
-             * POST CONTENT
-             */
-            Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(
-                            bottom = 8.dp
-                        )
-                ) {
-
-                    if (
-                        post.mediaUrl.isNotBlank()
-                    ) {
-
-                        AsyncImage(
-                            model = post.mediaUrl,
-                            contentDescription =
-                                "Peejee post media",
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                            contentScale =
-                                ContentScale.Fit
-                        )
-
-                    } else {
-
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .padding(
-                                    20.dp
-                                )
-                                .clip(
-                                    RoundedCornerShape(
-                                        20.dp
-                                    )
-                                )
-                                .background(
-                                    MaterialTheme
-                                        .colorScheme
-                                        .secondaryContainer
-                                ),
-                            contentAlignment =
-                                Alignment.Center
-                        ) {
-
-                            Text(
-                                post.text.ifBlank {
-                                    "Peejee Post"
-                                },
-                                modifier =
-                                    Modifier.padding(
-                                        20.dp
-                                    ),
-                                fontSize = 22.sp,
-                                fontWeight =
-                                    FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    if (
-                        post.text.isNotBlank()
-                    ) {
-
-                        Text(
-                            post.text,
-                            modifier =
-                                Modifier.padding(
-                                    start = 18.dp,
-                                    end = 18.dp,
-                                    top = 12.dp,
-                                    bottom = 12.dp
-                                ),
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-
-                /*
-                 * RIGHT-SIDE ACTION BUTTONS
-                 */
                 Column(
                     modifier =
                         Modifier
-                            .align(
-                                Alignment.CenterEnd
-                            )
+                            .align(Alignment.CenterEnd)
                             .padding(
                                 end = 12.dp
                             ),
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally,
                     verticalArrangement =
-                        Arrangement.spacedBy(
-                            14.dp
-                        )
+                        Arrangement.spacedBy(14.dp),
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
                 ) {
 
                     DiscoverActionButton(
                         icon =
                             if (isLiked) {
-                                "♥"
+                                "❤️"
                             } else {
                                 "♡"
                             },
                         count =
                             post.likeCount,
-                        active =
-                            isLiked,
                         onClick = onLike
                     )
 
@@ -1783,23 +1177,84 @@ private fun DiscoverPostViewer(
                         icon = "💬",
                         count =
                             post.commentCount,
-                        onClick =
-                            onComments
+                        onClick = onComments
                     )
 
                     DiscoverActionButton(
                         icon = "↗",
                         count =
                             post.shareCount,
-                        onClick =
-                            onShare
+                        onClick = onShare
                     )
 
                     DiscoverActionButton(
                         icon = "⋮",
-                        count = 0,
-                        onClick = onMore
+                        count = null,
+                        onClick = onOptions
                     )
+                }
+            }
+
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = 20.dp
+                        )
+            ) {
+
+                if (post.text.isNotBlank()) {
+
+                    Text(
+                        post.text,
+                        fontSize = 16.sp,
+                        modifier =
+                            Modifier.padding(
+                                bottom = 10.dp
+                            )
+                    )
+                }
+
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    horizontalArrangement =
+                        Arrangement.SpaceEvenly
+                ) {
+
+                    TextButton(
+                        onClick = onLike
+                    ) {
+
+                        Text(
+                            if (isLiked) {
+                                "❤️ Liked"
+                            } else {
+                                "♡ Like"
+                            }
+                        )
+                    }
+
+                    TextButton(
+                        onClick = onComments
+                    ) {
+
+                        Text(
+                            "💬 Comments"
+                        )
+                    }
+
+                    TextButton(
+                        onClick = onShare
+                    ) {
+
+                        Text(
+                            "↗ Share"
+                        )
+                    }
                 }
             }
         }
@@ -1809,8 +1264,7 @@ private fun DiscoverPostViewer(
 @Composable
 private fun DiscoverActionButton(
     icon: String,
-    count: Int,
-    active: Boolean = false,
+    count: Int?,
     onClick: () -> Unit
 ) {
 
@@ -1822,22 +1276,12 @@ private fun DiscoverActionButton(
         Surface(
             modifier =
                 Modifier
-                    .size(54.dp)
-                    .clip(CircleShape)
+                    .size(52.dp)
                     .clickable {
                         onClick()
                     },
             shape = CircleShape,
-            color =
-                if (active) {
-                    MaterialTheme
-                        .colorScheme
-                        .primaryContainer
-                } else {
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceVariant
-                }
+            tonalElevation = 4.dp
         ) {
 
             Box(
@@ -1847,18 +1291,12 @@ private fun DiscoverActionButton(
 
                 Text(
                     icon,
-                    fontSize = 25.sp,
-                    fontWeight =
-                        FontWeight.Bold
+                    fontSize = 25.sp
                 )
             }
         }
 
-        if (count > 0) {
-
-            Spacer(
-                Modifier.height(3.dp)
-            )
+        if (count != null) {
 
             Text(
                 count.toString(),
@@ -1871,6 +1309,383 @@ private fun DiscoverActionButton(
 }
 
 @Composable
+private fun DiscoverCommentsDialog(
+    post: PeejeePost,
+    firestore: FirebaseFirestore,
+    auth: FirebaseAuth,
+    onDismiss: () -> Unit,
+    onPostUpdated: (PeejeePost) -> Unit
+) {
+
+    var comments by remember(post.id) {
+        mutableStateOf<List<PeejeeComment>>(
+            emptyList()
+        )
+    }
+
+    var commentText by remember {
+        mutableStateOf("")
+    }
+
+    var loading by remember {
+        mutableStateOf(true)
+    }
+
+    var sending by remember {
+        mutableStateOf(false)
+    }
+
+    var errorMessage by remember {
+        mutableStateOf("")
+    }
+
+    fun loadComments() {
+
+        loading = true
+
+        firestore
+            .collection("posts")
+            .document(post.id)
+            .collection("comments")
+            .orderBy(
+                "timestamp",
+                Query.Direction.ASCENDING
+            )
+            .get()
+            .addOnSuccessListener { snapshot ->
+
+                comments =
+                    snapshot.documents.mapNotNull { document ->
+
+                        PeejeeComment(
+                            id = document.id,
+                            userId =
+                                document.getString(
+                                    "userId"
+                                ) ?: "",
+                            userName =
+                                document.getString(
+                                    "userName"
+                                ) ?: "Peejee User",
+                            text =
+                                document.getString(
+                                    "text"
+                                ) ?: "",
+                            timestamp =
+                                document.getLong(
+                                    "timestamp"
+                                ) ?: 0L
+                        )
+                    }
+
+                loading = false
+            }
+            .addOnFailureListener { exception ->
+
+                loading = false
+
+                errorMessage =
+                    exception.message
+                        ?: "Unable to load comments."
+            }
+    }
+
+    fun sendComment() {
+
+        val currentUser =
+            auth.currentUser
+
+        if (currentUser == null) {
+
+            errorMessage =
+                "Please log in again."
+
+            return
+        }
+
+        if (commentText.isBlank()) {
+            return
+        }
+
+        sending = true
+        errorMessage = ""
+
+        val userReference =
+            firestore
+                .collection("users")
+                .document(currentUser.uid)
+
+        userReference
+            .get()
+            .addOnSuccessListener { userDocument ->
+
+                val userName =
+                    userDocument
+                        .getString("name")
+                        ?.trim()
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                        ?: "Peejee User"
+
+                val commentReference =
+                    firestore
+                        .collection("posts")
+                        .document(post.id)
+                        .collection("comments")
+                        .document()
+
+                val postReference =
+                    firestore
+                        .collection("posts")
+                        .document(post.id)
+
+                firestore.runTransaction { transaction ->
+
+                    val postSnapshot =
+                        transaction.get(
+                            postReference
+                        )
+
+                    val currentCount =
+                        postSnapshot
+                            .getLong(
+                                "commentCount"
+                            )
+                            ?.toInt()
+                            ?: 0
+
+                    val commentData =
+                        hashMapOf<String, Any>(
+                            "userId" to
+                                currentUser.uid,
+                            "userName" to
+                                userName,
+                            "text" to
+                                commentText.trim(),
+                            "timestamp" to
+                                System.currentTimeMillis()
+                        )
+
+                    transaction.set(
+                        commentReference,
+                        commentData
+                    )
+
+                    transaction.update(
+                        postReference,
+                        "commentCount",
+                        currentCount + 1
+                    )
+
+                    currentCount + 1
+                }
+                    .addOnSuccessListener { newCount ->
+
+                        val newComment =
+                            PeejeeComment(
+                                id =
+                                    commentReference.id,
+                                userId =
+                                    currentUser.uid,
+                                userName =
+                                    userName,
+                                text =
+                                    commentText.trim(),
+                                timestamp =
+                                    System.currentTimeMillis()
+                            )
+
+                        comments =
+                            comments + newComment
+
+                        commentText = ""
+
+                        sending = false
+
+                        onPostUpdated(
+                            post.copy(
+                                commentCount =
+                                    newCount
+                            )
+                        )
+                    }
+                    .addOnFailureListener { exception ->
+
+                        sending = false
+
+                        errorMessage =
+                            exception.message
+                                ?: "Unable to send comment."
+                    }
+            }
+            .addOnFailureListener { exception ->
+
+                sending = false
+
+                errorMessage =
+                    exception.message
+                        ?: "Unable to send comment."
+            }
+    }
+
+    LaunchedEffect(post.id) {
+        loadComments()
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!sending) {
+                onDismiss()
+            }
+        },
+        title = {
+            Text("Comments")
+        },
+        text = {
+
+            Column {
+
+                if (loading) {
+
+                    Box(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+                        contentAlignment =
+                            Alignment.Center
+                    ) {
+
+                        CircularProgressIndicator()
+                    }
+
+                } else if (comments.isEmpty()) {
+
+                    Text(
+                        "No comments yet. Be the first!"
+                    )
+
+                } else {
+
+                    LazyColumn(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(280.dp),
+                        verticalArrangement =
+                            Arrangement.spacedBy(10.dp)
+                    ) {
+
+                        items(
+                            comments,
+                            key = {
+                                it.id
+                            }
+                        ) { comment ->
+
+                            Card(
+                                modifier =
+                                    Modifier.fillMaxWidth(),
+                                shape =
+                                    RoundedCornerShape(
+                                        12.dp
+                                    )
+                            ) {
+
+                                Column(
+                                    modifier =
+                                        Modifier.padding(
+                                            10.dp
+                                        )
+                                ) {
+
+                                    Text(
+                                        comment.userName,
+                                        fontWeight =
+                                            FontWeight.Bold
+                                    )
+
+                                    Text(
+                                        comment.text,
+                                        modifier =
+                                            Modifier.padding(
+                                                top = 4.dp
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (errorMessage.isNotBlank()) {
+
+                    Text(
+                        errorMessage,
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .error,
+                        fontSize = 12.sp,
+                        modifier =
+                            Modifier.padding(
+                                top = 8.dp
+                            )
+                    )
+                }
+
+                Spacer(
+                    Modifier.height(10.dp)
+                )
+
+                OutlinedTextField(
+                    value = commentText,
+                    onValueChange = {
+                        commentText = it
+                        errorMessage = ""
+                    },
+                    enabled = !sending,
+                    label = {
+                        Text("Write a comment")
+                    },
+                    modifier =
+                        Modifier.fillMaxWidth()
+                )
+            }
+        },
+        dismissButton = {
+
+            TextButton(
+                onClick = onDismiss,
+                enabled = !sending
+            ) {
+
+                Text("Close")
+            }
+        },
+        confirmButton = {
+
+            TextButton(
+                onClick = {
+                    sendComment()
+                },
+                enabled =
+                    !sending &&
+                        commentText.isNotBlank()
+            ) {
+
+                Text(
+                    if (sending) {
+                        "Sending..."
+                    } else {
+                        "Send"
+                    }
+                )
+            }
+        }
+    )
+}
+
+@Composable
 private fun PeejeeRefreshIndicator(
     isRefreshing: Boolean
 ) {
@@ -1880,16 +1695,17 @@ private fun PeejeeRefreshIndicator(
             label = "peejee_refresh"
         )
 
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec =
-            infiniteRepeatable(
-                tween(900),
-                RepeatMode.Restart
-            ),
-        label = "peejee_rotation"
-    )
+    val rotation by
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec =
+                infiniteRepeatable(
+                    tween(900),
+                    RepeatMode.Restart
+                ),
+            label = "peejee_rotation"
+        )
 
     Column(
         modifier =
@@ -1967,8 +1783,7 @@ private fun DiscoverSectionTitle(
     Text(
         title,
         fontSize = 20.sp,
-        fontWeight =
-            FontWeight.Bold,
+        fontWeight = FontWeight.Bold,
         modifier =
             Modifier.padding(
                 top = 6.dp
@@ -2005,16 +1820,16 @@ private fun DiscoverUserCard(
                 Alignment.CenterVertically
         ) {
 
-            if (
-                user.profilePhoto.isNotBlank()
-            ) {
+            if (user.profilePhoto.isNotBlank()) {
 
                 AsyncImage(
-                    user.profilePhoto,
-                    user.name,
-                    Modifier
-                        .size(56.dp)
-                        .clip(CircleShape),
+                    model = user.profilePhoto,
+                    contentDescription =
+                        user.name,
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(CircleShape),
                     contentScale =
                         ContentScale.Crop
                 )
@@ -2061,9 +1876,7 @@ private fun DiscoverUserCard(
                     fontSize = 17.sp
                 )
 
-                if (
-                    user.bio.isNotBlank()
-                ) {
+                if (user.bio.isNotBlank()) {
 
                     Text(
                         user.bio,
@@ -2113,9 +1926,7 @@ private fun DiscoverTrendingPostCard(
             Modifier.fillMaxWidth()
         ) {
 
-            if (
-                post.mediaUrl.isNotBlank()
-            ) {
+            if (post.mediaUrl.isNotBlank()) {
 
                 AsyncImage(
                     model = post.mediaUrl,
@@ -2149,9 +1960,7 @@ private fun DiscoverTrendingPostCard(
                             "Peejee Post"
                         },
                         modifier =
-                            Modifier.padding(
-                                12.dp
-                            ),
+                            Modifier.padding(12.dp),
                         maxLines = 5,
                         fontWeight =
                             FontWeight.Bold
@@ -2170,9 +1979,7 @@ private fun DiscoverTrendingPostCard(
                     maxLines = 1
                 )
 
-                if (
-                    post.text.isNotBlank()
-                ) {
+                if (post.text.isNotBlank()) {
 
                     Text(
                         post.text,
@@ -2186,7 +1993,9 @@ private fun DiscoverTrendingPostCard(
                 )
 
                 Text(
-                    "♥ ${post.likeCount}   💬 ${post.commentCount}   ↗ ${post.shareCount}",
+                    "♥ ${post.likeCount}   " +
+                        "💬 ${post.commentCount}   " +
+                        "↗ ${post.shareCount}",
                     fontSize = 12.sp
                 )
             }
@@ -2259,9 +2068,7 @@ private fun DiscoverPostCard(
                 )
             }
 
-            if (
-                post.text.isNotBlank()
-            ) {
+            if (post.text.isNotBlank()) {
 
                 Text(
                     post.text,
@@ -2270,16 +2077,16 @@ private fun DiscoverPostCard(
                 )
             }
 
-            if (
-                post.mediaUrl.isNotBlank()
-            ) {
+            if (post.mediaUrl.isNotBlank()) {
 
                 AsyncImage(
-                    post.mediaUrl,
-                    "Post media",
-                    Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
+                    model = post.mediaUrl,
+                    contentDescription =
+                        "Post media",
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
                     contentScale =
                         ContentScale.Crop
                 )
