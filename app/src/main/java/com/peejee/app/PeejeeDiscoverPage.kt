@@ -17,22 +17,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PullToRefreshBox
-import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -104,7 +97,9 @@ fun PeejeeDiscoverPage(
         mutableStateOf("")
     }
 
-    fun loadDiscoverContent(refreshing: Boolean = false) {
+    fun loadDiscoverContent(
+        refreshing: Boolean = false
+    ) {
 
         if (refreshing) {
             isRefreshing = true
@@ -120,37 +115,40 @@ fun PeejeeDiscoverPage(
             .get()
             .addOnSuccessListener { userSnapshot ->
 
-                users = userSnapshot.documents
-                    .mapNotNull { document ->
+                users =
+                    userSnapshot.documents
+                        .mapNotNull { document ->
 
-                        val id = document.id
+                            val id = document.id
 
-                        if (id == currentUserId) {
-                            return@mapNotNull null
+                            if (id == currentUserId) {
+                                return@mapNotNull null
+                            }
+
+                            PeejeeDiscoverUser(
+                                id = id,
+                                name =
+                                    document.getString("name")
+                                        ?: "Peejee User",
+                                bio =
+                                    document.getString("bio")
+                                        ?: "",
+                                profilePhoto =
+                                    document.getString("profilePhoto")
+                                        ?: "",
+                                followersCount =
+                                    document.getLong(
+                                        "followersCount"
+                                    ) ?: 0L,
+                                updatedAt =
+                                    document.getLong(
+                                        "updatedAt"
+                                    ) ?: 0L
+                            )
                         }
-
-                        PeejeeDiscoverUser(
-                            id = id,
-                            name =
-                                document.getString("name")
-                                    ?: "Peejee User",
-                            bio =
-                                document.getString("bio")
-                                    ?: "",
-                            profilePhoto =
-                                document.getString("profilePhoto")
-                                    ?: "",
-                            followersCount =
-                                document.getLong("followersCount")
-                                    ?: 0L,
-                            updatedAt =
-                                document.getLong("updatedAt")
-                                    ?: 0L
-                        )
-                    }
-                    .sortedByDescending {
-                        it.updatedAt
-                    }
+                        .sortedByDescending {
+                            it.updatedAt
+                        }
 
                 firestore
                     .collection("posts")
@@ -163,7 +161,8 @@ fun PeejeeDiscoverPage(
                     .addOnSuccessListener { postSnapshot ->
 
                         posts =
-                            postSnapshot.documents.mapNotNull { document ->
+                            postSnapshot.documents.mapNotNull {
+                                document ->
 
                                 try {
 
@@ -202,8 +201,9 @@ fun PeejeeDiscoverPage(
 
                                         likeCount =
                                             (
-                                                document.getLong("likes")
-                                                    ?: 0L
+                                                document.getLong(
+                                                    "likes"
+                                                ) ?: 0L
                                             ).toInt(),
 
                                         likedBy =
@@ -271,12 +271,17 @@ fun PeejeeDiscoverPage(
                                                 )
                                                 .lowercase()
 
-                                        if (cleanTag.length > 1) {
+                                        if (
+                                            cleanTag.length > 1
+                                        ) {
 
-                                            tagCounter[cleanTag] =
+                                            tagCounter[
+                                                cleanTag
+                                            ] =
                                                 (
-                                                    tagCounter[cleanTag]
-                                                        ?: 0
+                                                    tagCounter[
+                                                        cleanTag
+                                                    ] ?: 0
                                                 ) + 1
                                         }
                                     }
@@ -411,18 +416,15 @@ fun PeejeeDiscoverPage(
                             )
                         }
 
-                        IconButton(
-                            onClick = {
-                                loadDiscoverContent(true)
-                            }
-                        ) {
-
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription =
-                                    "Refresh"
-                            )
-                        }
+                        Text(
+                            text = "↻",
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier =
+                                Modifier.clickable {
+                                    loadDiscoverContent(true)
+                                }
+                        )
                     }
                 }
 
@@ -450,7 +452,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         title = "🔥 Trending Posts"
                     )
@@ -459,7 +460,6 @@ fun PeejeeDiscoverPage(
                 if (popularPosts.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Trending posts will appear here."
                         )
@@ -484,7 +484,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         title = "👥 People You May Know"
                     )
@@ -493,7 +492,6 @@ fun PeejeeDiscoverPage(
                 if (suggestedPeople.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "People will appear here as more users join Peejee."
                         )
@@ -518,7 +516,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         title = "⭐ Suggested People to Follow"
                     )
@@ -527,7 +524,6 @@ fun PeejeeDiscoverPage(
                 if (suggestedPeople.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Suggested people will appear here."
                         )
@@ -552,7 +548,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         title = "🆕 New Peejee Users"
                     )
@@ -561,7 +556,6 @@ fun PeejeeDiscoverPage(
                 if (newUsers.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "New users will appear here."
                         )
@@ -586,7 +580,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         title = "#️⃣ Trending Hashtags"
                     )
@@ -595,7 +588,6 @@ fun PeejeeDiscoverPage(
                 if (trendingTags.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Hashtags from posts will appear here."
                         )
@@ -655,7 +647,6 @@ fun PeejeeDiscoverPage(
                 }
 
                 item {
-
                     DiscoverSectionTitle(
                         title = "📸🎥 Photo & Video Posts"
                     )
@@ -664,7 +655,6 @@ fun PeejeeDiscoverPage(
                 if (mediaPosts.isEmpty()) {
 
                     item {
-
                         EmptyDiscoverCard(
                             "Photo and video posts will appear here."
                         )
