@@ -2,6 +2,7 @@ package com.peejee.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -414,7 +418,6 @@ fun PeejeeDiscoverPage(
                             fontWeight = FontWeight.Bold,
                             modifier =
                                 Modifier.clickable {
-
                                     loadDiscoverContent(true)
                                 }
                         )
@@ -471,7 +474,15 @@ fun PeejeeDiscoverPage(
                     }
                 }
 
+                /*
+                 * TRENDING POSTS
+                 *
+                 * This is intentionally horizontal.
+                 * Only the top 10 trending posts are shown.
+                 */
+
                 item {
+
                     DiscoverSectionTitle(
                         title = "🔥 Trending Posts"
                     )
@@ -480,6 +491,7 @@ fun PeejeeDiscoverPage(
                 if (popularPosts.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
                             "Trending posts will appear here."
                         )
@@ -487,23 +499,42 @@ fun PeejeeDiscoverPage(
 
                 } else {
 
-                    items(
-                        items = popularPosts,
-                        key = {
-                            "popular_${it.id}"
-                        }
-                    ) { post ->
+                    item {
 
-                        DiscoverPostCard(
-                            post = post,
-                            onClick = {
-                                onPostClick(post.id)
+                        LazyRow(
+                            horizontalArrangement =
+                                Arrangement.spacedBy(12.dp),
+                            contentPadding =
+                                PaddingValues(
+                                    start = 2.dp,
+                                    end = 2.dp
+                                )
+                        ) {
+
+                            items(
+                                items = popularPosts,
+                                key = {
+                                    "trending_${it.id}"
+                                }
+                            ) { post ->
+
+                                DiscoverTrendingPostCard(
+                                    post = post,
+                                    onClick = {
+                                        onPostClick(post.id)
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
 
+                /*
+                 * PEOPLE YOU MAY KNOW
+                 */
+
                 item {
+
                     DiscoverSectionTitle(
                         title = "👥 People You May Know"
                     )
@@ -512,6 +543,7 @@ fun PeejeeDiscoverPage(
                 if (suggestedPeople.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
                             "People will appear here as more users join Peejee."
                         )
@@ -535,7 +567,12 @@ fun PeejeeDiscoverPage(
                     }
                 }
 
+                /*
+                 * SUGGESTED PEOPLE TO FOLLOW
+                 */
+
                 item {
+
                     DiscoverSectionTitle(
                         title = "⭐ Suggested People to Follow"
                     )
@@ -544,6 +581,7 @@ fun PeejeeDiscoverPage(
                 if (suggestedPeople.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
                             "Suggested people will appear here."
                         )
@@ -567,7 +605,12 @@ fun PeejeeDiscoverPage(
                     }
                 }
 
+                /*
+                 * NEW USERS
+                 */
+
                 item {
+
                     DiscoverSectionTitle(
                         title = "🆕 New Peejee Users"
                     )
@@ -576,6 +619,7 @@ fun PeejeeDiscoverPage(
                 if (newUsers.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
                             "New users will appear here."
                         )
@@ -599,7 +643,12 @@ fun PeejeeDiscoverPage(
                     }
                 }
 
+                /*
+                 * TRENDING HASHTAGS
+                 */
+
                 item {
+
                     DiscoverSectionTitle(
                         title = "#️⃣ Trending Hashtags"
                     )
@@ -608,6 +657,7 @@ fun PeejeeDiscoverPage(
                 if (trendingTags.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
                             "Hashtags from posts will appear here."
                         )
@@ -666,7 +716,12 @@ fun PeejeeDiscoverPage(
                     }
                 }
 
+                /*
+                 * PHOTO AND VIDEO POSTS
+                 */
+
                 item {
+
                     DiscoverSectionTitle(
                         title = "📸🎥 Photo & Video Posts"
                     )
@@ -675,6 +730,7 @@ fun PeejeeDiscoverPage(
                 if (mediaPosts.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
                             "Photo and video posts will appear here."
                         )
@@ -702,6 +758,10 @@ fun PeejeeDiscoverPage(
     }
 }
 
+/*
+ * SECTION TITLE
+ */
+
 @Composable
 private fun DiscoverSectionTitle(
     title: String
@@ -711,9 +771,165 @@ private fun DiscoverSectionTitle(
         text = title,
         fontSize = 20.sp,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 6.dp)
+        modifier =
+            Modifier.padding(top = 6.dp)
     )
 }
+
+/*
+ * COMPACT HORIZONTAL TRENDING POST CARD
+ */
+
+@Composable
+private fun DiscoverTrendingPostCard(
+    post: PeejeePost,
+    onClick: () -> Unit
+) {
+
+    Card(
+        modifier =
+            Modifier
+                .width(210.dp)
+                .height(285.dp)
+                .clickable {
+                    onClick()
+                },
+        shape =
+            RoundedCornerShape(18.dp),
+        elevation =
+            CardDefaults.cardElevation(
+                defaultElevation = 3.dp
+            )
+    ) {
+
+        Column(
+            modifier =
+                Modifier.fillMaxSize()
+        ) {
+
+            /*
+             * MEDIA
+             */
+
+            if (post.mediaUrl.isNotBlank()) {
+
+                AsyncImage(
+                    model = post.mediaUrl,
+                    contentDescription = "Trending post media",
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(155.dp),
+                    contentScale =
+                        ContentScale.Crop
+                )
+
+            } else {
+
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(155.dp)
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .primaryContainer
+                            ),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    Text(
+                        text =
+                            if (
+                                post.text.isNotBlank()
+                            ) {
+                                post.text
+                            } else {
+                                "Peejee Post"
+                            },
+                        modifier =
+                            Modifier.padding(14.dp),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 5,
+                        overflow =
+                            TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            /*
+             * USER + POST TEXT
+             */
+
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp)
+            ) {
+
+                Text(
+                    post.userName,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow =
+                        TextOverflow.Ellipsis
+                )
+
+                if (
+                    post.text.isNotBlank() &&
+                    post.mediaUrl.isNotBlank()
+                ) {
+
+                    Spacer(
+                        Modifier.height(3.dp)
+                    )
+
+                    Text(
+                        post.text,
+                        fontSize = 12.sp,
+                        maxLines = 2,
+                        overflow =
+                            TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(
+                    Modifier.height(7.dp)
+                )
+
+                Row(
+                    horizontalArrangement =
+                        Arrangement.spacedBy(12.dp)
+                ) {
+
+                    Text(
+                        "♥ ${post.likeCount}",
+                        fontSize = 12.sp
+                    )
+
+                    Text(
+                        "💬 ${post.commentCount}",
+                        fontSize = 12.sp
+                    )
+
+                    Text(
+                        "↗ ${post.shareCount}",
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+/*
+ * USER CARD
+ */
 
 @Composable
 private fun DiscoverUserCard(
@@ -728,7 +944,8 @@ private fun DiscoverUserCard(
                 .clickable {
                     onClick()
                 },
-        shape = RoundedCornerShape(18.dp),
+        shape =
+            RoundedCornerShape(18.dp),
         elevation =
             CardDefaults.cardElevation(
                 defaultElevation = 2.dp
@@ -744,7 +961,9 @@ private fun DiscoverUserCard(
                 Alignment.CenterVertically
         ) {
 
-            if (user.profilePhoto.isNotBlank()) {
+            if (
+                user.profilePhoto.isNotBlank()
+            ) {
 
                 AsyncImage(
                     model = user.profilePhoto,
@@ -789,21 +1008,29 @@ private fun DiscoverUserCard(
             )
 
             Column(
-                modifier = Modifier.weight(1f)
+                modifier =
+                    Modifier.weight(1f)
             ) {
 
                 Text(
                     user.name,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow =
+                        TextOverflow.Ellipsis
                 )
 
-                if (user.bio.isNotBlank()) {
+                if (
+                    user.bio.isNotBlank()
+                ) {
 
                     Text(
                         user.bio,
                         maxLines = 2,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        overflow =
+                            TextOverflow.Ellipsis
                     )
                 }
 
@@ -827,6 +1054,10 @@ private fun DiscoverUserCard(
     }
 }
 
+/*
+ * FULL PHOTO / VIDEO POST CARD
+ */
+
 @Composable
 private fun DiscoverPostCard(
     post: PeejeePost,
@@ -840,11 +1071,13 @@ private fun DiscoverPostCard(
                 .clickable {
                     onClick()
                 },
-        shape = RoundedCornerShape(18.dp)
+        shape =
+            RoundedCornerShape(18.dp)
     ) {
 
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier =
+                Modifier.fillMaxWidth()
         ) {
 
             Row(
@@ -879,7 +1112,8 @@ private fun DiscoverPostCard(
                             .firstOrNull()
                             ?.uppercase()
                             ?: "P",
-                        fontWeight = FontWeight.Bold
+                        fontWeight =
+                            FontWeight.Bold
                     )
                 }
 
@@ -889,11 +1123,14 @@ private fun DiscoverPostCard(
 
                 Text(
                     post.userName,
-                    fontWeight = FontWeight.Bold
+                    fontWeight =
+                        FontWeight.Bold
                 )
             }
 
-            if (post.text.isNotBlank()) {
+            if (
+                post.text.isNotBlank()
+            ) {
 
                 Text(
                     post.text,
@@ -903,11 +1140,14 @@ private fun DiscoverPostCard(
                 )
             }
 
-            if (post.mediaUrl.isNotBlank()) {
+            if (
+                post.mediaUrl.isNotBlank()
+            ) {
 
                 AsyncImage(
                     model = post.mediaUrl,
-                    contentDescription = "Post media",
+                    contentDescription =
+                        "Post media",
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -942,19 +1182,26 @@ private fun DiscoverPostCard(
     }
 }
 
+/*
+ * EMPTY CARD
+ */
+
 @Composable
 private fun EmptyDiscoverCard(
     text: String
 ) {
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(16.dp)
     ) {
 
         Text(
             text,
-            modifier = Modifier.padding(18.dp),
+            modifier =
+                Modifier.padding(18.dp),
             fontSize = 14.sp
         )
     }
