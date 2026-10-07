@@ -377,7 +377,7 @@ fun PeejeeDiscoverPage(
                     PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
-                        top = 12.dp,
+                        top = 40.dp,
                         bottom = 100.dp
                     ),
                 verticalArrangement =
