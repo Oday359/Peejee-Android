@@ -18,10 +18,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,10 +32,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PullToRefreshBox
 import androidx.compose.material3.Text
-import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +57,6 @@ private data class PeejeeDiscoverUser(
     val bio: String = "",
     val profilePhoto: String = "",
     val followersCount: Long = 0L,
-    val followingCount: Long = 0L,
     val updatedAt: Long = 0L
 )
 
@@ -66,7 +66,7 @@ private data class PeejeeTrendingTag(
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
-@androidx.compose.runtime.Composable
+@Composable
 fun PeejeeDiscoverPage(
     onUserClick: (String) -> Unit = {},
     onPostClick: (String) -> Unit = {}
@@ -114,7 +114,8 @@ fun PeejeeDiscoverPage(
 
         errorMessage = ""
 
-        firestore.collection("users")
+        firestore
+            .collection("users")
             .limit(50)
             .get()
             .addOnSuccessListener { userSnapshot ->
@@ -130,22 +131,29 @@ fun PeejeeDiscoverPage(
 
                         PeejeeDiscoverUser(
                             id = id,
-                            name = document.getString("name") ?: "Peejee User",
-                            bio = document.getString("bio") ?: "",
-                            profilePhoto = document.getString("profilePhoto") ?: "",
+                            name =
+                                document.getString("name")
+                                    ?: "Peejee User",
+                            bio =
+                                document.getString("bio")
+                                    ?: "",
+                            profilePhoto =
+                                document.getString("profilePhoto")
+                                    ?: "",
                             followersCount =
-                                document.getLong("followersCount") ?: 0L,
-                            followingCount =
-                                document.getLong("followingCount") ?: 0L,
+                                document.getLong("followersCount")
+                                    ?: 0L,
                             updatedAt =
-                                document.getLong("updatedAt") ?: 0L
+                                document.getLong("updatedAt")
+                                    ?: 0L
                         )
                     }
                     .sortedByDescending {
                         it.updatedAt
                     }
 
-                firestore.collection("posts")
+                firestore
+                    .collection("posts")
                     .orderBy(
                         "timestamp",
                         Query.Direction.DESCENDING
@@ -154,53 +162,77 @@ fun PeejeeDiscoverPage(
                     .get()
                     .addOnSuccessListener { postSnapshot ->
 
-                        posts = postSnapshot.documents
-                            .mapNotNull { document ->
+                        posts =
+                            postSnapshot.documents.mapNotNull { document ->
 
                                 try {
 
                                     PeejeePost(
                                         id = document.id,
+
                                         userId =
-                                            document.getString("userId") ?: "",
+                                            document.getString(
+                                                "userId"
+                                            ) ?: "",
+
                                         userName =
-                                            document.getString("userName")
-                                                ?: "Peejee User",
+                                            document.getString(
+                                                "userName"
+                                            ) ?: "Peejee User",
+
                                         text =
-                                            document.getString("text") ?: "",
+                                            document.getString(
+                                                "text"
+                                            ) ?: "",
+
                                         timestamp =
-                                            document.getLong("timestamp")
-                                                ?: 0L,
+                                            document.getLong(
+                                                "timestamp"
+                                            ) ?: 0L,
+
                                         mediaUrl =
-                                            document.getString("mediaUrl")
-                                                ?: "",
+                                            document.getString(
+                                                "mediaUrl"
+                                            ) ?: "",
+
                                         mediaType =
-                                            document.getString("mediaType")
-                                                ?: "",
+                                            document.getString(
+                                                "mediaType"
+                                            ) ?: "",
+
                                         likeCount =
-                                            document.getLong("likeCount")
-                                                ?: 0L,
+                                            (
+                                                document.getLong("likes")
+                                                    ?: 0L
+                                            ).toInt(),
+
                                         likedBy =
-                                            (document.get("likedBy")
-                                                as? List<*>)
-                                                ?.mapNotNull {
-                                                    it?.toString()
-                                                }
-                                                ?: emptyList(),
+                                            getLikedBy(document),
+
                                         commentCount =
-                                            document.getLong("commentCount")
-                                                ?: 0L,
+                                            (
+                                                document.getLong(
+                                                    "commentCount"
+                                                ) ?: 0L
+                                            ).toInt(),
+
                                         shareCount =
-                                            document.getLong("shareCount")
-                                                ?: 0L,
+                                            (
+                                                document.getLong(
+                                                    "shareCount"
+                                                ) ?: 0L
+                                            ).toInt(),
+
                                         sharedFromPostId =
                                             document.getString(
                                                 "sharedFromPostId"
                                             ) ?: "",
+
                                         sharedFromUserName =
                                             document.getString(
                                                 "sharedFromUserName"
                                             ) ?: "",
+
                                         sharedFromText =
                                             document.getString(
                                                 "sharedFromText"
@@ -212,43 +244,43 @@ fun PeejeeDiscoverPage(
                                 }
                             }
 
-                        val tagCounter = mutableMapOf<String, Int>()
+                        val tagCounter =
+                            mutableMapOf<String, Int>()
 
                         posts.forEach { post ->
 
-                            val words =
-                                post.text
-                                    .split(
-                                        Regex("\\s+")
-                                    )
+                            post.text
+                                .split(Regex("\\s+"))
+                                .forEach { word ->
 
-                            words.forEach { word ->
+                                    if (
+                                        word.startsWith("#") &&
+                                        word.length > 1
+                                    ) {
 
-                                if (word.startsWith("#") &&
-                                    word.length > 1
-                                ) {
+                                        val cleanTag =
+                                            word
+                                                .trim()
+                                                .trimEnd(
+                                                    '.',
+                                                    ',',
+                                                    '!',
+                                                    '?',
+                                                    ':',
+                                                    ';'
+                                                )
+                                                .lowercase()
 
-                                    val cleanTag =
-                                        word
-                                            .trim()
-                                            .trimEnd(
-                                                '.',
-                                                ',',
-                                                '!',
-                                                '?',
-                                                ':',
-                                                ';'
-                                            )
-                                            .lowercase()
+                                        if (cleanTag.length > 1) {
 
-                                    if (cleanTag.length > 1) {
-                                        tagCounter[
-                                            cleanTag
-                                        ] =
-                                            (tagCounter[cleanTag] ?: 0) + 1
+                                            tagCounter[cleanTag] =
+                                                (
+                                                    tagCounter[cleanTag]
+                                                        ?: 0
+                                                ) + 1
+                                        }
                                     }
                                 }
-                            }
                         }
 
                         trendingTags =
@@ -267,20 +299,20 @@ fun PeejeeDiscoverPage(
                         isLoading = false
                         isRefreshing = false
                     }
-                    .addOnFailureListener { error ->
+                    .addOnFailureListener { exception ->
 
                         errorMessage =
-                            error.message
+                            exception.message
                                 ?: "Unable to load posts."
 
                         isLoading = false
                         isRefreshing = false
                     }
             }
-            .addOnFailureListener { error ->
+            .addOnFailureListener { exception ->
 
                 errorMessage =
-                    error.message
+                    exception.message
                         ?: "Unable to load Discover."
 
                 isLoading = false
@@ -309,9 +341,18 @@ fun PeejeeDiscoverPage(
     val popularPosts =
         posts
             .sortedByDescending {
-                it.likeCount + it.commentCount + it.shareCount
+                it.likeCount +
+                    it.commentCount +
+                    it.shareCount
             }
             .take(10)
+
+    val mediaPosts =
+        posts
+            .filter {
+                it.mediaUrl.isNotBlank()
+            }
+            .take(12)
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -335,20 +376,23 @@ fun PeejeeDiscoverPage(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 12.dp,
-                    bottom = 100.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                contentPadding =
+                    PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 100.dp
+                    ),
+                verticalArrangement =
+                    Arrangement.spacedBy(14.dp)
             ) {
 
                 item {
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment =
+                            Alignment.CenterVertically
                     ) {
 
                         Column(
@@ -356,13 +400,13 @@ fun PeejeeDiscoverPage(
                         ) {
 
                             Text(
-                                text = "Discover",
+                                "Discover",
                                 fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold
                             )
 
                             Text(
-                                text = "Find people, posts and trends on Peejee",
+                                "Find people, posts and trends on Peejee",
                                 fontSize = 14.sp
                             )
                         }
@@ -374,8 +418,9 @@ fun PeejeeDiscoverPage(
                         ) {
 
                             Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Refresh"
+                                Icons.Default.Refresh,
+                                contentDescription =
+                                    "Refresh"
                             )
                         }
                     }
@@ -386,15 +431,19 @@ fun PeejeeDiscoverPage(
                     item {
 
                         Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor =
-                                    MaterialTheme.colorScheme.errorContainer
-                            )
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor =
+                                        MaterialTheme
+                                            .colorScheme
+                                            .errorContainer
+                                )
                         ) {
 
                             Text(
-                                text = errorMessage,
-                                modifier = Modifier.padding(16.dp)
+                                errorMessage,
+                                modifier =
+                                    Modifier.padding(16.dp)
                             )
                         }
                     }
@@ -403,21 +452,16 @@ fun PeejeeDiscoverPage(
                 item {
 
                     DiscoverSectionTitle(
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Whatshot,
-                                contentDescription = null
-                            )
-                        },
-                        title = "Trending Now"
+                        title = "🔥 Trending Posts"
                     )
                 }
 
                 if (popularPosts.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
-                            text = "Trending posts will appear here."
+                            "Trending posts will appear here."
                         )
                     }
 
@@ -425,7 +469,9 @@ fun PeejeeDiscoverPage(
 
                     items(
                         items = popularPosts,
-                        key = { it.id }
+                        key = {
+                            "popular_${it.id}"
+                        }
                     ) { post ->
 
                         DiscoverPostCard(
@@ -440,21 +486,16 @@ fun PeejeeDiscoverPage(
                 item {
 
                     DiscoverSectionTitle(
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.People,
-                                contentDescription = null
-                            )
-                        },
-                        title = "People You May Know"
+                        title = "👥 People You May Know"
                     )
                 }
 
                 if (suggestedPeople.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
-                            text = "People will appear here as more users join Peejee."
+                            "People will appear here as more users join Peejee."
                         )
                     }
 
@@ -462,7 +503,9 @@ fun PeejeeDiscoverPage(
 
                     items(
                         items = suggestedPeople,
-                        key = { "suggested_${it.id}" }
+                        key = {
+                            "suggested_${it.id}"
+                        }
                     ) { user ->
 
                         DiscoverUserCard(
@@ -477,21 +520,50 @@ fun PeejeeDiscoverPage(
                 item {
 
                     DiscoverSectionTitle(
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.People,
-                                contentDescription = null
-                            )
-                        },
-                        title = "New Peejee Users"
+                        title = "⭐ Suggested People to Follow"
+                    )
+                }
+
+                if (suggestedPeople.isEmpty()) {
+
+                    item {
+
+                        EmptyDiscoverCard(
+                            "Suggested people will appear here."
+                        )
+                    }
+
+                } else {
+
+                    items(
+                        items = suggestedPeople.take(5),
+                        key = {
+                            "follow_${it.id}"
+                        }
+                    ) { user ->
+
+                        DiscoverUserCard(
+                            user = user,
+                            onClick = {
+                                onUserClick(user.id)
+                            }
+                        )
+                    }
+                }
+
+                item {
+
+                    DiscoverSectionTitle(
+                        title = "🆕 New Peejee Users"
                     )
                 }
 
                 if (newUsers.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
-                            text = "New users will appear here."
+                            "New users will appear here."
                         )
                     }
 
@@ -499,7 +571,9 @@ fun PeejeeDiscoverPage(
 
                     items(
                         items = newUsers,
-                        key = { "new_${it.id}" }
+                        key = {
+                            "new_${it.id}"
+                        }
                     ) { user ->
 
                         DiscoverUserCard(
@@ -514,21 +588,16 @@ fun PeejeeDiscoverPage(
                 item {
 
                     DiscoverSectionTitle(
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null
-                            )
-                        },
-                        title = "Trending Hashtags"
+                        title = "#️⃣ Trending Hashtags"
                     )
                 }
 
                 if (trendingTags.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
-                            text = "Hashtags from popular posts will appear here."
+                            "Hashtags from posts will appear here."
                         )
                     }
 
@@ -544,23 +613,24 @@ fun PeejeeDiscoverPage(
                             trendingTags.forEach { trend ->
 
                                 Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { },
-                                    shape = RoundedCornerShape(14.dp),
+                                    modifier =
+                                        Modifier.fillMaxWidth(),
+                                    shape =
+                                        RoundedCornerShape(14.dp),
                                     tonalElevation = 2.dp
                                 ) {
 
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(14.dp),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(14.dp),
                                         verticalAlignment =
                                             Alignment.CenterVertically
                                     ) {
 
                                         Text(
-                                            text = trend.tag,
+                                            trend.tag,
                                             fontWeight =
                                                 FontWeight.Bold,
                                             modifier =
@@ -568,12 +638,14 @@ fun PeejeeDiscoverPage(
                                         )
 
                                         Text(
-                                            text =
-                                                "${trend.count} post" +
-                                                    if (trend.count == 1)
-                                                        ""
-                                                    else
-                                                        "s"
+                                            "${trend.count} post" +
+                                                if (
+                                                    trend.count == 1
+                                                ) {
+                                                    ""
+                                                } else {
+                                                    "s"
+                                                }
                                         )
                                     }
                                 }
@@ -585,28 +657,16 @@ fun PeejeeDiscoverPage(
                 item {
 
                     DiscoverSectionTitle(
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Whatshot,
-                                contentDescription = null
-                            )
-                        },
-                        title = "Photo & Video Posts"
+                        title = "📸🎥 Photo & Video Posts"
                     )
                 }
-
-                val mediaPosts =
-                    posts
-                        .filter {
-                            it.mediaUrl.isNotBlank()
-                        }
-                        .take(12)
 
                 if (mediaPosts.isEmpty()) {
 
                     item {
+
                         EmptyDiscoverCard(
-                            text = "Photo and video posts will appear here."
+                            "Photo and video posts will appear here."
                         )
                     }
 
@@ -614,7 +674,9 @@ fun PeejeeDiscoverPage(
 
                     items(
                         items = mediaPosts,
-                        key = { "media_${it.id}" }
+                        key = {
+                            "media_${it.id}"
+                        }
                     ) { post ->
 
                         DiscoverPostCard(
@@ -630,56 +692,46 @@ fun PeejeeDiscoverPage(
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun DiscoverSectionTitle(
-    icon: @androidx.compose.runtime.Composable () -> Unit,
     title: String
 ) {
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        icon()
-
-        Spacer(
-            modifier = Modifier.size(8.dp)
-        )
-
-        Text(
-            text = title,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
+    Text(
+        text = title,
+        fontSize = 20.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(top = 6.dp)
+    )
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun DiscoverUserCard(
     user: PeejeeDiscoverUser,
     onClick: () -> Unit
 ) {
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onClick()
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onClick()
+                },
         shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
+        elevation =
+            CardDefaults.cardElevation(
+                defaultElevation = 2.dp
+            )
     ) {
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
 
             if (user.profilePhoto.isNotBlank()) {
@@ -687,30 +739,35 @@ private fun DiscoverUserCard(
                 AsyncImage(
                     model = user.profilePhoto,
                     contentDescription = user.name,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(CircleShape),
+                    contentScale =
+                        ContentScale.Crop
                 )
 
             } else {
 
                 Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .primaryContainer
+                            ),
+                    contentAlignment =
+                        Alignment.Center
                 ) {
 
                     Text(
-                        text =
-                            user.name
-                                .firstOrNull()
-                                ?.uppercase()
-                                ?: "P",
+                        user.name
+                            .firstOrNull()
+                            ?.uppercase()
+                            ?: "P",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -718,7 +775,7 @@ private fun DiscoverUserCard(
             }
 
             Spacer(
-                modifier = Modifier.size(12.dp)
+                Modifier.size(12.dp)
             )
 
             Column(
@@ -726,7 +783,7 @@ private fun DiscoverUserCard(
             ) {
 
                 Text(
-                    text = user.name,
+                    user.name,
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp
                 )
@@ -734,19 +791,18 @@ private fun DiscoverUserCard(
                 if (user.bio.isNotBlank()) {
 
                     Text(
-                        text = user.bio,
+                        user.bio,
                         maxLines = 2,
                         fontSize = 13.sp
                     )
                 }
 
                 Spacer(
-                    modifier = Modifier.height(3.dp)
+                    Modifier.height(3.dp)
                 )
 
                 Text(
-                    text =
-                        "${user.followersCount} followers",
+                    "${user.followersCount} followers",
                     fontSize = 12.sp
                 )
             }
@@ -761,18 +817,19 @@ private fun DiscoverUserCard(
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun DiscoverPostCard(
     post: PeejeePost,
     onClick: () -> Unit
 ) {
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onClick()
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onClick()
+                },
         shape = RoundedCornerShape(18.dp)
     ) {
 
@@ -781,42 +838,47 @@ private fun DiscoverPostCard(
         ) {
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = 14.dp,
-                        end = 14.dp,
-                        top = 14.dp
-                    ),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = 14.dp,
+                            end = 14.dp,
+                            top = 14.dp
+                        ),
+                verticalAlignment =
+                    Alignment.CenterVertically
             ) {
 
                 Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .primaryContainer
+                            ),
+                    contentAlignment =
+                        Alignment.Center
                 ) {
 
                     Text(
-                        text =
-                            post.userName
-                                .firstOrNull()
-                                ?.uppercase()
-                                ?: "P",
+                        post.userName
+                            .firstOrNull()
+                            ?.uppercase()
+                            ?: "P",
                         fontWeight = FontWeight.Bold
                     )
                 }
 
                 Spacer(
-                    modifier = Modifier.size(10.dp)
+                    Modifier.size(10.dp)
                 )
 
                 Text(
-                    text = post.userName,
+                    post.userName,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -824,8 +886,9 @@ private fun DiscoverPostCard(
             if (post.text.isNotBlank()) {
 
                 Text(
-                    text = post.text,
-                    modifier = Modifier.padding(14.dp),
+                    post.text,
+                    modifier =
+                        Modifier.padding(14.dp),
                     fontSize = 15.sp
                 )
             }
@@ -835,38 +898,41 @@ private fun DiscoverPostCard(
                 AsyncImage(
                     model = post.mediaUrl,
                     contentDescription = "Post media",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    contentScale = ContentScale.Crop
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                    contentScale =
+                        ContentScale.Crop
                 )
             }
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
                 horizontalArrangement =
                     Arrangement.spacedBy(18.dp)
             ) {
 
                 Text(
-                    text = "♥ ${post.likeCount}"
+                    "♥ ${post.likeCount}"
                 )
 
                 Text(
-                    text = "💬 ${post.commentCount}"
+                    "💬 ${post.commentCount}"
                 )
 
                 Text(
-                    text = "↗ ${post.shareCount}"
+                    "↗ ${post.shareCount}"
                 )
             }
         }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun EmptyDiscoverCard(
     text: String
 ) {
@@ -877,7 +943,7 @@ private fun EmptyDiscoverCard(
     ) {
 
         Text(
-            text = text,
+            text,
             modifier = Modifier.padding(18.dp),
             fontSize = 14.sp
         )
