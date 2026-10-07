@@ -868,6 +868,10 @@ fun HomeScreen(
         mutableStateOf<String?>(null)
     }
 
+    var selectedComments by remember {
+        mutableStateOf<List<PeejeeComment>>(emptyList())
+    }
+
     var showCommentDialog by remember {
         mutableStateOf(false)
     }
@@ -876,8 +880,24 @@ fun HomeScreen(
         mutableStateOf("")
     }
 
+    var newComment by remember {
+        mutableStateOf("")
+    }
+
     var loadingPosts by remember {
         mutableStateOf(true)
+    }
+
+    var loadingComments by remember {
+        mutableStateOf(false)
+    }
+
+    var sendingComment by remember {
+        mutableStateOf(false)
+    }
+
+    var commentError by remember {
+        mutableStateOf("")
     }
 
     var selectedChatUser by remember {
@@ -1064,6 +1084,101 @@ fun HomeScreen(
         }
     }
 
+    DisposableEffect(
+        showCommentDialog,
+        selectedPostId
+    ) {
+
+        if (
+            !showCommentDialog ||
+            selectedPostId.isBlank()
+        ) {
+
+            selectedComments = emptyList()
+            loadingComments = false
+            commentError = ""
+
+            onDispose { }
+
+        } else {
+
+            loadingComments = true
+            commentError = ""
+
+            val registration =
+                firestore
+                    .collection("posts")
+                    .document(selectedPostId)
+                    .collection("comments")
+                    .orderBy(
+                        "timestamp",
+                        Query.Direction.ASCENDING
+                    )
+                    .addSnapshotListener { snapshot, error ->
+
+                        if (error != null) {
+
+                            loadingComments = false
+
+                            commentError =
+                                error.message
+                                    ?: "Could not load comments."
+
+                            return@addSnapshotListener
+                        }
+
+                        if (snapshot != null) {
+
+                            selectedComments =
+                                snapshot.documents.mapNotNull { document ->
+
+                                    val text =
+                                        document.getString("text")
+                                            ?: ""
+
+                                    if (text.isBlank()) {
+                                        null
+                                    } else {
+                                        PeejeeComment(
+                                            id = document.id,
+                                            userId =
+                                                document.getString("userId")
+                                                    ?: "",
+                                            userName =
+                                                document.getString("userName")
+                                                    ?: "Peejee User",
+                                            text = text,
+                                            timestamp =
+                                                document.getLong("timestamp")
+                                                    ?: 0L
+                                        )
+                                    }
+                                }
+                        }
+
+                        loadingComments = false
+                    }
+
+            onDispose {
+                registration.remove()
+            }
+        }
+    }
+
+    if (showActivity) {
+        BackHandler {
+            showActivity = false
+        }
+    } else if (selectedProfileUser != null) {
+        BackHandler {
+            selectedProfileUser = null
+        }
+    } else if (selectedTab == 4 && selectedChatUser != null) {
+        BackHandler {
+            selectedChatUser = null
+        }
+    }
+
     Scaffold(
 
         topBar = {
@@ -1131,8 +1246,8 @@ fun HomeScreen(
                         selectedTab = 1
                         selectedChatUser = null
                     },
-                    icon = { Text("🔍") },
-                    label = { Text("Search") }
+                    icon = { Text("✨") },
+                    label = { Text("Discover") }
                 )
 
                 NavigationBarItem(
@@ -1141,14 +1256,24 @@ fun HomeScreen(
                         selectedTab = 2
                         selectedChatUser = null
                     },
-                    icon = { Text("➕") },
-                    label = { Text("Post") }
+                    icon = { Text("🔍") },
+                    label = { Text("Search") }
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = {
                         selectedTab = 3
+                        selectedChatUser = null
+                    },
+                    icon = { Text("➕") },
+                    label = { Text("Post") }
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = {
+                        selectedTab = 4
                     },
                     icon = {
                         Row(
@@ -1176,9 +1301,9 @@ fun HomeScreen(
                 )
 
                 NavigationBarItem(
-                    selected = selectedTab == 4,
+                    selected = selectedTab == 5,
                     onClick = {
-                        selectedTab = 4
+                        selectedTab = 5
                         selectedChatUser = null
                     },
                     icon = { Text("👤") },
@@ -1206,11 +1331,11 @@ fun HomeScreen(
                 onMessage = { person ->
                     selectedProfileUser = null
                     selectedChatUser = person
-                    selectedTab = 3
+                    selectedTab = 4
                 }
             )
         } else if (
-            selectedTab == 3 &&
+            selectedTab == 4 &&
             selectedChatUser != null
         ) {
 
@@ -1428,6 +1553,8 @@ fun HomeScreen(
 
                     onComment = { postId ->
                         selectedPostId = postId
+                        newComment = ""
+                        commentError = ""
                         showCommentDialog = true
                     },
 
@@ -1528,7 +1655,7 @@ fun HomeScreen(
                         if (person.uid == currentUserId) {
                             selectedProfileUser = null
                             selectedChatUser = null
-                            selectedTab = 4
+                            selectedTab = 5
                         } else {
                             selectedProfileUser = person
                         }
@@ -1536,16 +1663,41 @@ fun HomeScreen(
                     paddingValues = paddingValues
                 )
 
-                1 -> SearchPage(
+                1 -> PeejeeDiscoverPage(
+                    onUserClick = { userId ->
+                        firestore
+                            .collection("users")
+                            .document(userId)
+                            .get()
+                            .addOnSuccessListener { document ->
+                                selectedProfileUser = PeejeePerson(
+                                    uid = document.id,
+                                    name = document.getString("name") ?: "Peejee User",
+                                    email = document.getString("email") ?: ""
+                                )
+                            }
+                    },
+                    onPostClick = { postId ->
+                        val post = posts.firstOrNull { it.id == postId }
+                        if (post != null) {
+                            selectedPostId = post.id
+                            newComment = ""
+                            commentError = ""
+                            showCommentDialog = true
+                        }
+                    }
+                )
+
+                2 -> SearchPage(
                     onMessage = { person ->
                         selectedChatUser = person
-                        selectedTab = 3
+                        selectedTab = 4
                     },
                     onProfile = { person ->
                         if (person.uid == currentUserId) {
                             selectedProfileUser = null
                             selectedChatUser = null
-                            selectedTab = 4
+                            selectedTab = 5
                         } else {
                             selectedProfileUser = person
                         }
@@ -1553,22 +1705,22 @@ fun HomeScreen(
                     paddingValues = paddingValues
                 )
 
-                2 -> CreatePostPage(
+                3 -> CreatePostPage(
                     onPostCreated = {
                         selectedTab = 0
                     },
                     paddingValues = paddingValues
                 )
 
-                3 -> MessagesPageNew(
+                4 -> MessagesPageNew(
                     onMessage = { person ->
                         selectedChatUser = person
-                        selectedTab = 3
+                        selectedTab = 4
                     },
                     paddingValues = paddingValues
                 )
 
-                4 -> ProfilePage(
+                5 -> ProfilePage(
                     name = name,
                     paddingValues = paddingValues,
                     onProfileNameChanged = onProfileNameChanged,
@@ -1578,17 +1730,14 @@ fun HomeScreen(
         }
     }
 
-    if (
-        showCommentDialog &&
-        selectedPostId.isNotBlank()
-    ) {
+    if (showCommentDialog && selectedPostId.isNotBlank()) {
         PeejeeCommentsDialog(
             postId = selectedPostId,
-            onDismiss = {
-                showCommentDialog = false
-            }
+            onDismiss = { showCommentDialog = false },
+            onCountChanged = { }
         )
     }
+
 }
 
 @Composable
