@@ -45,21 +45,37 @@ fun PeejeeCommentsDialog(
         mutableStateOf<List<PeejeeCommentThreadItem>>(emptyList())
     }
 
-    var loading by remember(postId) { mutableStateOf(true) }
-    var sending by remember(postId) { mutableStateOf(false) }
-    var errorMessage by remember(postId) { mutableStateOf("") }
-    var newComment by remember(postId) { mutableStateOf("") }
+    var loading by remember(postId) {
+        mutableStateOf(true)
+    }
+
+    var sending by remember(postId) {
+        mutableStateOf(false)
+    }
+
+    var errorMessage by remember(postId) {
+        mutableStateOf("")
+    }
+
+    var newComment by remember(postId) {
+        mutableStateOf("")
+    }
+
     var replyingTo by remember(postId) {
         mutableStateOf<PeejeeCommentThreadItem?>(null)
     }
 
     DisposableEffect(postId) {
+
         if (postId.isBlank()) {
+
             loading = false
             onCountChanged(0)
 
             onDispose { }
+
         } else {
+
             val registration =
                 firestore
                     .collection("posts")
@@ -72,50 +88,78 @@ fun PeejeeCommentsDialog(
                     .addSnapshotListener { snapshot, error ->
 
                         if (error != null) {
+
                             loading = false
+
                             errorMessage =
-                                error.message ?: "Could not load comments."
+                                error.message
+                                    ?: "Could not load comments."
+
                             return@addSnapshotListener
                         }
 
                         comments =
-                            snapshot?.documents?.mapNotNull { document ->
+                            snapshot
+                                ?.documents
+                                ?.mapNotNull { document ->
 
-                                val text =
-                                    document.getString("text") ?: ""
+                                    val text =
+                                        document.getString("text")
+                                            ?: ""
 
-                                if (text.isBlank()) {
-                                    null
-                                } else {
-                                    PeejeeCommentThreadItem(
-                                        id = document.id,
-                                        userId =
-                                            document.getString("userId")
-                                                ?: "",
-                                        userName =
-                                            document.getString("userName")
-                                                ?: "Peejee User",
-                                        text = text,
-                                        timestamp =
-                                            document.getLong("timestamp")
-                                                ?: 0L,
-                                        parentCommentId =
-                                            document.getString(
-                                                "parentCommentId"
-                                            ) ?: "",
-                                        likeCount =
-                                            document.getLong("likeCount")
-                                                ?.toInt() ?: 0,
-                                        likedBy =
-                                            getCommentLikedBy(document),
-                                        replyCount =
-                                            document.getLong("replyCount")
-                                                ?.toInt() ?: 0
-                                    )
+                                    if (text.isBlank()) {
+
+                                        null
+
+                                    } else {
+
+                                        PeejeeCommentThreadItem(
+
+                                            id = document.id,
+
+                                            userId =
+                                                document.getString("userId")
+                                                    ?: "",
+
+                                            userName =
+                                                document.getString("userName")
+                                                    ?: "Peejee User",
+
+                                            text = text,
+
+                                            timestamp =
+                                                document.getLong("timestamp")
+                                                    ?: 0L,
+
+                                            parentCommentId =
+                                                document.getString(
+                                                    "parentCommentId"
+                                                ) ?: "",
+
+                                            likeCount =
+                                                document
+                                                    .getLong("likeCount")
+                                                    ?.toInt()
+                                                    ?: 0,
+
+                                            likedBy =
+                                                getCommentLikedBy(
+                                                    document
+                                                ),
+
+                                            replyCount =
+                                                document
+                                                    .getLong("replyCount")
+                                                    ?.toInt()
+                                                    ?: 0
+                                        )
+                                    }
+
                                 }
-                            } ?: emptyList()
+                                ?: emptyList()
 
                         onCountChanged(comments.size)
+
                         loading = false
                     }
 
@@ -131,6 +175,7 @@ fun PeejeeCommentsDialog(
         }
 
     AlertDialog(
+
         onDismissRequest = {
             if (!sending) {
                 onDismiss()
@@ -142,6 +187,7 @@ fun PeejeeCommentsDialog(
         },
 
         text = {
+
             Column(
                 Modifier.fillMaxWidth()
             ) {
@@ -152,8 +198,10 @@ fun PeejeeCommentsDialog(
                         Modifier
                             .fillMaxWidth()
                             .height(150.dp),
+
                         contentAlignment = Alignment.Center
                     ) {
+
                         CircularProgressIndicator()
                     }
 
@@ -177,20 +225,30 @@ fun PeejeeCommentsDialog(
                         ) { comment ->
 
                             PeejeeCommentRow(
+
                                 comment = comment,
+
                                 currentUserId = currentUserId,
 
                                 onReply = {
+
                                     replyingTo = comment
+
                                     newComment = ""
+
                                     errorMessage = ""
                                 },
 
                                 onLike = {
+
                                     togglePeejeeCommentLike(
+
                                         firestore = firestore,
+
                                         postId = postId,
+
                                         commentId = comment.id,
+
                                         currentUserId = currentUserId
                                     )
                                 }
@@ -203,21 +261,32 @@ fun PeejeeCommentsDialog(
                                 .forEach { reply ->
 
                                     PeejeeCommentRow(
+
                                         comment = reply,
+
                                         currentUserId = currentUserId,
+
                                         isReply = true,
 
                                         onReply = {
+
                                             replyingTo = comment
+
                                             newComment = ""
+
                                             errorMessage = ""
                                         },
 
                                         onLike = {
+
                                             togglePeejeeCommentLike(
+
                                                 firestore = firestore,
+
                                                 postId = postId,
+
                                                 commentId = reply.id,
+
                                                 currentUserId = currentUserId
                                             )
                                         }
@@ -235,7 +304,12 @@ fun PeejeeCommentsDialog(
 
                     Text(
                         errorMessage,
-                        color = MaterialTheme.colorScheme.error,
+
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .error,
+
                         fontSize = 13.sp
                     )
                 }
@@ -244,37 +318,54 @@ fun PeejeeCommentsDialog(
 
                     Row(
                         Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+
+                        verticalAlignment =
+                            Alignment.CenterVertically
                     ) {
 
                         Text(
+
                             "Replying to ${replyingTo!!.userName}",
+
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
+
+                            fontWeight =
+                                FontWeight.Bold,
+
+                            modifier =
+                                Modifier.weight(1f)
                         )
 
                         TextButton(
+
                             onClick = {
+
                                 replyingTo = null
+
                                 newComment = ""
                             },
+
                             enabled = !sending
                         ) {
+
                             Text("Cancel")
                         }
                     }
                 }
 
                 OutlinedTextField(
+
                     value = newComment,
 
                     onValueChange = {
+
                         newComment = it
+
                         errorMessage = ""
                     },
 
                     label = {
+
                         Text(
                             if (replyingTo == null)
                                 "Write a comment"
@@ -285,7 +376,8 @@ fun PeejeeCommentsDialog(
 
                     enabled = !sending,
 
-                    modifier = Modifier.fillMaxWidth()
+                    modifier =
+                        Modifier.fillMaxWidth()
                 )
             }
         },
@@ -293,6 +385,7 @@ fun PeejeeCommentsDialog(
         confirmButton = {
 
             TextButton(
+
                 enabled =
                     !sending &&
                     newComment.isNotBlank(),
@@ -300,12 +393,18 @@ fun PeejeeCommentsDialog(
                 onClick = {
 
                     sendPeejeeCommentOrReply(
+
                         firestore = firestore,
+
                         auth = auth,
+
                         postId = postId,
+
                         text = newComment.trim(),
+
                         parentCommentId =
-                            replyingTo?.id ?: "",
+                            replyingTo?.id
+                                ?: "",
 
                         onSendingChanged = {
                             sending = it
@@ -316,7 +415,9 @@ fun PeejeeCommentsDialog(
                         },
 
                         onSuccess = {
+
                             newComment = ""
+
                             replyingTo = null
                         }
                     )
@@ -324,6 +425,7 @@ fun PeejeeCommentsDialog(
             ) {
 
                 Text(
+
                     if (sending) {
                         "Posting..."
                     } else if (replyingTo != null) {
@@ -338,9 +440,12 @@ fun PeejeeCommentsDialog(
         dismissButton = {
 
             TextButton(
+
                 enabled = !sending,
+
                 onClick = onDismiss
             ) {
+
                 Text("Close")
             }
         }
@@ -355,38 +460,60 @@ private fun PeejeeCommentRow(
     onReply: () -> Unit,
     onLike: () -> Unit
 ) {
+
     val liked =
         comment.likedBy[currentUserId] == true
 
     Row(
+
         Modifier
             .fillMaxWidth()
             .padding(
-                start = if (isReply) 28.dp else 0.dp,
+
+                start =
+                    if (isReply)
+                        28.dp
+                    else
+                        0.dp,
+
                 top = 7.dp,
+
                 bottom = 7.dp
             ),
 
-        verticalAlignment = Alignment.Top
+        verticalAlignment =
+            Alignment.Top
     ) {
 
         Box(
+
             Modifier
                 .size(
-                    if (isReply) 32.dp else 38.dp
+                    if (isReply)
+                        32.dp
+                    else
+                        38.dp
                 )
                 .clip(CircleShape)
                 .background(
-                    MaterialTheme.colorScheme.surfaceVariant
+                    MaterialTheme
+                        .colorScheme
+                        .surfaceVariant
                 ),
 
-            contentAlignment = Alignment.Center
+            contentAlignment =
+                Alignment.Center
         ) {
 
             Text(
+
                 "👤",
+
                 fontSize =
-                    if (isReply) 16.sp else 19.sp
+                    if (isReply)
+                        16.sp
+                    else
+                        19.sp
             )
         }
 
@@ -399,17 +526,24 @@ private fun PeejeeCommentRow(
         ) {
 
             Text(
+
                 comment.userName,
-                fontWeight = FontWeight.Bold,
+
+                fontWeight =
+                    FontWeight.Bold,
+
                 fontSize = 14.sp
             )
 
             Text(
+
                 comment.text,
+
                 fontSize = 15.sp
             )
 
             TextButton(
+
                 onClick = onReply,
 
                 contentPadding =
@@ -427,26 +561,38 @@ private fun PeejeeCommentRow(
         }
 
         Column(
+
             horizontalAlignment =
                 Alignment.CenterHorizontally,
 
             modifier =
                 Modifier
-                    .clickable(onClick = onLike)
+                    .clickable(
+                        onClick = onLike
+                    )
                     .padding(start = 5.dp)
         ) {
 
             Text(
-                if (liked) "❤️" else "♡",
+
+                if (liked)
+                    "❤️"
+                else
+                    "♡",
+
                 fontSize = 22.sp
             )
 
             if (comment.likeCount > 0) {
 
                 Text(
+
                     comment.likeCount.toString(),
+
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
+
+                    fontWeight =
+                        FontWeight.Bold
                 )
             }
         }
@@ -457,7 +603,8 @@ private fun getCommentLikedBy(
     document: DocumentSnapshot
 ): Map<String, Boolean> {
 
-    val raw = document.get("likedBy")
+    val raw =
+        document.get("likedBy")
 
     return if (raw is Map<*, *>) {
 
@@ -474,14 +621,18 @@ private fun getCommentLikedBy(
                     key != null &&
                     value != null
                 ) {
+
                     key to value
+
                 } else {
+
                     null
                 }
             }
             .toMap()
 
     } else {
+
         emptyMap()
     }
 }
@@ -531,9 +682,13 @@ private fun togglePeejeeCommentLike(
             likedBy.remove(currentUserId)
 
             transaction.update(
+
                 commentRef,
+
                 "likeCount",
-                (likes - 1).coerceAtLeast(0)
+
+                (likes - 1)
+                    .coerceAtLeast(0)
             )
 
         } else {
@@ -541,8 +696,11 @@ private fun togglePeejeeCommentLike(
             likedBy[currentUserId] = true
 
             transaction.update(
+
                 commentRef,
+
                 "likeCount",
+
                 likes + 1
             )
         }
@@ -554,6 +712,7 @@ private fun togglePeejeeCommentLike(
         )
 
         null
+
     }
 }
 
@@ -563,7 +722,6 @@ private fun sendPeejeeCommentOrReply(
     postId: String,
     text: String,
     parentCommentId: String,
-
     onSendingChanged: (Boolean) -> Unit,
     onError: (String) -> Unit,
     onSuccess: () -> Unit
@@ -581,7 +739,20 @@ private fun sendPeejeeCommentOrReply(
         return
     }
 
+    if (
+        postId.isBlank() ||
+        text.isBlank()
+    ) {
+
+        onError(
+            "Please enter a comment."
+        )
+
+        return
+    }
+
     onSendingChanged(true)
+
     onError("")
 
     firestore
@@ -592,7 +763,8 @@ private fun sendPeejeeCommentOrReply(
         .addOnSuccessListener { userDocument ->
 
             val userName =
-                userDocument.getString("name")
+                userDocument
+                    .getString("name")
                     ?: "Peejee User"
 
             val postRef =
@@ -606,90 +778,275 @@ private fun sendPeejeeCommentOrReply(
                     .document()
 
             val parentRef =
-                if (parentCommentId.isNotBlank()) {
+                if (
+                    parentCommentId.isNotBlank()
+                ) {
 
                     postRef
                         .collection("comments")
-                        .document(parentCommentId)
+                        .document(
+                            parentCommentId
+                        )
 
                 } else {
+
                     null
                 }
 
             val data =
                 hashMapOf<String, Any>(
-                    "commentId" to commentRef.id,
-                    "postId" to postId,
-                    "userId" to currentUser.uid,
-                    "userName" to userName,
-                    "text" to text,
-                    "timestamp" to System.currentTimeMillis(),
-                    "parentCommentId" to parentCommentId,
-                    "likeCount" to 0,
-                    "likedBy" to emptyMap<String, Boolean>(),
-                    "replyCount" to 0
+
+                    "commentId" to
+                        commentRef.id,
+
+                    "postId" to
+                        postId,
+
+                    "userId" to
+                        currentUser.uid,
+
+                    "userName" to
+                        userName,
+
+                    "text" to
+                        text,
+
+                    "timestamp" to
+                        System.currentTimeMillis(),
+
+                    "parentCommentId" to
+                        parentCommentId,
+
+                    "likeCount" to
+                        0,
+
+                    "likedBy" to
+                        emptyMap<String, Boolean>(),
+
+                    "replyCount" to
+                        0
                 )
 
-            firestore.runTransaction { transaction ->
+            var postOwnerId = ""
 
-                val postSnapshot =
-                    transaction.get(postRef)
+            var parentUserId = ""
 
-                val count =
-                    postSnapshot
-                        .getLong("commentCount")
-                        ?.toInt()
-                        ?: 0
+            firestore
+                .runTransaction { transaction ->
 
-                transaction.set(
-                    commentRef,
-                    data
-                )
+                    val postSnapshot =
+                        transaction.get(postRef)
 
-                transaction.update(
-                    postRef,
-                    "commentCount",
-                    count + 1
-                )
+                    postOwnerId =
+                        postSnapshot
+                            .getString("userId")
+                            ?: ""
 
-                if (parentRef != null) {
+                    transaction.set(
+                        commentRef,
+                        data
+                    )
 
-                    val parent =
-                        transaction.get(parentRef)
+                    val count =
+                        postSnapshot
+                            .getLong("commentCount")
+                            ?.toInt()
+                            ?: 0
 
-                    if (parent.exists()) {
+                    transaction.update(
 
-                        val replyCount =
-                            parent
-                                .getLong("replyCount")
-                                ?.toInt()
-                                ?: 0
+                        postRef,
 
-                        transaction.update(
-                            parentRef,
-                            "replyCount",
-                            replyCount + 1
-                        )
+                        "commentCount",
+
+                        count + 1
+                    )
+
+                    if (parentRef != null) {
+
+                        val parent =
+                            transaction.get(
+                                parentRef
+                            )
+
+                        if (parent.exists()) {
+
+                            parentUserId =
+                                parent
+                                    .getString("userId")
+                                    ?: ""
+
+                            val replyCount =
+                                parent
+                                    .getLong(
+                                        "replyCount"
+                                    )
+                                    ?.toInt()
+                                    ?: 0
+
+                            transaction.update(
+
+                                parentRef,
+
+                                "replyCount",
+
+                                replyCount + 1
+                            )
+                        }
                     }
+
+                    null
                 }
 
-                null
+                .addOnSuccessListener {
 
-            }.addOnSuccessListener {
+                    onSendingChanged(false)
 
-                onSendingChanged(false)
-                onSuccess()
+                    /*
+                     * --------------------------------------------------
+                     * COMMENT / REPLY NOTIFICATIONS
+                     * --------------------------------------------------
+                     */
 
-            }.addOnFailureListener { exception ->
+                    if (
+                        parentCommentId.isBlank()
+                    ) {
 
-                onSendingChanged(false)
+                        /*
+                         * Normal comment:
+                         * Notify the owner of the post.
+                         */
 
-                onError(
-                    exception.message
-                        ?: "Could not post comment."
-                )
-            }
+                        if (
+                            postOwnerId.isNotBlank() &&
+                            postOwnerId != currentUser.uid
+                        ) {
 
+                            createPeejeeNotification(
+
+                                firestore = firestore,
+
+                                receiverId =
+                                    postOwnerId,
+
+                                type = "comment",
+
+                                senderId =
+                                    currentUser.uid,
+
+                                senderName =
+                                    userName,
+
+                                text =
+                                    "commented on your post",
+
+                                postId =
+                                    postId
+                            )
+                        }
+
+                    } else {
+
+                        /*
+                         * Reply:
+                         * Notify the person whose comment
+                         * was replied to.
+                         */
+
+                        if (
+                            parentUserId.isNotBlank() &&
+                            parentUserId != currentUser.uid
+                        ) {
+
+                            createPeejeeNotification(
+
+                                firestore = firestore,
+
+                                receiverId =
+                                    parentUserId,
+
+                                type = "reply",
+
+                                senderId =
+                                    currentUser.uid,
+
+                                senderName =
+                                    userName,
+
+                                text =
+                                    "replied to your comment",
+
+                                postId =
+                                    postId
+                            )
+                        }
+                    }
+
+                    /*
+                     * --------------------------------------------------
+                     * @MENTION NOTIFICATIONS
+                     * --------------------------------------------------
+                     *
+                     * Example:
+                     *
+                     * @John Nice post!
+                     *
+                     * Peejee will look for mentioned users
+                     * and create mention notifications.
+                     */
+
+                    findMentionedUsers(
+
+                        firestore = firestore,
+
+                        text = text,
+
+                        currentUserId =
+                            currentUser.uid
+                    ) { mentionedUserId ->
+
+                        if (
+                            mentionedUserId.isNotBlank() &&
+                            mentionedUserId != currentUser.uid
+                        ) {
+
+                            createPeejeeNotification(
+
+                                firestore = firestore,
+
+                                receiverId =
+                                    mentionedUserId,
+
+                                type = "mention",
+
+                                senderId =
+                                    currentUser.uid,
+
+                                senderName =
+                                    userName,
+
+                                text =
+                                    "mentioned you in a comment",
+
+                                postId =
+                                    postId
+                            )
+                        }
+                    }
+
+                    onSuccess()
+                }
+
+                .addOnFailureListener { exception ->
+
+                    onSendingChanged(false)
+
+                    onError(
+
+                        exception.message
+                            ?: "Could not post comment."
+                    )
+                }
         }
 
         .addOnFailureListener { exception ->
@@ -697,6 +1054,7 @@ private fun sendPeejeeCommentOrReply(
             onSendingChanged(false)
 
             onError(
+
                 exception.message
                     ?: "Could not load your profile."
             )
