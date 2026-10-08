@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -29,6 +30,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -923,6 +929,47 @@ fun HomeScreen(
     val currentUserId =
         auth.currentUser?.uid ?: ""
 
+    var refreshingPosts by remember { mutableStateOf(false) }
+
+    fun mapHomePosts(snapshot: com.google.firebase.firestore.QuerySnapshot): List<PeejeePost> {
+        return snapshot.documents.mapNotNull { document ->
+            PeejeePost(
+                id = document.id,
+                userId = document.getString("userId") ?: "",
+                userName = document.getString("userName") ?: "Peejee User",
+                text = document.getString("text") ?: "",
+                timestamp = document.getLong("timestamp") ?: 0L,
+                mediaUrl = document.getString("mediaUrl") ?: "",
+                mediaType = document.getString("mediaType") ?: "",
+                likeCount = document.getLong("likes")?.toInt() ?: 0,
+                likedBy = getLikedBy(document),
+                commentCount = document.getLong("commentCount")?.toInt() ?: 0,
+                shareCount = document.getLong("shareCount")?.toInt() ?: 0,
+                sharedFromPostId = document.getString("sharedFromPostId") ?: "",
+                sharedFromUserName = document.getString("sharedFromUserName") ?: "",
+                sharedFromText = document.getString("sharedFromText") ?: ""
+            )
+        }
+    }
+
+    fun refreshHomePosts() {
+        if (refreshingPosts) return
+
+        refreshingPosts = true
+
+        firestore
+            .collection("posts")
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .get(com.google.firebase.firestore.Source.SERVER)
+            .addOnSuccessListener { snapshot ->
+                posts = mapHomePosts(snapshot)
+                refreshingPosts = false
+            }
+            .addOnFailureListener {
+                refreshingPosts = false
+            }
+    }
+
     DisposableEffect(currentUserId) {
 
         if (currentUserId.isBlank()) {
@@ -988,57 +1035,7 @@ fun HomeScreen(
 
                     if (snapshot != null) {
 
-                        posts =
-                            snapshot.documents.mapNotNull { document ->
-
-                                PeejeePost(
-                                    id = document.id,
-                                    userId =
-                                        document.getString("userId")
-                                            ?: "",
-                                    userName =
-                                        document.getString("userName")
-                                            ?: "Peejee User",
-                                    text =
-                                        document.getString("text")
-                                            ?: "",
-                                    timestamp =
-                                        document.getLong("timestamp")
-                                            ?: 0L,
-                                    mediaUrl =
-                                        document.getString("mediaUrl")
-                                            ?: "",
-                                    mediaType =
-                                        document.getString("mediaType")
-                                            ?: "",
-                                    likeCount =
-                                        document.getLong("likes")
-                                            ?.toInt()
-                                            ?: 0,
-                                    likedBy =
-                                        getLikedBy(document),
-                                    commentCount =
-                                        document.getLong("commentCount")
-                                            ?.toInt()
-                                            ?: 0,
-                                    shareCount =
-                                        document.getLong("shareCount")
-                                            ?.toInt()
-                                            ?: 0,
-                                    sharedFromPostId =
-                                        document.getString(
-                                            "sharedFromPostId"
-                                        ) ?: "",
-                                    sharedFromUserName =
-                                        document.getString(
-                                            "sharedFromUserName"
-                                        ) ?: "",
-                                    sharedFromText =
-                                        document.getString(
-                                            "sharedFromText"
-                                        ) ?: ""
-                                )
-                            }
+                        posts = mapHomePosts(snapshot)
                     }
 
                     loadingPosts = false
@@ -1348,6 +1345,8 @@ fun HomeScreen(
                     followedUserIds = followedUserIds,
                     loadingPosts = loadingPosts,
                     processingFollowUserId = processingFollowUserId,
+                    isRefreshing = refreshingPosts,
+                    onRefresh = { refreshHomePosts() },
 
                     onLike = { postId ->
 
@@ -1972,6 +1971,8 @@ fun HomeFeed(
     followedUserIds: Set<String>,
     loadingPosts: Boolean,
     processingFollowUserId: String?,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onLike: (String) -> Unit,
     onFollow: (String) -> Unit,
     onComment: (String) -> Unit,
@@ -1988,11 +1989,75 @@ fun HomeFeed(
         "Blessing"
     )
 
-    LazyColumn(
+    val listState = rememberLazyListState()
+    var pullDistance by remember { mutableFloatStateOf(0f) }
+    val pullThreshold = 120f
+
+    val refreshConnection = remember(isRefreshing) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (
+                    available.y > 0f &&
+                    !isRefreshing &&
+                    listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+                ) {
+                    pullDistance += available.y
+
+                    if (pullDistance >= pullThreshold) {
+                        pullDistance = 0f
+                        onRefresh()
+                    }
+                } else if (available.y < 0f) {
+                    pullDistance = 0f
+                }
+
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                pullDistance = 0f
+                return Velocity.Zero
+            }
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
+            .nestedScroll(refreshConnection)
     ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize()
+        ) {
+
+        if (isRefreshing || pullDistance > 0f) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 3.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Refreshing Home...")
+                    } else {
+                        Text("↓ Pull to refresh")
+                    }
+                }
+            }
+        }
 
         item {
 
@@ -2173,6 +2238,7 @@ fun HomeFeed(
 
         item {
             Spacer(Modifier.height(30.dp))
+        }
         }
     }
 }
