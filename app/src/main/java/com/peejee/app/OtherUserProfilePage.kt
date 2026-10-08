@@ -75,8 +75,8 @@ val auth = remember { FirebaseAuth.getInstance() }
 val currentUserId = auth.currentUser?.uid ?: ""
 
 var relationshipExists by remember(person.uid, currentUserId) { mutableStateOf(false) }  
-var showUnfollowAction by remember(person.uid, currentUserId) { mutableStateOf(false) }  
 var followProcessing by remember(person.uid, currentUserId) { mutableStateOf(false) }  
+var followError by remember(person.uid, currentUserId) { mutableStateOf("") }  
 
 var profileName by remember(person.uid) { mutableStateOf(person.name) }  
 var bio by remember(person.uid) { mutableStateOf("") }  
@@ -124,29 +124,31 @@ DisposableEffect(person.uid, currentUserId) {
         }  
 
     val followingRegistration = if (  
-        currentUserId.isNotBlank() &&  
-        currentUserId != person.uid  
-    ) {  
-        firestore  
-            .collection("users")  
-            .document(currentUserId)  
-            .collection("following")  
-            .document(person.uid)  
-            .addSnapshotListener { document, error ->  
-                if (error == null) {  
-                    relationshipExists = document?.exists() == true  
-                    if (!relationshipExists) {  
-                        showUnfollowAction = false  
-                    }  
-                }  
+    currentUserId.isNotBlank() &&  
+    currentUserId != person.uid  
+) {  
+    firestore  
+        .collection("users")  
+        .document(currentUserId)  
+        .collection("following")  
+        .document(person.uid)  
+        .addSnapshotListener { document, error ->  
+            if (error != null) {  
+                followError = error.message ?: "Could not check follow status."  
+                return@addSnapshotListener  
             }  
-    } else {  
-        relationshipExists = false  
-        showUnfollowAction = false  
-        null  
-    }  
 
-    val postsRegistration = firestore  
+            relationshipExists = document?.exists() == true  
+            if (!relationshipExists) {  
+                showUnfollowAction = false  
+            }  
+        }  
+} else {  
+    relationshipExists = false  
+    null  
+}  
+
+val postsRegistration = firestore  
         .collection("posts")  
         .whereEqualTo("userId", person.uid)  
         .addSnapshotListener { snapshot, error ->  
@@ -349,11 +351,7 @@ Column(
                             onClick = {  
                                 if (followProcessing) return@OutlinedButton  
 
-                                if (relationshipExists && !showUnfollowAction) {  
-                                    showUnfollowAction = true  
-                                    return@OutlinedButton  
-                                }  
-
+                                followError = ""  
                                 followProcessing = true  
 
                                 val currentUserRef =  
@@ -361,7 +359,7 @@ Column(
                                 val targetUserRef =  
                                     firestore.collection("users").document(person.uid)  
 
-                                var wasFollowing = relationshipExists  
+                                var wasFollowing = false  
                                 var actorName = "Peejee User"  
 
                                 firestore.runTransaction { transaction ->  
@@ -444,7 +442,6 @@ Column(
                                     null  
                                 }.addOnSuccessListener {  
                                     relationshipExists = !wasFollowing  
-                                    showUnfollowAction = false  
                                     followProcessing = false  
 
                                     if (!wasFollowing) {  
@@ -457,8 +454,10 @@ Column(
                                             text = "started following you"  
                                         )  
                                     }  
-                                }.addOnFailureListener {  
+                                }.addOnFailureListener { exception ->  
                                     followProcessing = false  
+                                    followError =  
+                                        exception.message ?: "Could not update follow status."  
                                 }  
                             },  
                             enabled = !followProcessing,  
@@ -467,15 +466,22 @@ Column(
                             Text(  
                                 when {  
                                     followProcessing -> "Processing..."  
-                                    !relationshipExists -> "Follow"  
-                                    showUnfollowAction -> "Unfollow"  
-                                    else -> "Following"  
+                                    relationshipExists -> "Unfollow"  
+                                    else -> "Follow"  
                                 }  
                             )  
                         }  
 
+                        if (followError.isNotBlank()) {  
+                            Spacer(Modifier.height(6.dp))  
+                            Text(  
+                                followError,  
+                                color = MaterialTheme.colorScheme.error,  
+                                fontSize = 12.sp  
+                            )  
+                        }  
+
                         Spacer(Modifier.height(10.dp))  
-                    }  
 
                     Button(  
                         onClick = {  
