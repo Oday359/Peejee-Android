@@ -18,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -865,40 +866,12 @@ fun HomeScreen(
         mutableStateOf<String?>(null)
     }
 
-    var selectedComments by remember {
-        mutableStateOf<List<PeejeeComment>>(emptyList())
-    }
-
-    var showCommentDialog by remember {
-        mutableStateOf(false)
-    }
-
-    var selectedPostId by remember {
-        mutableStateOf("")
-    }
-
-    var newComment by remember {
-        mutableStateOf("")
-    }
-
     var loadingPosts by remember {
         mutableStateOf(true)
     }
 
     var refreshingPosts by remember {
         mutableStateOf(false)
-    }
-
-    var loadingComments by remember {
-        mutableStateOf(false)
-    }
-
-    var sendingComment by remember {
-        mutableStateOf(false)
-    }
-
-    var commentError by remember {
-        mutableStateOf("")
     }
 
     var selectedChatUser by remember {
@@ -922,6 +895,169 @@ fun HomeScreen(
 
     val currentUserId =
         auth.currentUser?.uid ?: ""
+
+    val context = LocalContext.current
+
+    var selectedCommentPostId by remember { mutableStateOf("") }
+    var showShareDialog by remember { mutableStateOf(false) }
+    var sharePost by remember { mutableStateOf<PeejeePost?>(null) }
+    var shareUsers by remember { mutableStateOf<List<PeejeePerson>>(emptyList()) }
+    var loadingShareUsers by remember { mutableStateOf(false) }
+
+    fun openShareDialog(post: PeejeePost) {
+        sharePost = post
+        showShareDialog = true
+        loadingShareUsers = true
+        shareUsers = emptyList()
+
+        if (currentUserId.isBlank()) {
+            loadingShareUsers = false
+            return
+        }
+
+        firestore.collection("users")
+            .limit(100)
+            .get(com.google.firebase.firestore.Source.SERVER)
+            .addOnSuccessListener { snapshot ->
+                shareUsers = snapshot.documents.mapNotNull { document ->
+                    val uid = document.id
+                    if (uid.isBlank() || uid == currentUserId) return@mapNotNull null
+                    PeejeePerson(
+                        uid = uid,
+                        name = document.getString("name")
+                            ?.trim()
+                            ?.takeIf { it.isNotBlank() }
+                            ?: "Peejee User"
+                    )
+                }.sortedBy { it.name.lowercase(Locale.getDefault()) }
+                loadingShareUsers = false
+            }
+            .addOnFailureListener {
+                loadingShareUsers = false
+            }
+    }
+
+    fun incrementShareCount(postId: String) {
+        if (postId.isBlank()) return
+        val postRef = firestore.collection("posts").document(postId)
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(postRef)
+            val currentShares = snapshot.getLong("shareCount")?.toInt() ?: 0
+            transaction.update(postRef, "shareCount", currentShares + 1)
+            null
+        }
+    }
+
+    fun shareToSocialMedia(post: PeejeePost) {
+        val shareText = buildString {
+            append("Peejee post by ${post.userName}")
+            if (post.text.isNotBlank()) {
+                append(":\n")
+                append(post.text)
+            }
+            append("\n\nShared from Peejee")
+        }
+
+        try {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, shareText)
+            }
+            context.startActivity(Intent.createChooser(intent, "Share with"))
+            incrementShareCount(post.id)
+        } catch (_: Exception) {
+        }
+    }
+
+    fun repostToPeejee(post: PeejeePost) {
+        if (currentUserId.isBlank() || post.id.isBlank()) return
+
+        val postRef = firestore.collection("posts").document(post.id)
+        val newPostRef = firestore.collection("posts").document()
+
+        firestore.collection("users")
+            .document(currentUserId)
+            .get()
+            .addOnSuccessListener { userDocument ->
+                val currentName = userDocument.getString("name")
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                    ?: name
+
+                firestore.runTransaction { transaction ->
+                    val originalSnapshot = transaction.get(postRef)
+                    val currentShares =
+                        originalSnapshot.getLong("shareCount")?.toInt() ?: 0
+
+                    val repostData = hashMapOf<String, Any>(
+                        "postId" to newPostRef.id,
+                        "userId" to currentUserId,
+                        "userName" to currentName,
+                        "text" to post.text,
+                        "likes" to 0,
+                        "likedBy" to emptyMap<String, Boolean>(),
+                        "commentCount" to 0,
+                        "shareCount" to 0,
+                        "timestamp" to System.currentTimeMillis(),
+                        "sharedFromPostId" to post.id,
+                        "sharedFromUserName" to post.userName,
+                        "sharedFromText" to post.text
+                    )
+
+                    if (post.mediaUrl.isNotBlank()) {
+                        repostData["mediaUrl"] = post.mediaUrl
+                        repostData["mediaType"] = post.mediaType
+                    }
+
+                    transaction.set(newPostRef, repostData)
+                    transaction.update(postRef, "shareCount", currentShares + 1)
+                    null
+                }.addOnSuccessListener {
+                    showShareDialog = false
+                    sharePost = null
+                }
+            }
+    }
+
+    fun shareToPeejeeUser(post: PeejeePost, person: PeejeePerson) {
+        if (person.uid.isBlank() || currentUserId.isBlank() || person.uid == currentUserId) return
+
+        val messageRef = firestore.collection("messages").document()
+        val text = buildString {
+            append("I shared a Peejee post by ${post.userName} with you")
+            if (post.text.isNotBlank()) {
+                append(":\n")
+                append(post.text)
+            }
+        }
+
+        val data = hashMapOf<String, Any>(
+            "messageId" to messageRef.id,
+            "senderId" to currentUserId,
+            "receiverId" to person.uid,
+            "text" to text,
+            "timestamp" to System.currentTimeMillis(),
+            "read" to false,
+            "sharedPostId" to post.id
+        )
+
+        messageRef.set(data)
+            .addOnSuccessListener {
+                incrementShareCount(post.id)
+                createPeejeeNotification(
+                    firestore = firestore,
+                    recipientUserId = person.uid,
+                    type = "share",
+                    actorId = currentUserId,
+                    actorName = name,
+                    text = "shared a post with you",
+                    postId = post.id,
+                    messageId = messageRef.id
+                )
+                showShareDialog = false
+                sharePost = null
+            }
+    }
 
     fun refreshHomePosts() {
         if (refreshingPosts) return
@@ -1101,86 +1237,6 @@ fun HomeScreen(
         }
     }
 
-    DisposableEffect(
-        showCommentDialog,
-        selectedPostId
-    ) {
-
-        if (
-            !showCommentDialog ||
-            selectedPostId.isBlank()
-        ) {
-
-            selectedComments = emptyList()
-            loadingComments = false
-            commentError = ""
-
-            onDispose { }
-
-        } else {
-
-            loadingComments = true
-            commentError = ""
-
-            val registration =
-                firestore
-                    .collection("posts")
-                    .document(selectedPostId)
-                    .collection("comments")
-                    .orderBy(
-                        "timestamp",
-                        Query.Direction.ASCENDING
-                    )
-                    .addSnapshotListener { snapshot, error ->
-
-                        if (error != null) {
-
-                            loadingComments = false
-
-                            commentError =
-                                error.message
-                                    ?: "Could not load comments."
-
-                            return@addSnapshotListener
-                        }
-
-                        if (snapshot != null) {
-
-                            selectedComments =
-                                snapshot.documents.mapNotNull { document ->
-
-                                    val text =
-                                        document.getString("text")
-                                            ?: ""
-
-                                    if (text.isBlank()) {
-                                        null
-                                    } else {
-                                        PeejeeComment(
-                                            id = document.id,
-                                            userId =
-                                                document.getString("userId")
-                                                    ?: "",
-                                            userName =
-                                                document.getString("userName")
-                                                    ?: "Peejee User",
-                                            text = text,
-                                            timestamp =
-                                                document.getLong("timestamp")
-                                                    ?: 0L
-                                        )
-                                    }
-                                }
-                        }
-
-                        loadingComments = false
-                    }
-
-            onDispose {
-                registration.remove()
-            }
-        }
-    }
 
     Scaffold(
 
@@ -1249,8 +1305,8 @@ fun HomeScreen(
                         selectedTab = 1
                         selectedChatUser = null
                     },
-                    icon = { Text("🔍") },
-                    label = { Text("Search") }
+                    icon = { Text("🧭") },
+                    label = { Text("Discover") }
                 )
 
                 NavigationBarItem(
@@ -1439,199 +1495,127 @@ fun HomeScreen(
                         return@HomeFeed
                     }
 
-                    val wasFollowing = followedUserIds.contains(targetUserId)
-
                     processingFollowUserId = targetUserId
-                    followedUserIds = if (wasFollowing) {
-                        followedUserIds - targetUserId
-                    } else {
-                        followedUserIds + targetUserId
-                    }
 
-                    val currentUserRef = firestore.collection("users").document(currentUser.uid)
-                    val targetUserRef = firestore.collection("users").document(targetUserId)
-                    val followingRef = currentUserRef.collection("following").document(targetUserId)
-                    val followerRef = targetUserRef.collection("followers").document(currentUser.uid)
+                    val currentUserRef =
+                        firestore.collection("users").document(currentUser.uid)
+                    val targetUserRef =
+                        firestore.collection("users").document(targetUserId)
+                    val followingRef =
+                        currentUserRef.collection("following").document(targetUserId)
+                    val followerRef =
+                        targetUserRef.collection("followers").document(currentUser.uid)
 
-                    var actorName = name
+                    followingRef.get(com.google.firebase.firestore.Source.SERVER)
+                        .addOnSuccessListener { followingSnapshot ->
 
-                    firestore.runTransaction { transaction ->
-                        val followingSnapshot = transaction.get(followingRef)
-                        val currentUserSnapshot = transaction.get(currentUserRef)
-                        val targetUserSnapshot = transaction.get(targetUserRef)
+                            if (followingSnapshot.exists()) {
+                                val batch = firestore.batch()
+                                batch.delete(followingRef)
+                                batch.delete(followerRef)
 
-                        val currentFollowingCount = currentUserSnapshot.getLong("followingCount")?.toInt() ?: 0
-                        val targetFollowersCount = targetUserSnapshot.getLong("followersCount")?.toInt() ?: 0
+                                batch.commit()
+                                    .addOnSuccessListener {
+                                        followedUserIds = followedUserIds - targetUserId
+                                        processingFollowUserId = null
 
-                        if (followingSnapshot.exists()) {
-                            actorName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name
+                                        targetUserRef.set(
+                                            mapOf(
+                                                "followersCount" to FieldValue.increment(-1)
+                                            ),
+                                            SetOptions.merge()
+                                        )
+                                        currentUserRef.set(
+                                            mapOf(
+                                                "followingCount" to FieldValue.increment(-1)
+                                            ),
+                                            SetOptions.merge()
+                                        )
+                                    }
+                                    .addOnFailureListener {
+                                        processingFollowUserId = null
+                                    }
+                            } else {
+                                targetUserRef.get(com.google.firebase.firestore.Source.SERVER)
+                                    .addOnSuccessListener { targetSnapshot ->
 
-                            transaction.delete(followingRef)
-                            transaction.delete(followerRef)
-                            transaction.set(
-                                currentUserRef,
-                                mapOf("followingCount" to (currentFollowingCount - 1).coerceAtLeast(0)),
-                                SetOptions.merge()
-                            )
-                            transaction.set(
-                                targetUserRef,
-                                mapOf("followersCount" to (targetFollowersCount - 1).coerceAtLeast(0)),
-                                SetOptions.merge()
-                            )
-                        } else {
-                            val currentUserName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name
-                            actorName = currentUserName
-                            val targetUserName = targetUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: "Peejee User"
-                            val now = System.currentTimeMillis()
+                                        val currentUserName =
+                                            name.trim().takeIf { it.isNotBlank() }
+                                                ?: "Peejee User"
+                                        val targetUserName =
+                                            targetSnapshot.getString("name")
+                                                ?.trim()
+                                                ?.takeIf { it.isNotBlank() }
+                                                ?: "Peejee User"
+                                        val now = System.currentTimeMillis()
 
-                            transaction.set(
-                                followingRef,
-                                hashMapOf<String, Any>(
-                                    "uid" to targetUserId,
-                                    "name" to targetUserName,
-                                    "timestamp" to now
-                                )
-                            )
-                            transaction.set(
-                                followerRef,
-                                hashMapOf<String, Any>(
-                                    "uid" to currentUser.uid,
-                                    "name" to currentUserName,
-                                    "timestamp" to now
-                                )
-                            )
-                            transaction.set(
-                                currentUserRef,
-                                mapOf("followingCount" to currentFollowingCount + 1),
-                                SetOptions.merge()
-                            )
-                            transaction.set(
-                                targetUserRef,
-                                mapOf("followersCount" to targetFollowersCount + 1),
-                                SetOptions.merge()
-                            )
+                                        val batch = firestore.batch()
+
+                                        batch.set(
+                                            followingRef,
+                                            hashMapOf<String, Any>(
+                                                "uid" to targetUserId,
+                                                "name" to targetUserName,
+                                                "timestamp" to now
+                                            )
+                                        )
+
+                                        batch.set(
+                                            followerRef,
+                                            hashMapOf<String, Any>(
+                                                "uid" to currentUser.uid,
+                                                "name" to currentUserName,
+                                                "timestamp" to now
+                                            )
+                                        )
+
+                                        batch.commit()
+                                            .addOnSuccessListener {
+                                                followedUserIds = followedUserIds + targetUserId
+                                                processingFollowUserId = null
+
+                                                currentUserRef.set(
+                                                    mapOf(
+                                                        "followingCount" to FieldValue.increment(1)
+                                                    ),
+                                                    SetOptions.merge()
+                                                )
+                                                targetUserRef.set(
+                                                    mapOf(
+                                                        "followersCount" to FieldValue.increment(1)
+                                                    ),
+                                                    SetOptions.merge()
+                                                )
+
+                                                createPeejeeNotification(
+                                                    firestore = firestore,
+                                                    recipientUserId = targetUserId,
+                                                    type = "follow",
+                                                    actorId = currentUser.uid,
+                                                    actorName = name,
+                                                    text = "started following you"
+                                                )
+                                            }
+                                            .addOnFailureListener {
+                                                processingFollowUserId = null
+                                            }
+                                    }
+                                    .addOnFailureListener {
+                                        processingFollowUserId = null
+                                    }
+                            }
                         }
-                        null
-                    }.addOnSuccessListener {
-                        processingFollowUserId = null
-                        if (!wasFollowing) {
-                            createPeejeeNotification(
-                                firestore = firestore,
-                                recipientUserId = targetUserId,
-                                type = "follow",
-                                actorId = currentUser.uid,
-                                actorName = actorName,
-                                text = "started following you"
-                            )
+                        .addOnFailureListener {
+                            processingFollowUserId = null
                         }
-                    }.addOnFailureListener {
-                        followedUserIds = if (wasFollowing) {
-                            followedUserIds + targetUserId
-                        } else {
-                            followedUserIds - targetUserId
-                        }
-                        processingFollowUserId = null
-                    }
                 },
 
-                onComment = { postId ->
-                        selectedPostId = postId
-                        newComment = ""
-                        commentError = ""
-                        showCommentDialog = true
-                    },
+                    onComment = { postId ->
+                    selectedCommentPostId = postId
+                },
 
                     onShare = { post ->
-
-                        val currentUser =
-                            auth.currentUser
-
-                        if (currentUser == null) {
-                            return@HomeFeed
-                        }
-
-                        val postRef =
-                            firestore
-                                .collection("posts")
-                                .document(post.id)
-
-                        val newPostRef =
-                            firestore
-                                .collection("posts")
-                                .document()
-
-                        val userRef =
-                            firestore
-                                .collection("users")
-                                .document(currentUser.uid)
-
-                        firestore.runTransaction { transaction ->
-
-                            val postSnapshot =
-                                transaction.get(postRef)
-
-                            val userSnapshot =
-                                transaction.get(userRef)
-
-                            val currentShares =
-                                postSnapshot
-                                    .getLong("shareCount")
-                                    ?.toInt()
-                                    ?: 0
-
-                            val currentName =
-                                userSnapshot
-                                    .getString("name")
-                                    ?.trim()
-                                    ?.takeIf {
-                                        it.isNotBlank()
-                                    }
-                                    ?: name
-
-                            val sharedPostData =
-                                hashMapOf<String, Any>(
-                                    "postId" to newPostRef.id,
-                                    "userId" to currentUser.uid,
-                                    "userName" to currentName,
-                                    "text" to post.text,
-                                    "likes" to 0,
-                                    "likedBy" to
-                                        emptyMap<String, Boolean>(),
-                                    "commentCount" to 0,
-                                    "shareCount" to 0,
-                                    "timestamp" to
-                                        System.currentTimeMillis(),
-                                    "sharedFromPostId" to post.id,
-                                    "sharedFromUserName" to
-                                        post.userName,
-                                    "sharedFromText" to
-                                        post.text
-                                )
-
-                            if (post.mediaUrl.isNotBlank()) {
-                                sharedPostData["mediaUrl"] =
-                                    post.mediaUrl
-
-                                sharedPostData["mediaType"] =
-                                    post.mediaType
-                            }
-
-                            transaction.set(
-                                newPostRef,
-                                sharedPostData
-                            )
-
-                            transaction.update(
-                                postRef,
-                                "shareCount",
-                                currentShares + 1
-                            )
-
-                            null
-
-                        }.addOnFailureListener {
-                            // No external share.
-                        }
+                        openShareDialog(post)
                     },
 
                     onProfile = { person ->
@@ -1641,12 +1625,28 @@ fun HomeScreen(
                     paddingValues = paddingValues
                 )
 
-                1 -> SearchPage(
-                    onMessage = { person ->
-                        selectedChatUser = person
-                        selectedTab = 3
+                1 -> PeejeeDiscoverPage(
+                    onUserClick = { userId ->
+                        firestore
+                            .collection("users")
+                            .document(userId)
+                            .get()
+                            .addOnSuccessListener { document ->
+                                selectedProfileUser = PeejeePerson(
+                                    uid = document.id,
+                                    name = document.getString("name")
+                                        ?: "Peejee User",
+                                    email = document.getString("email")
+                                        ?: "",
+                                    isOnline = document.getBoolean("isOnline")
+                                        ?: false
+                                )
+                            }
                     },
-                    paddingValues = paddingValues
+                    onPostClick = { postId ->
+                        selectedPostId = postId
+                        selectedCommentPostId = postId
+                    }
                 )
 
                 2 -> CreatePostPage(
@@ -1673,262 +1673,99 @@ fun HomeScreen(
         }
     }
 
-    if (showCommentDialog) {
+    if (selectedCommentPostId.isNotBlank()) {
+        PeejeeCommentsDialog(
+            postId = selectedCommentPostId,
+            onDismiss = {
+                selectedCommentPostId = ""
+            },
+            onCountChanged = { }
+        )
+    }
+
+    if (showShareDialog && sharePost != null) {
+        val postToShare = sharePost!!
 
         AlertDialog(
-
             onDismissRequest = {
-                if (!sendingComment) {
-                    showCommentDialog = false
-                }
+                showShareDialog = false
+                sharePost = null
             },
-
-            title = {
-                Text("Comments")
-            },
-
+            title = { Text("Share post") },
             text = {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(
+                        "Share with a Peejee user",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
 
-                Column {
-
-                    if (loadingComments) {
-
+                    if (loadingShareUsers) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement =
-                                Arrangement.Center
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
                         ) {
                             CircularProgressIndicator()
                         }
-
-                    } else if (selectedComments.isEmpty()) {
-
-                        Text(
-                            "No comments yet. Be the first!"
-                        )
-
+                    } else if (shareUsers.isEmpty()) {
+                        Text("You are not following any Peejee users yet.")
                     } else {
-
                         LazyColumn(
-                            modifier = Modifier
+                            Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 260.dp)
                         ) {
-
-                            itemsIndexed(
-                                selectedComments
-                            ) { _, comment ->
-
-                                Column(
-                                    modifier = Modifier
+                            itemsIndexed(shareUsers) { _, person ->
+                                Row(
+                                    Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 6.dp)
+                                        .clickable {
+                                            shareToPeejeeUser(postToShare, person)
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-
+                                    DefaultProfileIcon(size = 42)
+                                    Spacer(Modifier.width(10.dp))
                                     Text(
-                                        comment.userName,
+                                        person.name,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
+                                        modifier = Modifier.weight(1f)
                                     )
-
-                                    Text(
-                                        comment.text,
-                                        fontSize = 15.sp
-                                    )
+                                    Text("Share")
                                 }
                             }
                         }
-                    }
-
-                    if (commentError.isNotEmpty()) {
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Text(
-                            commentError,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp
-                        )
                     }
 
                     Spacer(Modifier.height(12.dp))
 
-                    OutlinedTextField(
-                        value = newComment,
-                        onValueChange = {
-                            newComment = it
-                            commentError = ""
+                    Button(
+                        onClick = {
+                            repostToPeejee(postToShare)
                         },
-                        label = {
-                            Text("Write a comment")
-                        },
-                        enabled = !sendingComment,
                         modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-
-            confirmButton = {
-
-                TextButton(
-                    enabled =
-                        !sendingComment &&
-                        newComment.isNotBlank(),
-
-                    onClick = {
-
-                        val currentUser =
-                            auth.currentUser
-
-                        if (currentUser == null) {
-
-                            commentError =
-                                "Please log in again."
-
-                            return@TextButton
-                        }
-
-                        sendingComment = true
-                        commentError = ""
-
-                        firestore
-                            .collection("users")
-                            .document(currentUser.uid)
-                            .get()
-                            .addOnSuccessListener { userDocument ->
-
-                                val savedUserName =
-                                    userDocument.getString("name")
-                                        ?: "Peejee User"
-
-                                val commentReference =
-                                    firestore
-                                        .collection("posts")
-                                        .document(selectedPostId)
-                                        .collection("comments")
-                                        .document()
-
-                                val postReference =
-                                    firestore
-                                        .collection("posts")
-                                        .document(selectedPostId)
-
-                                val commentData =
-                                    hashMapOf<String, Any>(
-                                        "commentId" to
-                                            commentReference.id,
-                                        "postId" to
-                                            selectedPostId,
-                                        "userId" to
-                                            currentUser.uid,
-                                        "userName" to
-                                            savedUserName,
-                                        "text" to
-                                            newComment.trim(),
-                                        "timestamp" to
-                                            System.currentTimeMillis()
-                                    )
-
-                                firestore.runTransaction { transaction ->
-
-                                    val postSnapshot =
-                                        transaction.get(postReference)
-
-                                    val currentCommentCount =
-                                        postSnapshot
-                                            .getLong("commentCount")
-                                            ?.toInt()
-                                            ?: 0
-
-                                    transaction.set(
-                                        commentReference,
-                                        commentData
-                                    )
-
-                                    transaction.update(
-                                        postReference,
-                                        "commentCount",
-                                        currentCommentCount + 1
-                                    )
-
-                                    null
-
-                                }.addOnSuccessListener {
-
-                                    sendingComment = false
-
-                                    val postOwnerId =
-                                        posts
-                                            .firstOrNull { it.id == selectedPostId }
-                                            ?.userId
-                                            ?: ""
-
-                                    createPeejeeNotification(
-                                        firestore = firestore,
-                                        recipientUserId = postOwnerId,
-                                        type = "comment",
-                                        actorId = currentUser.uid,
-                                        actorName = savedUserName,
-                                        text = "commented on your post",
-                                        postId = selectedPostId
-                                    )
-
-                                    findMentionedUsers(
-                                        firestore = firestore,
-                                        text = newComment.trim(),
-                                        currentUserId = currentUser.uid
-                                    ) { mentionedUsers ->
-                                        mentionedUsers.forEach { mentioned ->
-                                            createPeejeeNotification(
-                                                firestore = firestore,
-                                                recipientUserId = mentioned.uid,
-                                                type = "mention",
-                                                actorId = currentUser.uid,
-                                                actorName = savedUserName,
-                                                text = "mentioned you in a comment",
-                                                postId = selectedPostId
-                                            )
-                                        }
-                                    }
-
-                                    newComment = ""
-
-                                }.addOnFailureListener { exception ->
-
-                                    sendingComment = false
-
-                                    commentError =
-                                        exception.message
-                                            ?: "Could not post comment."
-                                }
-                            }
-                            .addOnFailureListener { exception ->
-
-                                sendingComment = false
-
-                                commentError =
-                                    exception.message
-                                        ?: "Could not load your profile."
-                            }
+                    ) {
+                        Text("🔁 Repost to Peejee")
                     }
-                ) {
 
-                    Text(
-                        if (sendingComment) {
-                            "Posting..."
-                        } else {
-                            "Comment"
-                        }
-                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            shareToSocialMedia(postToShare)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("↗️ Share to other social media")
+                    }
                 }
             },
-
-            dismissButton = {
-
+            confirmButton = {
                 TextButton(
-                    enabled = !sendingComment,
                     onClick = {
-                        showCommentDialog = false
+                        showShareDialog = false
+                        sharePost = null
                     }
                 ) {
                     Text("Close")
@@ -1965,33 +1802,39 @@ fun HomeFeed(
     )
 
     var pullDistance by remember { mutableFloatStateOf(0f) }
-    val pullThreshold = 140f
+    val pullThreshold = 90f
+    val latestOnRefresh by rememberUpdatedState(onRefresh)
 
-    val refreshConnection = remember(isRefreshing) {
+    val listState = rememberLazyListState()
+
+    val refreshConnection = remember {
         object : NestedScrollConnection {
-            override fun onPreScroll(
+            override fun onPostScroll(
+                consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
                 if (
-                    source == NestedScrollSource.UserInput &&
                     available.y > 0f &&
-                    !isRefreshing
+                    !isRefreshing &&
+                    listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
                 ) {
                     pullDistance =
-                        (pullDistance + available.y)
-                            .coerceAtMost(pullThreshold * 1.5f)
+                        (pullDistance + available.y).coerceAtMost(pullThreshold)
+
+                    if (pullDistance >= pullThreshold) {
+                        pullDistance = 0f
+                        latestOnRefresh()
+                    }
+                } else if (available.y < 0f) {
+                    pullDistance = 0f
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (!isRefreshing && pullDistance >= pullThreshold) {
-                    pullDistance = 0f
-                    onRefresh()
-                } else {
-                    pullDistance = 0f
-                }
+                pullDistance = 0f
                 return Velocity.Zero
             }
         }
@@ -2004,6 +1847,7 @@ fun HomeFeed(
     ) {
 
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
