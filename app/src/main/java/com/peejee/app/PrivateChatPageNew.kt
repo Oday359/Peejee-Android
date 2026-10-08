@@ -1,6 +1,8 @@
 package com.peejee.app
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
@@ -31,6 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -153,6 +156,28 @@ private fun formatPeejeeVoiceDuration(
     )
 }
 
+private fun copyPeejeeMessageToClipboard(
+    context: Context,
+    text: String
+) {
+    if (text.isBlank()) return
+
+    try {
+        val clipboard =
+            context.getSystemService(
+                Context.CLIPBOARD_SERVICE
+            ) as? ClipboardManager
+
+        clipboard?.setPrimaryClip(
+            ClipData.newPlainText(
+                "Peejee message",
+                text
+            )
+        )
+    } catch (_: Exception) {
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PrivateChatPageNew(
@@ -254,6 +279,15 @@ fun PrivateChatPageNew(
             )
         }
 
+    /*
+     * IMPORTANT:
+     * The background is loaded from persistent storage using
+     * the unique chat key.
+     *
+     * This means the selected background belongs only to
+     * this private conversation and remains after the app
+     * is closed and opened again.
+     */
     var chatBackground by remember(
         chatBackgroundKey
     ) {
@@ -278,6 +312,25 @@ fun PrivateChatPageNew(
 
     var showBackgroundPicker by remember {
         mutableStateOf(false)
+    }
+
+    /*
+     * Reload the saved private-chat background whenever
+     * the conversation changes.
+     */
+    LaunchedEffect(chatBackgroundKey) {
+
+        chatBackground =
+            loadPeejeeChatBackground(
+                context,
+                chatBackgroundKey
+            )
+
+        chatPhotoPath =
+            loadPeejeeChatPhotoPath(
+                context,
+                chatBackgroundKey
+            )
     }
 
     val chatPhotoLauncher =
@@ -537,6 +590,12 @@ fun PrivateChatPageNew(
             val bytes =
                 file.readBytes()
 
+            /*
+             * KEEPING THE CURRENT 700 KB SIZE LIMIT FOR NOW.
+             *
+             * We will move voice files to Firebase Storage
+             * after Blaze/pay-as-you-go is enabled.
+             */
             if (bytes.size > 700_000) {
 
                 errorMessage =
@@ -577,10 +636,11 @@ fun PrivateChatPageNew(
                             Base64.NO_WRAP
                         ),
 
+                    /*
+                     * NO 20-SECOND LIMIT HERE.
+                     */
                     "voiceDurationMs" to
-                        durationMs.coerceAtMost(
-                            20_000L
-                        ),
+                        durationMs,
 
                     "timestamp" to
                         System.currentTimeMillis(),
@@ -668,15 +728,18 @@ fun PrivateChatPageNew(
         val path =
             recordingFilePath
 
+        /*
+         * NO 20-SECOND LIMIT.
+         *
+         * The duration is simply the actual amount of time
+         * the user recorded before pressing Stop & Send.
+         */
         val duration =
             (
                 System.currentTimeMillis() -
                     recordingStartedAt
                 )
-                .coerceIn(
-                    0L,
-                    20_000L
-                )
+                .coerceAtLeast(0L)
 
         isRecording = false
         mediaRecorder = null
@@ -813,17 +876,11 @@ fun PrivateChatPageNew(
         }
     }
 
-    LaunchedEffect(isRecording) {
-
-        if (isRecording) {
-
-            delay(20_000L)
-
-            if (isRecording) {
-                stopRecordingAndSend()
-            }
-        }
-    }
+    /*
+     * IMPORTANT:
+     * There is intentionally NO LaunchedEffect here that
+     * automatically stops recording after 20 seconds.
+     */
 
     DisposableEffect(Unit) {
 
@@ -1450,12 +1507,6 @@ fun PrivateChatPageNew(
                     )
                 }
 
-                /*
-                 * PEEJEE AUDIO + VIDEO CALL BUTTONS
-                 *
-                 * Calls are disabled while a voice note
-                 * is being recorded or a message is sending.
-                 */
                 PeejeeChatCallControls(
                     person = person,
                     enabled =
@@ -1525,11 +1576,13 @@ fun PrivateChatPageNew(
                                     FontWeight.Bold
                             )
 
-                            Text(
-                                selectedReply!!.text,
-                                maxLines = 2,
-                                fontSize = 13.sp
-                            )
+                            SelectionContainer {
+                                Text(
+                                    selectedReply!!.text,
+                                    maxLines = 2,
+                                    fontSize = 13.sp
+                                )
+                            }
                         }
 
                         TextButton(
@@ -1681,15 +1734,17 @@ fun PrivateChatPageNew(
                                                         FontWeight.Bold
                                                 )
 
-                                                Text(
-                                                    replyInfo.text,
+                                                SelectionContainer {
+                                                    Text(
+                                                        replyInfo.text,
 
-                                                    maxLines =
-                                                        2,
+                                                        maxLines =
+                                                            2,
 
-                                                    fontSize =
-                                                        11.sp
-                                                )
+                                                        fontSize =
+                                                            11.sp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1735,10 +1790,12 @@ fun PrivateChatPageNew(
 
                                     } else {
 
-                                        Text(
-                                            message.text,
-                                            fontSize = 16.sp
-                                        )
+                                        SelectionContainer {
+                                            Text(
+                                                message.text,
+                                                fontSize = 16.sp
+                                            )
+                                        }
                                     }
 
                                     Spacer(
@@ -1794,54 +1851,90 @@ fun PrivateChatPageNew(
                                 }
                             ) {
 
-                                TextButton(
-                                    onClick = {
+                                /*
+                                 * COPY IS ONLY AVAILABLE FOR
+                                 * WRITTEN MESSAGES.
+                                 */
+                                if (voiceInfo == null) {
 
-                                        if (
-                                            voiceInfo ==
-                                            null
-                                        ) {
+                                    TextButton(
+                                        onClick = {
+
+                                            copyPeejeeMessageToClipboard(
+                                                context,
+                                                message.text
+                                            )
+
+                                            selectedMessage =
+                                                null
+                                        }
+                                    ) {
+                                        Text("📋 Copy")
+                                    }
+
+                                    TextButton(
+                                        onClick = {
+
                                             selectedReply =
                                                 message
-                                        }
 
-                                        selectedMessage =
-                                            null
+                                            selectedMessage =
+                                                null
+                                        }
+                                    ) {
+                                        Text("↩ Reply")
                                     }
-                                ) {
-                                    Text("↩ Reply")
                                 }
 
+                                /*
+                                 * ONLY THE SENDER CAN DELETE
+                                 * THEIR OWN MESSAGE OR VOICE NOTE.
+                                 */
                                 if (mine) {
 
                                     TextButton(
                                         onClick = {
+
+                                            val messageId =
+                                                message.id
 
                                             firestore
                                                 .collection(
                                                     "messages"
                                                 )
                                                 .document(
-                                                    message.id
+                                                    messageId
                                                 )
                                                 .delete()
+                                                .addOnSuccessListener {
+
+                                                    if (
+                                                        currentlyPlayingMessageId ==
+                                                        messageId
+                                                    ) {
+                                                        stopCurrentPlayback()
+                                                    }
+
+                                                    selectedMessage =
+                                                        null
+                                                }
                                                 .addOnFailureListener {
+
                                                     errorMessage =
                                                         "Could not delete message."
                                                 }
-
-                                            if (
-                                                currentlyPlayingMessageId ==
-                                                message.id
-                                            ) {
-                                                stopCurrentPlayback()
-                                            }
-
-                                            selectedMessage =
-                                                null
                                         }
                                     ) {
-                                        Text("🗑 Delete")
+
+                                        Text(
+                                            if (
+                                                voiceInfo != null
+                                            ) {
+                                                "🗑 Delete voice note"
+                                            } else {
+                                                "🗑 Delete"
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -2107,6 +2200,12 @@ fun PrivateChatPageNew(
             onBackgroundSelected = {
                 selected ->
 
+                /*
+                 * Save immediately when the user chooses
+                 * a background.
+                 *
+                 * This is for THIS private chat only.
+                 */
                 chatBackground =
                     selected
 
