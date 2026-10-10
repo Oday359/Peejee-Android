@@ -256,7 +256,8 @@ data class PeejeePerson(
     val uid: String,
     val name: String,
     val email: String = "",
-    val isOnline: Boolean = false
+    val isOnline: Boolean = false,
+    val profilePhoto: String = ""
 )
 
 data class PeejeeMessage(
