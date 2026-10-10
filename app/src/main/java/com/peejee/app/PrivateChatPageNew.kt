@@ -576,48 +576,36 @@ fun PrivateChatPageNew(
         }
     }
 
-    fun sendVoiceNote(
+        fun sendVoiceNote(
         filePath: String,
-        durationMs: Long
+        durationMs: Long,
+        onComplete: (Boolean) -> Unit
     ) {
-
         if (
             currentUserId.isBlank() ||
             person.uid.isBlank() ||
             sending
         ) {
+            onComplete(false)
+            return
+        }
+
+        val file = File(filePath)
+
+        if (!file.exists()) {
+            errorMessage = "Voice recording was not found."
+            onComplete(false)
             return
         }
 
         try {
+            val bytes = file.readBytes()
 
-            val file =
-                File(filePath)
-
-            if (!file.exists()) {
-
-                errorMessage =
-                    "Voice recording was not found."
-
-                return
-            }
-
-            val bytes =
-                file.readBytes()
-
-            /*
-             * KEEPING THE CURRENT 700 KB SIZE LIMIT FOR NOW.
-             *
-             * We will move voice files to Firebase Storage
-             * after Blaze/pay-as-you-go is enabled.
-             */
+            // Keep the existing 700 KB limit.
             if (bytes.size > 700_000) {
-
                 errorMessage =
                     "Voice note is too large. Please record a shorter note."
-
-                file.delete()
-
+                onComplete(false)
                 return
             }
 
@@ -625,175 +613,65 @@ fun PrivateChatPageNew(
             errorMessage = ""
 
             val messageReference =
-                firestore
-                    .collection("messages")
-                    .document()
+                firestore.collection("messages").document()
 
-            val messageData =
-                hashMapOf<String, Any>(
-                    "messageId" to
-                        messageReference.id,
-
-                    "senderId" to
-                        currentUserId,
-
-                    "receiverId" to
-                        person.uid,
-
-                    "text" to "",
-
-                    "messageType" to
-                        "voice",
-
-                    "voiceBase64" to
-                        Base64.encodeToString(
-                            bytes,
-                            Base64.NO_WRAP
-                        ),
-
-                    /*
-                     * NO 20-SECOND LIMIT HERE.
-                     */
-                    "voiceDurationMs" to
-                        durationMs,
-
-                    "timestamp" to
-                        System.currentTimeMillis(),
-
-                    "read" to false
-                )
+            val messageData = hashMapOf<String, Any>(
+                "messageId" to messageReference.id,
+                "senderId" to currentUserId,
+                "receiverId" to person.uid,
+                "text" to "",
+                "messageType" to "voice",
+                "voiceBase64" to Base64.encodeToString(
+                    bytes,
+                    Base64.NO_WRAP
+                ),
+                "voiceDurationMs" to durationMs,
+                "timestamp" to System.currentTimeMillis(),
+                "read" to false
+            )
 
             messageReference
                 .set(messageData)
                 .addOnSuccessListener {
-
-                    firestore
-                        .collection("users")
+                    firestore.collection("users")
                         .document(currentUserId)
                         .get()
-                        .addOnSuccessListener {
-                            userDocument ->
-
+                        .addOnSuccessListener { userDocument ->
                             createPeejeeNotification(
-                                firestore =
-                                    firestore,
-
-                                recipientUserId =
-                                    person.uid,
-
-                                type =
-                                    "message",
-
-                                actorId =
-                                    currentUserId,
-
-                                actorName =
-                                    userDocument
-                                        .getString(
-                                            "name"
-                                        )
-                                        ?: "Peejee User",
-
-                                text =
-                                    "sent you a voice note",
-
-                                messageId =
-                                    messageReference.id
+                                firestore = firestore,
+                                recipientUserId = person.uid,
+                                type = "message",
+                                actorId = currentUserId,
+                                actorName = userDocument.getString("name")
+                                    ?: "Peejee User",
+                                text = "sent you a voice note",
+                                messageId = messageReference.id
                             )
                         }
 
                     sending = false
                     showEmojiPicker = false
-                    file.delete()
-                }
-                .addOnFailureListener {
-                    exception ->
+                    errorMessage = ""
 
+                    // The component can clear the preview after success.
+                    onComplete(true)
+                }
+                .addOnFailureListener { exception ->
                     sending = false
+                    errorMessage = exception.message
+                        ?: "Could not send voice note."
 
-                    errorMessage =
-                        exception.message
-                            ?: "Could not send voice note."
-
-                    file.delete()
+                    // Keep the recording available for another attempt.
+                    onComplete(false)
                 }
-
         } catch (exception: Exception) {
-
             sending = false
+            errorMessage = exception.message
+                ?: "Could not send voice note."
 
-            errorMessage =
-                exception.message
-                    ?: "Could not send voice note."
-
-            try {
-                File(filePath).delete()
-            } catch (_: Exception) {
-            }
+            onComplete(false)
         }
     }
-
-    fun stopRecordingAndSend() {
-
-        if (!isRecording) return
-
-        val recorder =
-            mediaRecorder
-
-        val path =
-            recordingFilePath
-
-        /*
-         * NO 20-SECOND LIMIT.
-         *
-         * The duration is simply the actual amount of time
-         * the user recorded before pressing Stop & Send.
-         */
-        val duration =
-            (
-                System.currentTimeMillis() -
-                    recordingStartedAt
-                )
-                .coerceAtLeast(0L)
-
-        isRecording = false
-        mediaRecorder = null
-        recordingFilePath = ""
-
-        try {
-            recorder?.stop()
-        } catch (_: Exception) {
-
-            try {
-                File(path).delete()
-            } catch (_: Exception) {
-            }
-
-            errorMessage =
-                "Could not save the voice note."
-
-            try {
-                recorder?.release()
-            } catch (_: Exception) {
-            }
-
-            return
-        }
-
-        try {
-            recorder?.release()
-        } catch (_: Exception) {
-        }
-
-        if (path.isNotBlank()) {
-            sendVoiceNote(
-                path,
-                duration
-            )
-        }
-    }
-
-    fun startRecording() {
 
         if (
             isRecording ||
@@ -860,37 +738,6 @@ fun PrivateChatPageNew(
         }
     }
 
-    val recordAudioLauncher =
-        rememberLauncherForActivityResult(
-            contract =
-                ActivityResultContracts.RequestPermission()
-        ) { granted ->
-
-            if (granted) {
-                startRecording()
-            } else {
-                errorMessage =
-                    "Microphone permission is required to record a voice note."
-            }
-        }
-
-    fun requestOrStartRecording() {
-
-        val granted =
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-
-        if (granted) {
-            startRecording()
-        } else {
-            recordAudioLauncher.launch(
-                Manifest.permission.RECORD_AUDIO
-            )
-        }
-    }
-
     /*
      * IMPORTANT:
      * There is intentionally NO LaunchedEffect here that
@@ -900,16 +747,6 @@ fun PrivateChatPageNew(
     DisposableEffect(Unit) {
 
         onDispose {
-
-            try {
-                mediaRecorder?.stop()
-            } catch (_: Exception) {
-            }
-
-            try {
-                mediaRecorder?.release()
-            } catch (_: Exception) {
-            }
 
             try {
                 currentPlayer?.stop()
