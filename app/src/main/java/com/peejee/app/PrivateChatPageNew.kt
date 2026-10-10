@@ -255,6 +255,21 @@ fun PrivateChatPageNew(
     var recordingFilePath by remember {
         mutableStateOf("")
     }
+    var previewFilePath by remember {
+        mutableStateOf("")
+    }
+
+    var previewDurationMs by remember {
+        mutableStateOf(0L)
+    }
+
+    var isPreviewPlaying by remember {
+        mutableStateOf(false)
+    }
+
+    var previewPlayer by remember {
+        mutableStateOf<MediaPlayer?>(null)
+    }
 
     var mediaRecorder by remember {
         mutableStateOf<MediaRecorder?>(null)
