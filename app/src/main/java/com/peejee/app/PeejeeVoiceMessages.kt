@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -26,427 +27,244 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import java.io.File
 
+private fun formatVoicePreviewDuration(durationMs: Long): String {
+val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
+return String.format("%d:%02d", totalSeconds / 60L, totalSeconds % 60L)
+}
+
 @Composable
 fun PeejeeVoiceMessages(
-    sending: Boolean,
-    onSendVoice: (
-        String,
-        Long,
-        (Boolean) -> Unit
-    ) -> Unit,
-    modifier: Modifier = Modifier
+sending: Boolean,
+onSendVoice: (String, Long, (Boolean) -> Unit) -> Unit,
+modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+val context = LocalContext.current
+
+var isRecording by remember { mutableStateOf(false) }  
+var recordingStartedAt by remember { mutableStateOf(0L) }  
+var recordingPath by remember { mutableStateOf("") }  
+var previewPath by remember { mutableStateOf("") }  
+var previewDurationMs by remember { mutableStateOf(0L) }  
+var recorder by remember { mutableStateOf<MediaRecorder?>(null) }  
+var player by remember { mutableStateOf<MediaPlayer?>(null) }  
+var isPlaying by remember { mutableStateOf(false) }  
+var sendingVoice by remember { mutableStateOf(false) }  
+var voiceError by remember { mutableStateOf("") }  
+
+fun stopPreview() {  
+    val oldPlayer = player  
+    player = null  
+    isPlaying = false  
+    try { oldPlayer?.stop() } catch (_: Exception) {}  
+    try { oldPlayer?.release() } catch (_: Exception) {}  
+}  
+
+fun startRecording() {  
+    if (isRecording || sending || sendingVoice) return  
+    try {  
+        val file = File(  
+            context.cacheDir,  
+            "peejee_recording_${System.currentTimeMillis()}.3gp"  
+        )  
+        val newRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {  
+            MediaRecorder(context)  
+        } else {  
+            @Suppress("DEPRECATION")  
+            MediaRecorder()  
+        }  
+        newRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)  
+        newRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)  
+        newRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)  
+        newRecorder.setOutputFile(file.absolutePath)  
+        newRecorder.prepare()  
+        newRecorder.start()  
+        recorder = newRecorder  
+        recordingPath = file.absolutePath  
+        recordingStartedAt = System.currentTimeMillis()  
+        isRecording = true  
+        voiceError = ""  
+    } catch (e: Exception) {  
+        try { recorder?.release() } catch (_: Exception) {}  
+        recorder = null  
+        isRecording = false  
+        voiceError = e.message ?: "Could not start voice recording."  
+    }  
+}  
+
+val permissionLauncher = rememberLauncherForActivityResult(  
+    contract = ActivityResultContracts.RequestPermission()  
+) { granted ->  
+    if (granted) startRecording()  
+    else voiceError = "Microphone permission is required to record a voice note."  
+}  
+
+fun requestRecording() {  
+    val granted = ContextCompat.checkSelfPermission(  
+        context,  
+        Manifest.permission.RECORD_AUDIO  
+    ) == PackageManager.PERMISSION_GRANTED  
+    if (granted) startRecording()  
+    else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)  
+}  
+
+fun stopRecordingToPreview() {  
+    if (!isRecording) return  
+    val activeRecorder = recorder  
+    val path = recordingPath  
+    val duration = (System.currentTimeMillis() - recordingStartedAt).coerceAtLeast(0L)  
+    isRecording = false  
+    recorder = null  
+    recordingPath = ""  
+    try {  
+        activeRecorder?.stop()  
+    } catch (_: Exception) {  
+        try { if (path.isNotBlank()) File(path).delete() } catch (_: Exception) {}  
+        try { activeRecorder?.release() } catch (_: Exception) {}  
+        voiceError = "Could not save the voice note. Please record again."  
+        return  
+    }  
+    try { activeRecorder?.release() } catch (_: Exception) {}  
+    val file = File(path)  
+    if (path.isBlank() || !file.exists() || file.length() == 0L) {  
+        try { file.delete() } catch (_: Exception) {}  
+        voiceError = "The recording is empty. Please record again."  
+        return  
+    }  
+    stopPreview()  
+    if (previewPath.isNotBlank() && previewPath != path) {  
+        try { File(previewPath).delete() } catch (_: Exception) {}  
+    }  
+    previewPath = path  
+    previewDurationMs = duration  
+    voiceError = ""  
+}  
+
+fun playPreview() {  
+    if (previewPath.isBlank()) return  
+    if (isPlaying) {  
+        stopPreview()  
+        return  
+    }  
+    stopPreview()  
+    try {  
+        val previewPlayer = MediaPlayer()  
+        player = previewPlayer  
+        previewPlayer.setDataSource(previewPath)  
+        previewPlayer.setOnCompletionListener { finished ->  
+            try { finished.release() } catch (_: Exception) {}  
+            if (player === finished) {  
+                player = null  
+                isPlaying = false  
+            }  
+        }  
+        previewPlayer.setOnErrorListener { failed, _, _ ->  
+            try { failed.release() } catch (_: Exception) {}  
+            if (player === failed) {  
+                player = null  
+                isPlaying = false  
+            }  
+            voiceError = "Could not play the voice-note preview."  
+            true  
+        }  
+        previewPlayer.prepare()  
+        previewPlayer.start()  
+        isPlaying = true  
+    } catch (e: Exception) {  
+        stopPreview()  
+        voiceError = e.message ?: "Could not preview the voice note."  
+    }  
+}  
+
+fun discardPreview() {  
+    stopPreview()  
+    if (previewPath.isNotBlank()) {  
+        try { File(previewPath).delete() } catch (_: Exception) {}  
+    }  
+    previewPath = ""  
+    previewDurationMs = 0L  
+    voiceError = ""  
+}  
+
+DisposableEffect(Unit) {  
+    onDispose {  
+        try { recorder?.stop() } catch (_: Exception) {}  
+        try { recorder?.release() } catch (_: Exception) {}  
+        stopPreview()  
+    }  
+}  
+
+Column(modifier = modifier) {  
+    if (isRecording) {  
+        Card(modifier = Modifier.fillMaxWidth()) {  
+            Row(  
+                modifier = Modifier.fillMaxWidth().padding(8.dp),  
+                horizontalArrangement = Arrangement.SpaceBetween  
+            ) {  
+                Text("🔴 Recording voice note…")  
+                TextButton(onClick = { stopRecordingToPreview() }) {  
+                    Text("⏹ Stop")  
+                }  
+            }  
+        }  
+    } else if (previewPath.isNotBlank()) {  
+        Card(modifier = Modifier.fillMaxWidth()) {  
+            Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {  
+                Text("Voice note preview • ${formatVoicePreviewDuration(previewDurationMs)}")  
+                Row(  
+                    modifier = Modifier.fillMaxWidth(),  
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)  
+                ) {  
+                    Button(  
+                        onClick = { playPreview() },  
+                        enabled = !sending && !sendingVoice,  
+                        modifier = Modifier.weight(1f)  
+                    ) {  
+                        Text(if (isPlaying) "⏹ Stop" else "▶ Preview")  
+                    }  
+                    TextButton(  
+                        onClick = { discardPreview() },  
+                        enabled = !sending && !sendingVoice  
+                    ) { Text("Discard") }  
+                    Button(  
+                        onClick = {  
+                            if (!sendingVoice) {  
+                                stopPreview()  
+                                sendingVoice = true  
+                                voiceError = ""  
+                                onSendVoice(previewPath, previewDurationMs) { success ->  
+                                    sendingVoice = false  
+                                    if (success) {  
+                                        try { File(previewPath).delete() } catch (_: Exception) {}  
+                                        previewPath = ""  
+                                        previewDurationMs = 0L  
+                                        voiceError = ""  
+                                    } else {  
+                                        voiceError = "Could not send. Your recording is saved; try again."  
+                                    }  
+                                }  
+                            }  
+                        },  
+                        enabled = !sending && !sendingVoice,  
+                        modifier = Modifier.weight(1f)  
+                    ) { Text(if (sendingVoice) "Sending…" else "📤 Send") }  
+                }  
+            }  
+        }  
+    } else {  
+        TextButton(  
+            onClick = { requestRecording() },  
+            enabled = !sending && !sendingVoice  
+        ) {  
+            Text("🎙️ Record voice note")  
+        }  
+    }  
+
+    if (voiceError.isNotBlank()) {  
+        Text(  
+            text = voiceError,  
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)  
+        )  
+    }  
+}
 
-    var recording by remember {
-        mutableStateOf(false)
-    }
-
-    var recordingPath by remember {
-        mutableStateOf("")
-    }
-
-    var previewPath by remember {
-        mutableStateOf("")
-    }
-
-    var recordingStartedAt by remember {
-        mutableStateOf(0L)
-    }
-
-    var durationMs by remember {
-        mutableStateOf(0L)
-    }
-
-    var recorder by remember {
-        mutableStateOf<MediaRecorder?>(null)
-    }
-
-    var player by remember {
-        mutableStateOf<MediaPlayer?>(null)
-    }
-
-    var playing by remember {
-        mutableStateOf(false)
-    }
-
-    var sendingVoice by remember {
-        mutableStateOf(false)
-    }
-
-    var error by remember {
-        mutableStateOf("")
-    }
-
-    fun stopPreview() {
-        val activePlayer = player
-
-        player = null
-        playing = false
-
-        try {
-            activePlayer?.setOnCompletionListener(null)
-            activePlayer?.stop()
-        } catch (_: Exception) {
-        }
-
-        try {
-            activePlayer?.release()
-        } catch (_: Exception) {
-        }
-    }
-
-    fun discardRecording() {
-        stopPreview()
-
-        try {
-            if (previewPath.isNotBlank()) {
-                File(previewPath).delete()
-            }
-        } catch (_: Exception) {
-        }
-
-        previewPath = ""
-        durationMs = 0L
-        error = ""
-    }
-
-    fun startRecording() {
-        if (recording || sending || sendingVoice) return
-
-        try {
-            discardRecording()
-
-            val outputFile = File(
-                context.cacheDir,
-                "peejee_voice_${System.currentTimeMillis()}.3gp"
-            )
-
-            val newRecorder = MediaRecorder()
-
-            try {
-                newRecorder.setAudioSource(
-                    MediaRecorder.AudioSource.MIC
-                )
-
-                newRecorder.setOutputFormat(
-                    MediaRecorder.OutputFormat.THREE_GPP
-                )
-
-                newRecorder.setAudioEncoder(
-                    MediaRecorder.AudioEncoder.AMR_NB
-                )
-
-                newRecorder.setOutputFile(
-                    outputFile.absolutePath
-                )
-
-                newRecorder.prepare()
-                newRecorder.start()
-
-                recorder = newRecorder
-                recordingPath = outputFile.absolutePath
-                recordingStartedAt = System.currentTimeMillis()
-                recording = true
-                error = ""
-
-            } catch (exception: Exception) {
-                try {
-                    newRecorder.release()
-                } catch (_: Exception) {
-                }
-
-                try {
-                    outputFile.delete()
-                } catch (_: Exception) {
-                }
-
-                throw exception
-            }
-
-        } catch (exception: Exception) {
-            error = exception.message
-                ?: "Could not start recording."
-        }
-    }
-
-    fun stopRecording() {
-        if (!recording) return
-
-        val activeRecorder = recorder
-        val path = recordingPath
-
-        recording = false
-        recorder = null
-        recordingPath = ""
-
-        try {
-            activeRecorder?.stop()
-            activeRecorder?.release()
-
-            val outputFile = File(path)
-
-            if (!outputFile.exists() || outputFile.length() == 0L) {
-                outputFile.delete()
-                error = "The recording is empty. Please record again."
-                return
-            }
-
-            durationMs = (
-                System.currentTimeMillis() - recordingStartedAt
-            ).coerceAtLeast(0L)
-
-            previewPath = path
-            error = ""
-
-        } catch (_: Exception) {
-            try {
-                activeRecorder?.release()
-            } catch (_: Exception) {
-            }
-
-            try {
-                File(path).delete()
-            } catch (_: Exception) {
-            }
-
-            previewPath = ""
-            error = "Could not finish recording. Please try again."
-        }
-    }
-
-    fun playPreview() {
-        if (previewPath.isBlank()) return
-
-        stopPreview()
-
-        try {
-            val file = File(previewPath)
-
-            if (!file.exists()) {
-                error = "Recording not found. Please record again."
-                previewPath = ""
-                return
-            }
-
-            val newPlayer = MediaPlayer()
-
-            player = newPlayer
-
-            newPlayer.setOnCompletionListener { completedPlayer ->
-                try {
-                    completedPlayer.release()
-                } catch (_: Exception) {
-                }
-
-                if (player === completedPlayer) {
-                    player = null
-                    playing = false
-                }
-            }
-
-            newPlayer.setDataSource(file.absolutePath)
-            newPlayer.prepare()
-            newPlayer.start()
-
-            playing = true
-            error = ""
-
-        } catch (exception: Exception) {
-            stopPreview()
-
-            error = exception.message
-                ?: "Could not play the preview."
-        }
-    }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            if (granted) {
-                startRecording()
-            } else {
-                error = "Please allow microphone permission to record."
-            }
-        }
-
-    fun requestRecordingPermission() {
-        val granted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (granted) {
-            startRecording()
-        } else {
-            permissionLauncher.launch(
-                Manifest.permission.RECORD_AUDIO
-            )
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            try {
-                recorder?.stop()
-            } catch (_: Exception) {
-            }
-
-            try {
-                recorder?.release()
-            } catch (_: Exception) {
-            }
-
-            try {
-                player?.setOnCompletionListener(null)
-                player?.stop()
-            } catch (_: Exception) {
-            }
-
-            try {
-                player?.release()
-            } catch (_: Exception) {
-            }
-
-            try {
-                if (recordingPath.isNotBlank()) {
-                    File(recordingPath).delete()
-                }
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text("Peejee Voice Note")
-
-            when {
-                recording -> {
-                    Text("🔴 Recording... Press Stop when ready.")
-
-                    Button(
-                        onClick = { stopRecording() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !sending
-                    ) {
-                        Text("⏹ Stop and Preview")
-                    }
-                }
-
-                previewPath.isNotBlank() -> {
-                    Text(
-                        "Voice note ready — ${
-                            durationMs / 1000
-                        } seconds"
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                if (playing) {
-                                    stopPreview()
-                                } else {
-                                    playPreview()
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            enabled = !sending && !sendingVoice
-                        ) {
-                            Text(
-                                if (playing) "⏹ Stop Preview"
-                                else "▶ Preview"
-                            )
-                        }
-
-                        Button(
-                            onClick = { discardRecording() },
-                            modifier = Modifier.weight(1f),
-                            enabled = !sending && !sendingVoice
-                        ) {
-                            Text("🗑 Discard")
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            val path = previewPath
-                            val duration = durationMs
-
-                            if (
-                                path.isBlank() ||
-                                !File(path).exists()
-                            ) {
-                                error = "Recording not found. Please record again."
-                                return@Button
-                            }
-
-                            stopPreview()
-                            sendingVoice = true
-                            error = ""
-
-                            onSendVoice(
-                                path,
-                                duration
-                            ) { success ->
-                                sendingVoice = false
-
-                                if (success) {
-                                    try {
-                                        File(path).delete()
-                                    } catch (_: Exception) {
-                                    }
-
-                                    previewPath = ""
-                                    durationMs = 0L
-                                    error = ""
-                                } else {
-                                    // Keep the recording so the user
-                                    // can retry or discard it.
-                                    error = "Could not send. Your recording is saved; try again."
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !sending && !sendingVoice
-                    ) {
-                        Text(
-                            if (sendingVoice || sending) {
-                                "Sending..."
-                            } else {
-                                "📤 Send Voice Note"
-                            }
-                        )
-                    }
-                }
-
-                else -> {
-                    Button(
-                        onClick = {
-                            requestRecordingPermission()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !sending && !sendingVoice
-                    ) {
-                        Text("🎙 Record Voice Note")
-                    }
-                }
-            }
-
-            if (error.isNotBlank()) {
-                Text(error)
-            }
-        }
-    }
 }
