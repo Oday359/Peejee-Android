@@ -17,6 +17,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -1394,7 +1396,7 @@ if (showActivity) {
     selectedChatUser != null    
 ) {    
 
-    PrivateChatPageNew(    
+    PrivateChatPage(    
         person = selectedChatUser!!,    
         paddingValues = paddingValues,    
         onBack = {    
@@ -1724,26 +1726,15 @@ if (showActivity) {
             paddingValues = paddingValues    
         )    
 
-        1 -> PeejeeDiscoverPage(    
-            onUserClick = { userId ->    
-                firestore    
-                    .collection("users")    
-                    .document(userId)    
-                    .get()    
-                    .addOnSuccessListener { document ->    
-                        selectedProfileUser = PeejeePerson(    
-                            uid = document.id,    
-                            name = document.getString("name")    
-                                ?: "Peejee User",    
-                            email = document.getString("email")    
-                                ?: ""    
-                        )    
-                    }    
+        1 -> SearchPage(    
+            onMessage = { person ->    
+                selectedChatUser = person    
+                selectedTab = 3    
             },    
-            onPostClick = { postId ->    
-                selectedPostId = postId    
-                showCommentDialog = true    
-            }    
+            onProfile = { person ->    
+                selectedProfileUser = person    
+            },    
+            paddingValues = paddingValues    
         )    
 
         2 -> CreatePostPage(    
@@ -1753,7 +1744,7 @@ if (showActivity) {
             paddingValues = paddingValues    
         )    
 
-        3 -> MessagesPageNew(    
+        3 -> MessagesPage(    
             onMessage = { person ->    
                 selectedChatUser = person    
             },    
@@ -2174,41 +2165,41 @@ item {
             horizontalArrangement = Arrangement.spacedBy(7.dp),    
             verticalAlignment = Alignment.CenterVertically    
         ) {    
-            PeejeeHomeShortcut("👥", "Community", Modifier.weight(1f), onClick = { onNavigateToTab(1) })  
-            PeejeeHomeShortcut("🎬", "Drama", Modifier.weight(1f), onClick = { activeHomeShortcut = "Drama" })  
-            PeejeeHomeShortcut("🛍️", "Marketplace", Modifier.weight(1f), onClick = { activeHomeShortcut = "Marketplace" })  
-            PeejeeHomeShortcut("▦", "More", Modifier.weight(1f), onClick = { activeHomeShortcut = "More" })  
-            Button(  
-                onClick = { activeHomeShortcut = "Go Live" },  
-                modifier = Modifier.width(78.dp).height(76.dp),  
-                contentPadding = PaddingValues(4.dp),  
-                shape = RoundedCornerShape(14.dp),  
-                colors = ButtonDefaults.buttonColors(  
-                    containerColor = Color(0xFF7B2FF7),  
-                    contentColor = Color.White  
-                )  
-            ) {  
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {  
-                    Canvas(modifier = Modifier.size(width = 25.dp, height = 21.dp)) {  
-                        drawRoundRect(  
-                            color = Color.White,  
-                            topLeft = Offset(size.width * 0.06f, size.height * 0.20f),  
-                            size = Size(size.width * 0.58f, size.height * 0.62f),  
-                            cornerRadius = CornerRadius(size.height * 0.10f)  
-                        )  
-                        val lens = Path().apply {  
-                            moveTo(size.width * 0.68f, size.height * 0.34f)  
-                            lineTo(size.width * 0.98f, size.height * 0.15f)  
-                            lineTo(size.width * 0.98f, size.height * 0.85f)  
-                            lineTo(size.width * 0.68f, size.height * 0.66f)  
-                            close()  
-                        }  
-                        drawPath(path = lens, color = Color.White)  
-                    }  
-                    Spacer(Modifier.height(4.dp))  
-                    Text("Go Live", fontSize = 11.sp, maxLines = 1)  
-                }  
-            }  
+            PeejeeHomeShortcut("👥", "Community", Modifier.weight(1f), onClick = { onNavigateToTab(1) })    
+            PeejeeHomeShortcut("🎬", "Drama", Modifier.weight(1f), onClick = { activeHomeShortcut = "Drama" })    
+            PeejeeHomeShortcut("🛍️", "Marketplace", Modifier.weight(1f), onClick = { activeHomeShortcut = "Marketplace" })    
+            PeejeeHomeShortcut("▦", "More", Modifier.weight(1f), onClick = { activeHomeShortcut = "More" })    
+            Button(    
+                onClick = { activeHomeShortcut = "Go Live" },    
+                modifier = Modifier.width(78.dp).height(76.dp),    
+                contentPadding = PaddingValues(4.dp),    
+                shape = RoundedCornerShape(14.dp),    
+                colors = ButtonDefaults.buttonColors(    
+                    containerColor = Color(0xFF7B2FF7),    
+                    contentColor = Color.White    
+                )    
+            ) {    
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {    
+                    Canvas(modifier = Modifier.size(width = 25.dp, height = 21.dp)) {    
+                        drawRoundRect(    
+                            color = Color.White,    
+                            topLeft = Offset(size.width * 0.06f, size.height * 0.20f),    
+                            size = Size(size.width * 0.58f, size.height * 0.62f),    
+                            cornerRadius = CornerRadius(size.height * 0.10f)    
+                        )    
+                        val lens = Path().apply {    
+                            moveTo(size.width * 0.68f, size.height * 0.34f)    
+                            lineTo(size.width * 0.98f, size.height * 0.15f)    
+                            lineTo(size.width * 0.98f, size.height * 0.85f)    
+                            lineTo(size.width * 0.68f, size.height * 0.66f)    
+                            close()    
+                        }    
+                        drawPath(path = lens, color = Color.White)    
+                    }    
+                    Spacer(Modifier.height(4.dp))    
+                    Text("Go Live", fontSize = 11.sp, maxLines = 1)    
+                }    
+            }    
         }    
 
         Spacer(Modifier.height(16.dp))    
@@ -2378,9 +2369,9 @@ onDismissRequest = { activeHomeShortcut = null },
 title = { Text(if (shortcut == "More") "More on Peejee" else shortcut) },
 text = {
 Text(when (shortcut) {
-"Drama" -> "The Drama section is not connected to a drama page yet."
-"Marketplace" -> "The Marketplace section is not connected to a marketplace page yet."
-"Go Live" -> "Live streaming is not connected yet. The camera button is ready, but a live-streaming service and viewer still need to be built."
+"Drama" -> "The Drama page is not connected yet."
+"Marketplace" -> "The Marketplace page is not connected yet."
+"Go Live" -> "Live streaming is not implemented yet. The camera button is ready, but a live-streaming service and viewer still need to be built."
 else -> "Choose a Peejee section to open."
 })
 },
@@ -2848,12 +2839,37 @@ var results by remember {
 mutableStateOf<List<PeejeePerson>>(emptyList())
 }
 
+var suggestedPeople by remember { mutableStateOf<List<PeejeePerson>>(emptyList()) }
+var loadingSuggestions by remember { mutableStateOf(true) }
+
 var searching by remember {
 mutableStateOf(false)
 }
 
 var errorMessage by remember {
 mutableStateOf("")
+}
+
+LaunchedEffect(Unit) {
+val currentId = auth.currentUser?.uid.orEmpty()
+firestore.collection("users").orderBy("name").limit(40).get()
+.addOnSuccessListener { snapshot ->
+suggestedPeople = snapshot.documents.mapNotNull { document ->
+val uid = document.id
+val personName = document.getString("name")?.trim().orEmpty()
+if (uid == currentId || personName.isBlank()) null else PeejeePerson(
+uid = uid,
+name = personName,
+email = document.getString("email") ?: "",
+isOnline = document.getBoolean("isOnline") ?: false,
+profilePhoto = document.getString("profilePhoto") ?: ""
+)
+}
+loadingSuggestions = false
+}
+.addOnFailureListener {
+loadingSuggestions = false
+}
 }
 
 LaunchedEffect(searchText) {
@@ -2903,7 +2919,8 @@ if (queryText.isBlank()) {
                                     ?: "",    
                             isOnline =    
                                 document.getBoolean("isOnline")    
-                                    ?: false    
+                                    ?: false,    
+                            profilePhoto = document.getString("profilePhoto") ?: ""    
                         )    
                     }    
                 }    
@@ -2926,6 +2943,7 @@ Column(
 modifier = Modifier
 .fillMaxSize()
 .padding(paddingValues)
+.verticalScroll(rememberScrollState())
 .padding(20.dp)
 ) {
 
@@ -2954,6 +2972,44 @@ OutlinedTextField(
 )    
 
 Spacer(Modifier.height(16.dp))    
+
+if (searchText.isBlank()) {    
+    Text("People You May Know", fontSize = 21.sp, fontWeight = FontWeight.Bold)    
+    Spacer(Modifier.height(8.dp))    
+    if (loadingSuggestions) {    
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {    
+            CircularProgressIndicator(modifier = Modifier.size(24.dp))    
+        }    
+    } else if (suggestedPeople.isEmpty()) {    
+        Text("No other Peejee users to suggest yet.", fontSize = 13.sp)    
+    } else {    
+        suggestedPeople.take(12).forEach { person ->    
+            Card(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {    
+                Row(    
+                    Modifier.fillMaxWidth().padding(10.dp),    
+                    verticalAlignment = Alignment.CenterVertically    
+                ) {    
+                    Box(Modifier.clickable { onProfile(person) }) {    
+                        PeejeeSmallProfileAvatar(    
+                            photoBase64 = person.profilePhoto,    
+                            name = person.name,    
+                            size = 48    
+                        )    
+                    }    
+                    Spacer(Modifier.width(10.dp))    
+                    Column(    
+                        Modifier.weight(1f).clickable { onProfile(person) }    
+                    ) {    
+                        Text(person.name, fontWeight = FontWeight.Bold)    
+                        Text(if (person.isOnline) "Online" else "Peejee member", fontSize = 11.sp)    
+                    }    
+                    TextButton(onClick = { onMessage(person) }) { Text("Message") }    
+                }    
+            }    
+        }    
+    }    
+    Spacer(Modifier.height(16.dp))    
+}    
 
 if (searching) {    
 
@@ -2999,7 +3055,11 @@ if (searching) {
                     Alignment.CenterVertically    
             ) {    
 
-                DefaultProfileIcon(size = 52)    
+                PeejeeSmallProfileAvatar(    
+                    photoBase64 = person.profilePhoto,    
+                    name = person.name,    
+                    size = 52    
+                )    
 
                 Spacer(Modifier.width(12.dp))    
 
@@ -3126,7 +3186,8 @@ if (uid == currentUserId) null else PeejeePerson(
 uid = uid,
 name = document.getString("name") ?: "Peejee User",
 email = document.getString("email") ?: "",
-isOnline = document.getBoolean("isOnline") ?: false
+isOnline = document.getBoolean("isOnline") ?: false,
+profilePhoto = document.getString("profilePhoto") ?: ""
 )
 }
 searching = false
@@ -3178,7 +3239,11 @@ if (searching) {
                         Modifier.fillMaxWidth().padding(12.dp),    
                         verticalAlignment = Alignment.CenterVertically    
                     ) {    
-                        DefaultProfileIcon(size = 48)    
+                        PeejeeSmallProfileAvatar(    
+                            photoBase64 = person.profilePhoto,    
+                            name = person.name,    
+                            size = 48    
+                        )    
                         Spacer(Modifier.width(10.dp))    
                         Column(Modifier.weight(1f)) {    
                             Text(person.name, fontWeight = FontWeight.Bold)    
@@ -3218,7 +3283,11 @@ if (loadingConversations) {
                     .padding(vertical = 12.dp),    
                 verticalAlignment = Alignment.CenterVertically    
             ) {    
-                DefaultProfileIcon(size = 54)    
+                PeejeeSmallProfileAvatar(    
+                    photoBase64 = conversation.user.profilePhoto,    
+                    name = conversation.user.name,    
+                    size = 54    
+                )    
                 Spacer(Modifier.width(12.dp))    
                 Column(Modifier.weight(1f)) {    
                     Text(conversation.user.name, fontSize = 17.sp, fontWeight = FontWeight.Bold)    
@@ -3283,7 +3352,8 @@ val otherIds = allMessages.map {
                     uid = uid,    
                     name = document.getString("name") ?: "Peejee User",    
                     email = document.getString("email") ?: "",    
-                    isOnline = document.getBoolean("isOnline") ?: false    
+                    isOnline = document.getBoolean("isOnline") ?: false,    
+                    profilePhoto = document.getString("profilePhoto") ?: ""    
                 )    
             }    
             .addOnCompleteListener {    
@@ -3523,7 +3593,11 @@ Row(
         Text("← Back")    
     }    
 
-    DefaultProfileIcon(size = 45)    
+    PeejeeSmallProfileAvatar(    
+        photoBase64 = person.profilePhoto,    
+        name = person.name,    
+        size = 45    
+    )    
 
     Spacer(Modifier.width(10.dp))    
 
@@ -4075,6 +4149,68 @@ Button(
     )    
 }
 
+}
+
+}
+
+@Composable
+fun OtherUserProfilePage(
+person: PeejeePerson,
+paddingValues: PaddingValues,
+onBack: () -> Unit,
+onMessage: (PeejeePerson) -> Unit
+) {
+val firestore = remember { FirebaseFirestore.getInstance() }
+var displayName by remember(person.uid) { mutableStateOf(person.name) }
+var bio by remember(person.uid) { mutableStateOf("") }
+var photo by remember(person.uid) { mutableStateOf(person.profilePhoto) }
+var followersCount by remember(person.uid) { mutableIntStateOf(0) }
+var followingCount by remember(person.uid) { mutableIntStateOf(0) }
+
+LaunchedEffect(person.uid) {  
+    if (person.uid.isNotBlank()) {  
+        firestore.collection("users").document(person.uid).get()  
+            .addOnSuccessListener { document ->  
+                displayName = document.getString("name")?.takeIf { it.isNotBlank() } ?: person.name  
+                bio = document.getString("bio") ?: ""  
+                photo = document.getString("profilePhoto") ?: person.profilePhoto  
+                followersCount = (document.getLong("followersCount") ?: 0L).toInt()  
+                followingCount = (document.getLong("followingCount") ?: 0L).toInt()  
+            }  
+    }  
+}  
+
+Column(  
+    modifier = Modifier.fillMaxSize().padding(paddingValues).padding(20.dp),  
+    horizontalAlignment = Alignment.CenterHorizontally  
+) {  
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {  
+        TextButton(onClick = onBack) { Text("← Back") }  
+        Text("Profile", fontSize = 22.sp, fontWeight = FontWeight.Bold)  
+    }  
+    Spacer(Modifier.height(20.dp))  
+    PeejeeSmallProfileAvatar(photoBase64 = photo, name = displayName, size = 110)  
+    Spacer(Modifier.height(12.dp))  
+    Text(displayName, fontSize = 26.sp, fontWeight = FontWeight.Bold)  
+    if (bio.isNotBlank()) {  
+        Spacer(Modifier.height(8.dp))  
+        Text(bio, fontSize = 15.sp)  
+    }  
+    Spacer(Modifier.height(18.dp))  
+    Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {  
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {  
+            Text(followersCount.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)  
+            Text("Followers", fontSize = 12.sp)  
+        }  
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {  
+            Text(followingCount.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)  
+            Text("Following", fontSize = 12.sp)  
+        }  
+    }  
+    Spacer(Modifier.height(20.dp))  
+    Button(onClick = { onMessage(person.copy(name = displayName, profilePhoto = photo)) }, modifier = Modifier.fillMaxWidth()) {  
+        Text("Message")  
+    }  
 }
 
 }
