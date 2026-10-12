@@ -418,9 +418,9 @@ screen = "home"
 }
 .addOnFailureListener {
 
-userName =          
-    currentUser.displayName          
-        ?: "Peejee User"          
+userName =
+currentUser.displayName
+?: "Peejee User"
 
 screen = "home"
 
@@ -617,88 +617,89 @@ errorMessage = ""
 
 when {
 
-name.isBlank() ->          
-    errorMessage =          
-        "Please enter your full name."          
+name.isBlank() ->
+errorMessage =
+"Please enter your full name."
 
-email.isBlank() ->          
-    errorMessage =          
-        "Please enter your email."          
+email.isBlank() ->
+errorMessage =
+"Please enter your email."
 
-password.length < 6 ->          
-    errorMessage =          
-        "Password must be at least 6 characters."          
+password.length < 6 ->
+errorMessage =
+"Password must be at least 6 characters."
 
-password != confirmPassword ->          
-    errorMessage =          
-        "Passwords do not match."          
+password != confirmPassword ->
+errorMessage =
+"Passwords do not match."
 
-else -> {          
+else -> {
 
-    loading = true          
+loading = true            
 
-    auth.createUserWithEmailAndPassword(          
-        email.trim(),          
-        password          
-    ).addOnCompleteListener { task ->          
+auth.createUserWithEmailAndPassword(            
+    email.trim(),            
+    password            
+).addOnCompleteListener { task ->            
 
-        if (task.isSuccessful) {          
+    if (task.isSuccessful) {            
 
-            val user = auth.currentUser          
+        val user = auth.currentUser            
 
-            if (user != null) {          
+        if (user != null) {            
 
-                val profile =          
-                    hashMapOf<String, Any>(          
-                        "uid" to user.uid,          
-                        "name" to name.trim(),          
-                        "email" to email.trim(),          
-                        "bio" to "",          
-                        "profilePhoto" to "",          
-                        "followersCount" to 0,          
-                        "followingCount" to 0,          
-                        "updatedAt" to          
-                            System.currentTimeMillis()          
-                    )          
+            val profile =            
+                hashMapOf<String, Any>(            
+                    "uid" to user.uid,            
+                    "name" to name.trim(),            
+                    "email" to email.trim(),            
+                    "bio" to "",            
+                    "profilePhoto" to "",            
+                    "followersCount" to 0,            
+                    "followingCount" to 0,            
+                    "updatedAt" to            
+                        System.currentTimeMillis()            
+                )            
 
-                firestore          
-                    .collection("users")          
-                    .document(user.uid)          
-                    .set(profile)          
-                    .addOnSuccessListener {          
+            firestore            
+                .collection("users")            
+                .document(user.uid)            
+                .set(profile)            
+                .addOnSuccessListener {            
 
-                        loading = false          
+                    loading = false            
 
-                        onAccountCreated(          
-                            name.trim()          
-                        )          
-                    }          
-                    .addOnFailureListener { exception ->          
+                    onAccountCreated(            
+                        name.trim()            
+                    )            
+                }            
+                .addOnFailureListener { exception ->            
 
-                        loading = false          
+                    loading = false            
 
-                        errorMessage =          
-                            exception.message          
-                                ?: "Could not save your profile."          
-                    }          
+                    errorMessage =            
+                        exception.message            
+                            ?: "Could not save your profile."            
+                }            
 
-            } else {          
+        } else {            
 
-                loading = false          
+            loading = false            
 
-                errorMessage =          
-                    "Account creation failed."          
-            }          
+            errorMessage =            
+                "Account creation failed."            
+        }            
 
-        } else {          
+    } else {            
 
-            loading = false          
+        loading = false            
 
-            errorMessage =          
-                task.exception?.message          
-                    ?: "Could not create account."          
-        }          
-    }          
+        errorMessage =            
+            task.exception?.message            
+                ?: "Could not create account."            
+    }            
+}
+
 }
 
 }
@@ -807,63 +808,64 @@ errorMessage = ""
 
 when {
 
-email.isBlank() ->          
-    errorMessage =          
-        "Please enter your email."          
+email.isBlank() ->
+errorMessage =
+"Please enter your email."
 
-password.isBlank() ->          
-    errorMessage =          
-        "Please enter your password."          
+password.isBlank() ->
+errorMessage =
+"Please enter your password."
 
-else -> {          
+else -> {
 
-    loading = true          
+loading = true            
 
-    auth.signInWithEmailAndPassword(          
-        email.trim(),          
-        password          
-    ).addOnCompleteListener { task ->          
+auth.signInWithEmailAndPassword(            
+    email.trim(),            
+    password            
+).addOnCompleteListener { task ->            
 
-        if (task.isSuccessful) {          
+    if (task.isSuccessful) {            
 
-            val user = auth.currentUser          
+        val user = auth.currentUser            
 
-            if (user != null) {          
+        if (user != null) {            
 
-                firestore          
-                    .collection("users")          
-                    .document(user.uid)          
-                    .get()          
-                    .addOnSuccessListener { document ->          
+            firestore            
+                .collection("users")            
+                .document(user.uid)            
+                .get()            
+                .addOnSuccessListener { document ->            
 
-                        loading = false          
+                    loading = false            
 
-                        onLoginSuccess(          
-                            document.getString("name")          
-                                ?: "Peejee User"          
-                        )          
-                    }          
-                    .addOnFailureListener {          
+                    onLoginSuccess(            
+                        document.getString("name")            
+                            ?: "Peejee User"            
+                    )            
+                }            
+                .addOnFailureListener {            
 
-                        loading = false          
-                        onLoginSuccess("Peejee User")          
-                    }          
+                    loading = false            
+                    onLoginSuccess("Peejee User")            
+                }            
 
-            } else {          
+        } else {            
 
-                loading = false          
-                errorMessage = "Login failed."          
-            }          
+            loading = false            
+            errorMessage = "Login failed."            
+        }            
 
-        } else {          
+    } else {            
 
-            loading = false          
+        loading = false            
 
-            errorMessage =          
-                task.exception?.message          
-                    ?: "Could not log in."          
-        }          
-    }          
+        errorMessage =            
+            task.exception?.message            
+                ?: "Could not log in."            
+    }            
+}
+
 }
 
 }
@@ -1124,8 +1126,8 @@ return@addSnapshotListener
 
 if (snapshot != null) {
 
-posts = mapHomePosts(snapshot)          
-}          
+posts = mapHomePosts(snapshot)
+}
 
 loadingPosts = false
 
@@ -1159,11 +1161,11 @@ error == null &&
 snapshot != null
 ) {
 
-followedUserIds =          
-            snapshot.documents          
-                .map { it.id }          
-                .toSet()          
-    }          
+followedUserIds =
+snapshot.documents
+.map { it.id }
+.toSet()
+}
 }
 
 onDispose {
@@ -1208,47 +1210,48 @@ Query.Direction.ASCENDING
 
 if (error != null) {
 
-loadingComments = false          
+loadingComments = false
 
-        commentError =          
-            error.message          
-                ?: "Could not load comments."          
+commentError =            
+        error.message            
+            ?: "Could not load comments."            
 
-        return@addSnapshotListener          
-    }          
+    return@addSnapshotListener            
+}            
 
-    if (snapshot != null) {          
+if (snapshot != null) {            
 
-        selectedComments =          
-            snapshot.documents.mapNotNull { document ->          
+    selectedComments =            
+        snapshot.documents.mapNotNull { document ->            
 
-                val text =          
-                    document.getString("text")          
-                        ?: ""          
+            val text =            
+                document.getString("text")            
+                    ?: ""            
 
-                if (text.isBlank()) {          
-                    null          
-                } else {          
-                    PeejeeComment(          
-                        id = document.id,          
-                        userId =          
-                            document.getString("userId")          
-                                ?: "",          
-                        userName =          
-                            document.getString("userName")          
-                                ?: "Peejee User",          
-                        text = text,          
-                        timestamp =          
-                            document.getLong("timestamp")          
-                                ?: 0L,  
-                        parentCommentId = document.getString("parentCommentId") ?: "",  
-                        parentUserName = document.getString("parentUserName") ?: ""  
-                    )          
-                }          
-            }          
-    }          
+            if (text.isBlank()) {            
+                null            
+            } else {            
+                PeejeeComment(            
+                    id = document.id,            
+                    userId =            
+                        document.getString("userId")            
+                            ?: "",            
+                    userName =            
+                        document.getString("userName")            
+                            ?: "Peejee User",            
+                    text = text,            
+                    timestamp =            
+                        document.getLong("timestamp")            
+                            ?: 0L,    
+                    parentCommentId = document.getString("parentCommentId") ?: "",    
+                    parentUserName = document.getString("parentUserName") ?: ""    
+                )            
+            }            
+        }            
+}            
 
-    loadingComments = false          
+loadingComments = false
+
 }
 
 onDispose {
@@ -1276,6 +1279,7 @@ selectedChatUser = null
 Scaffold(
 
 topBar = {
+if (selectedTab != 2) {
 TopAppBar(
 title = {
 PeejeeLogo(size = 48)
@@ -1320,6 +1324,7 @@ vertical = 2.dp
 
 )
 
+}
 },
 
 bottomBar = {
@@ -1453,307 +1458,310 @@ processingFollowUserId = processingFollowUserId,
 isRefreshing = refreshingPosts,
 onRefresh = { refreshHomePosts() },
 
-onLike = { postId ->          
+onLike = { postId ->
 
-    val userId =          
-        auth.currentUser?.uid          
+val userId =            
+    auth.currentUser?.uid            
 
-    if (userId != null) {          
+if (userId != null) {            
 
-        val postRef =          
-            firestore          
-                .collection("posts")          
-                .document(postId)          
+    val postRef =            
+        firestore            
+            .collection("posts")            
+            .document(postId)            
 
-        var postOwnerId = ""          
-        var postOwnerName = "Peejee User"          
-        var wasAlreadyLiked = false          
+    var postOwnerId = ""            
+    var postOwnerName = "Peejee User"            
+    var wasAlreadyLiked = false            
 
-        firestore.runTransaction { transaction ->          
+    firestore.runTransaction { transaction ->            
 
-            val snapshot =          
-                transaction.get(postRef)          
+        val snapshot =            
+            transaction.get(postRef)            
 
-            val currentLikes =          
-                snapshot.getLong("likes")          
-                    ?.toInt()          
-                    ?: 0          
+        val currentLikes =            
+            snapshot.getLong("likes")            
+                ?.toInt()            
+                ?: 0            
 
-            val currentLikedBy =          
-                getLikedBy(snapshot).toMutableMap()          
+        val currentLikedBy =            
+            getLikedBy(snapshot).toMutableMap()            
 
-            val alreadyLiked =          
-                currentLikedBy[userId] == true          
+        val alreadyLiked =            
+            currentLikedBy[userId] == true            
 
-            wasAlreadyLiked = alreadyLiked          
-            postOwnerId =          
-                snapshot.getString("userId") ?: ""          
-            postOwnerName =          
-                snapshot.getString("userName")          
-                    ?: "Peejee User"          
+        wasAlreadyLiked = alreadyLiked            
+        postOwnerId =            
+            snapshot.getString("userId") ?: ""            
+        postOwnerName =            
+            snapshot.getString("userName")            
+                ?: "Peejee User"            
 
-            if (alreadyLiked) {          
+        if (alreadyLiked) {            
 
-                currentLikedBy.remove(userId)          
+            currentLikedBy.remove(userId)            
 
-                transaction.update(          
-                    postRef,          
-                    "likes",          
-                    (currentLikes - 1)          
-                        .coerceAtLeast(0)          
-                )          
+            transaction.update(            
+                postRef,            
+                "likes",            
+                (currentLikes - 1)            
+                    .coerceAtLeast(0)            
+            )            
 
-            } else {          
+        } else {            
 
-                currentLikedBy[userId] = true          
+            currentLikedBy[userId] = true            
 
-                transaction.update(          
-                    postRef,          
-                    "likes",          
-                    currentLikes + 1          
-                )          
-            }          
+            transaction.update(            
+                postRef,            
+                "likes",            
+                currentLikes + 1            
+            )            
+        }            
 
-            transaction.update(          
-                postRef,          
-                "likedBy",          
-                currentLikedBy          
-            )          
+        transaction.update(            
+            postRef,            
+            "likedBy",            
+            currentLikedBy            
+        )            
 
-            null          
-        }.addOnSuccessListener {          
-            if (!wasAlreadyLiked) {          
-                createPeejeeNotification(          
-                    firestore = firestore,          
-                    recipientUserId = postOwnerId,          
-                    type = "like",          
-                    actorId = userId,          
-                    actorName = name,          
-                    text = "liked your post",          
-                    postId = postId          
-                )          
-            }          
-        }          
-    }          
-},          
+        null            
+    }.addOnSuccessListener {            
+        if (!wasAlreadyLiked) {            
+            createPeejeeNotification(            
+                firestore = firestore,            
+                recipientUserId = postOwnerId,            
+                type = "like",            
+                actorId = userId,            
+                actorName = name,            
+                text = "liked your post",            
+                postId = postId            
+            )            
+        }            
+    }            
+}
 
-onFollow = { targetUserId ->          
+},
 
-    val currentUser = auth.currentUser          
+onFollow = { targetUserId ->
 
-    if (          
-        currentUser == null ||          
-        targetUserId.isBlank() ||          
-        targetUserId == currentUser.uid ||          
-        processingFollowUserId == targetUserId          
-    ) {          
-        return@HomeFeed          
-    }          
+val currentUser = auth.currentUser            
 
-    val wasFollowing = followedUserIds.contains(targetUserId)          
+if (            
+    currentUser == null ||            
+    targetUserId.isBlank() ||            
+    targetUserId == currentUser.uid ||            
+    processingFollowUserId == targetUserId            
+) {            
+    return@HomeFeed            
+}            
 
-    processingFollowUserId = targetUserId          
-    followedUserIds = if (wasFollowing) {          
-        followedUserIds - targetUserId          
-    } else {          
-        followedUserIds + targetUserId          
-    }          
+val wasFollowing = followedUserIds.contains(targetUserId)            
 
-    val currentUserRef = firestore.collection("users").document(currentUser.uid)          
-    val targetUserRef = firestore.collection("users").document(targetUserId)          
-    val followingRef = currentUserRef.collection("following").document(targetUserId)          
-    val followerRef = targetUserRef.collection("followers").document(currentUser.uid)          
+processingFollowUserId = targetUserId            
+followedUserIds = if (wasFollowing) {            
+    followedUserIds - targetUserId            
+} else {            
+    followedUserIds + targetUserId            
+}            
 
-    var actorName = name          
+val currentUserRef = firestore.collection("users").document(currentUser.uid)            
+val targetUserRef = firestore.collection("users").document(targetUserId)            
+val followingRef = currentUserRef.collection("following").document(targetUserId)            
+val followerRef = targetUserRef.collection("followers").document(currentUser.uid)            
 
-    firestore.runTransaction { transaction ->          
-        val followingSnapshot = transaction.get(followingRef)          
-        val currentUserSnapshot = transaction.get(currentUserRef)          
-        val targetUserSnapshot = transaction.get(targetUserRef)          
+var actorName = name            
 
-        val currentFollowingCount = currentUserSnapshot.getLong("followingCount")?.toInt() ?: 0          
-        val targetFollowersCount = targetUserSnapshot.getLong("followersCount")?.toInt() ?: 0          
+firestore.runTransaction { transaction ->            
+    val followingSnapshot = transaction.get(followingRef)            
+    val currentUserSnapshot = transaction.get(currentUserRef)            
+    val targetUserSnapshot = transaction.get(targetUserRef)            
 
-        if (followingSnapshot.exists()) {          
-            actorName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name          
+    val currentFollowingCount = currentUserSnapshot.getLong("followingCount")?.toInt() ?: 0            
+    val targetFollowersCount = targetUserSnapshot.getLong("followersCount")?.toInt() ?: 0            
 
-            transaction.delete(followingRef)          
-            transaction.delete(followerRef)          
-            transaction.set(          
-                currentUserRef,          
-                mapOf("followingCount" to (currentFollowingCount - 1).coerceAtLeast(0)),          
-                SetOptions.merge()          
-            )          
-            transaction.set(          
-                targetUserRef,          
-                mapOf("followersCount" to (targetFollowersCount - 1).coerceAtLeast(0)),          
-                SetOptions.merge()          
-            )          
-        } else {          
-            val currentUserName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name          
-            actorName = currentUserName          
-            val targetUserName = targetUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: "Peejee User"          
-            val now = System.currentTimeMillis()          
+    if (followingSnapshot.exists()) {            
+        actorName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name            
 
-            transaction.set(          
-                followingRef,          
-                hashMapOf<String, Any>(          
-                    "uid" to targetUserId,          
-                    "name" to targetUserName,          
-                    "timestamp" to now          
-                )          
-            )          
-            transaction.set(          
-                followerRef,          
-                hashMapOf<String, Any>(          
-                    "uid" to currentUser.uid,          
-                    "name" to currentUserName,          
-                    "timestamp" to now          
-                )          
-            )          
-            transaction.set(          
-                currentUserRef,          
-                mapOf("followingCount" to currentFollowingCount + 1),          
-                SetOptions.merge()          
-            )          
-            transaction.set(          
-                targetUserRef,          
-                mapOf("followersCount" to targetFollowersCount + 1),          
-                SetOptions.merge()          
-            )          
-        }          
-        null          
-    }.addOnSuccessListener {          
-        processingFollowUserId = null          
-        if (!wasFollowing) {          
-            createPeejeeNotification(          
-                firestore = firestore,          
-                recipientUserId = targetUserId,          
-                type = "follow",          
-                actorId = currentUser.uid,          
-                actorName = actorName,          
-                text = "started following you"          
-            )          
-        }          
-    }.addOnFailureListener {          
-        followedUserIds = if (wasFollowing) {          
-            followedUserIds + targetUserId          
-        } else {          
-            followedUserIds - targetUserId          
-        }          
-        processingFollowUserId = null          
-    }          
-},          
+        transaction.delete(followingRef)            
+        transaction.delete(followerRef)            
+        transaction.set(            
+            currentUserRef,            
+            mapOf("followingCount" to (currentFollowingCount - 1).coerceAtLeast(0)),            
+            SetOptions.merge()            
+        )            
+        transaction.set(            
+            targetUserRef,            
+            mapOf("followersCount" to (targetFollowersCount - 1).coerceAtLeast(0)),            
+            SetOptions.merge()            
+        )            
+    } else {            
+        val currentUserName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name            
+        actorName = currentUserName            
+        val targetUserName = targetUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: "Peejee User"            
+        val now = System.currentTimeMillis()            
 
-onComment = { postId ->          
-    selectedPostId = postId          
-    newComment = ""          
-    commentError = ""          
-    showCommentDialog = true          
-},          
+        transaction.set(            
+            followingRef,            
+            hashMapOf<String, Any>(            
+                "uid" to targetUserId,            
+                "name" to targetUserName,            
+                "timestamp" to now            
+            )            
+        )            
+        transaction.set(            
+            followerRef,            
+            hashMapOf<String, Any>(            
+                "uid" to currentUser.uid,            
+                "name" to currentUserName,            
+                "timestamp" to now            
+            )            
+        )            
+        transaction.set(            
+            currentUserRef,            
+            mapOf("followingCount" to currentFollowingCount + 1),            
+            SetOptions.merge()            
+        )            
+        transaction.set(            
+            targetUserRef,            
+            mapOf("followersCount" to targetFollowersCount + 1),            
+            SetOptions.merge()            
+        )            
+    }            
+    null            
+}.addOnSuccessListener {            
+    processingFollowUserId = null            
+    if (!wasFollowing) {            
+        createPeejeeNotification(            
+            firestore = firestore,            
+            recipientUserId = targetUserId,            
+            type = "follow",            
+            actorId = currentUser.uid,            
+            actorName = actorName,            
+            text = "started following you"            
+        )            
+    }            
+}.addOnFailureListener {            
+    followedUserIds = if (wasFollowing) {            
+        followedUserIds + targetUserId            
+    } else {            
+        followedUserIds - targetUserId            
+    }            
+    processingFollowUserId = null            
+}
 
-onShare = { post ->          
+},
 
-    val currentUser =          
-        auth.currentUser          
+onComment = { postId ->
+selectedPostId = postId
+newComment = ""
+commentError = ""
+showCommentDialog = true
+},
 
-    if (currentUser == null) {          
-        return@HomeFeed          
-    }          
+onShare = { post ->
 
-    val postRef =          
-        firestore          
-            .collection("posts")          
-            .document(post.id)          
+val currentUser =            
+    auth.currentUser            
 
-    val newPostRef =          
-        firestore          
-            .collection("posts")          
-            .document()          
+if (currentUser == null) {            
+    return@HomeFeed            
+}            
 
-    val userRef =          
-        firestore          
-            .collection("users")          
-            .document(currentUser.uid)          
+val postRef =            
+    firestore            
+        .collection("posts")            
+        .document(post.id)            
 
-    firestore.runTransaction { transaction ->          
+val newPostRef =            
+    firestore            
+        .collection("posts")            
+        .document()            
 
-        val postSnapshot =          
-            transaction.get(postRef)          
+val userRef =            
+    firestore            
+        .collection("users")            
+        .document(currentUser.uid)            
 
-        val userSnapshot =          
-            transaction.get(userRef)          
+firestore.runTransaction { transaction ->            
 
-        val currentShares =          
-            postSnapshot          
-                .getLong("shareCount")          
-                ?.toInt()          
-                ?: 0          
+    val postSnapshot =            
+        transaction.get(postRef)            
 
-        val currentName =          
-            userSnapshot          
-                .getString("name")          
-                ?.trim()          
-                ?.takeIf {          
-                    it.isNotBlank()          
-                }          
-                ?: name          
+    val userSnapshot =            
+        transaction.get(userRef)            
 
-        val sharedPostData =          
-            hashMapOf<String, Any>(          
-                "postId" to newPostRef.id,          
-                "userId" to currentUser.uid,          
-                "userName" to currentName,          
-                "text" to post.text,          
-                "likes" to 0,          
-                "likedBy" to          
-                    emptyMap<String, Boolean>(),          
-                "commentCount" to 0,          
-                "shareCount" to 0,          
-                "timestamp" to          
-                    System.currentTimeMillis(),          
-                "sharedFromPostId" to post.id,          
-                "sharedFromUserName" to          
-                    post.userName,          
-                "sharedFromText" to          
-                    post.text          
-            )          
+    val currentShares =            
+        postSnapshot            
+            .getLong("shareCount")            
+            ?.toInt()            
+            ?: 0            
 
-        if (post.mediaUrl.isNotBlank()) {          
-            sharedPostData["mediaUrl"] =          
-                post.mediaUrl          
+    val currentName =            
+        userSnapshot            
+            .getString("name")            
+            ?.trim()            
+            ?.takeIf {            
+                it.isNotBlank()            
+            }            
+            ?: name            
 
-            sharedPostData["mediaType"] =          
-                post.mediaType          
-        }          
+    val sharedPostData =            
+        hashMapOf<String, Any>(            
+            "postId" to newPostRef.id,            
+            "userId" to currentUser.uid,            
+            "userName" to currentName,            
+            "text" to post.text,            
+            "likes" to 0,            
+            "likedBy" to            
+                emptyMap<String, Boolean>(),            
+            "commentCount" to 0,            
+            "shareCount" to 0,            
+            "timestamp" to            
+                System.currentTimeMillis(),            
+            "sharedFromPostId" to post.id,            
+            "sharedFromUserName" to            
+                post.userName,            
+            "sharedFromText" to            
+                post.text            
+        )            
 
-        transaction.set(          
-            newPostRef,          
-            sharedPostData          
-        )          
+    if (post.mediaUrl.isNotBlank()) {            
+        sharedPostData["mediaUrl"] =            
+            post.mediaUrl            
 
-        transaction.update(          
-            postRef,          
-            "shareCount",          
-            currentShares + 1          
-        )          
+        sharedPostData["mediaType"] =            
+            post.mediaType            
+    }            
 
-        null          
+    transaction.set(            
+        newPostRef,            
+        sharedPostData            
+    )            
 
-    }.addOnFailureListener {          
-        // No external share.          
-    }          
-},          
+    transaction.update(            
+        postRef,            
+        "shareCount",            
+        currentShares + 1            
+    )            
 
-onProfile = { person ->          
-    if (person.uid == currentUserId) {          
-        selectedProfileUser = null          
-        selectedChatUser = null          
-        selectedTab = 4          
-    } else {          
-        selectedProfileUser = person          
-    }          
-},          
+    null            
+
+}.addOnFailureListener {            
+    // No external share.            
+}
+
+},
+
+onProfile = { person ->
+if (person.uid == currentUserId) {
+selectedProfileUser = null
+selectedChatUser = null
+selectedTab = 4
+} else {
+selectedProfileUser = person
+}
+},
 paddingValues = paddingValues
 
 )
@@ -1773,7 +1781,7 @@ paddingValues = paddingValues
 onPostCreated = {
 selectedTab = 0
 },
-paddingValues = PaddingValues(0.dp)
+paddingValues = paddingValues
 )
 
 3 -> MessagesPage(
@@ -1814,113 +1822,115 @@ text = {
 
 Column {
 
-if (loadingComments) {          
+if (loadingComments) {
 
-    Row(          
-        modifier = Modifier.fillMaxWidth(),          
-        horizontalArrangement =          
-            Arrangement.Center          
-    ) {          
-        CircularProgressIndicator()          
-    }          
+Row(            
+    modifier = Modifier.fillMaxWidth(),            
+    horizontalArrangement =            
+        Arrangement.Center            
+) {            
+    CircularProgressIndicator()            
+}
 
-} else if (selectedComments.isEmpty()) {          
+} else if (selectedComments.isEmpty()) {
 
-    Text(          
-        "No comments yet. Be the first!"          
-    )          
+Text(            
+    "No comments yet. Be the first!"            
+)
 
-} else {          
+} else {
 
-    LazyColumn(          
-        modifier = Modifier          
-            .fillMaxWidth()          
-            .heightIn(max = 260.dp)          
-    ) {          
+LazyColumn(            
+    modifier = Modifier            
+        .fillMaxWidth()            
+        .heightIn(max = 260.dp)            
+) {            
 
-        itemsIndexed(          
-            selectedComments          
-        ) { _, comment ->          
+    itemsIndexed(            
+        selectedComments            
+    ) { _, comment ->            
 
-            Column(  
-                modifier = Modifier  
-                    .fillMaxWidth()  
-                    .padding(  
-                        start = if (comment.parentCommentId.isNotBlank()) 18.dp else 0.dp,  
-                        top = 6.dp,  
-                        bottom = 6.dp  
-                    )  
-            ) {  
-                if (comment.parentCommentId.isNotBlank() && comment.parentUserName.isNotBlank()) {  
-                    Text(  
-                        "Replying to ${comment.parentUserName}",  
-                        fontSize = 11.sp,  
-                        color = Color(0xFF7B2FF7)  
-                    )  
-                }  
-                Text(  
-                    comment.userName.ifBlank { "User" },  
-                    fontWeight = FontWeight.Bold,  
-                    fontSize = 14.sp  
-                )  
-                Text(comment.text, fontSize = 15.sp)  
-                TextButton(  
-                    onClick = {  
-                        replyToComment = if (comment.parentCommentId.isBlank()) comment else {  
-                            selectedComments.firstOrNull { it.id == comment.parentCommentId } ?: comment  
-                        }  
-                        commentError = ""  
-                    },  
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)  
-                ) {  
-                    Text("Reply", fontSize = 12.sp, color = Color(0xFF7B2FF7))  
-                }  
-            }          
-        }          
-    }          
-}          
+        Column(    
+            modifier = Modifier    
+                .fillMaxWidth()    
+                .padding(    
+                    start = if (comment.parentCommentId.isNotBlank()) 18.dp else 0.dp,    
+                    top = 6.dp,    
+                    bottom = 6.dp    
+                )    
+        ) {    
+            if (comment.parentCommentId.isNotBlank() && comment.parentUserName.isNotBlank()) {    
+                Text(    
+                    "Replying to ${comment.parentUserName}",    
+                    fontSize = 11.sp,    
+                    color = Color(0xFF7B2FF7)    
+                )    
+            }    
+            Text(    
+                comment.userName.ifBlank { "User" },    
+                fontWeight = FontWeight.Bold,    
+                fontSize = 14.sp    
+            )    
+            Text(comment.text, fontSize = 15.sp)    
+            TextButton(    
+                onClick = {    
+                    replyToComment = if (comment.parentCommentId.isBlank()) comment else {    
+                        selectedComments.firstOrNull { it.id == comment.parentCommentId } ?: comment    
+                    }    
+                    commentError = ""    
+                },    
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)    
+            ) {    
+                Text("Reply", fontSize = 12.sp, color = Color(0xFF7B2FF7))    
+            }    
+        }            
+    }            
+}
 
-if (commentError.isNotEmpty()) {          
+}
 
-    Spacer(Modifier.height(8.dp))          
+if (commentError.isNotEmpty()) {
 
-    Text(          
-        commentError,          
-        color = MaterialTheme.colorScheme.error,          
-        fontSize = 13.sp          
-    )          
-}          
+Spacer(Modifier.height(8.dp))            
 
-if (replyToComment != null) {  
-    Row(  
-        modifier = Modifier.fillMaxWidth(),  
-        verticalAlignment = Alignment.CenterVertically  
-    ) {  
-        Text(  
-            "Replying to ${replyToComment!!.userName}",  
-            color = Color(0xFF7B2FF7),  
-            fontSize = 12.sp,  
-            modifier = Modifier.weight(1f)  
-        )  
-        TextButton(onClick = { replyToComment = null }) {  
-            Text("Cancel")  
-        }  
-    }  
-}  
+Text(            
+    commentError,            
+    color = MaterialTheme.colorScheme.error,            
+    fontSize = 13.sp            
+)
 
-Spacer(Modifier.height(12.dp))          
+}
 
-OutlinedTextField(          
-    value = newComment,          
-    onValueChange = {          
-        newComment = it          
-        commentError = ""          
-    },          
-    label = {  
-        Text(if (replyToComment == null) "Write a comment" else "Write a reply")  
-    },          
-    enabled = !sendingComment,          
-    modifier = Modifier.fillMaxWidth()          
+if (replyToComment != null) {
+Row(
+modifier = Modifier.fillMaxWidth(),
+verticalAlignment = Alignment.CenterVertically
+) {
+Text(
+"Replying to ${replyToComment!!.userName}",
+color = Color(0xFF7B2FF7),
+fontSize = 12.sp,
+modifier = Modifier.weight(1f)
+)
+TextButton(onClick = { replyToComment = null }) {
+Text("Cancel")
+}
+}
+}
+
+Spacer(Modifier.height(12.dp))
+
+OutlinedTextField(
+value = newComment,
+onValueChange = {
+newComment = it
+commentError = ""
+},
+label = {
+Text(if (replyToComment == null) "Write a comment" else "Write a reply")
+},
+enabled = !sendingComment,
+modifier = Modifier.fillMaxWidth()
 )
 
 }
@@ -1934,154 +1944,155 @@ enabled =
 !sendingComment &&
 newComment.isNotBlank(),
 
-onClick = {          
+onClick = {
 
-    val currentUser =          
-        auth.currentUser          
+val currentUser =            
+    auth.currentUser            
 
-    if (currentUser == null) {          
+if (currentUser == null) {            
 
-        commentError =          
-            "Please log in again."          
+    commentError =            
+        "Please log in again."            
 
-        return@TextButton          
-    }          
+    return@TextButton            
+}            
 
-    sendingComment = true          
-    commentError = ""          
+sendingComment = true            
+commentError = ""            
 
-    firestore          
-        .collection("users")          
-        .document(currentUser.uid)          
-        .get()          
-        .addOnSuccessListener { userDocument ->          
+firestore            
+    .collection("users")            
+    .document(currentUser.uid)            
+    .get()            
+    .addOnSuccessListener { userDocument ->            
 
-            val savedUserName =          
-                userDocument.getString("name")          
-                    ?: "Peejee User"          
+        val savedUserName =            
+            userDocument.getString("name")            
+                ?: "Peejee User"            
 
-            val commentReference =          
-                firestore          
-                    .collection("posts")          
-                    .document(selectedPostId)          
-                    .collection("comments")          
-                    .document()          
+        val commentReference =            
+            firestore            
+                .collection("posts")            
+                .document(selectedPostId)            
+                .collection("comments")            
+                .document()            
 
-            val postReference =          
-                firestore          
-                    .collection("posts")          
-                    .document(selectedPostId)          
+        val postReference =            
+            firestore            
+                .collection("posts")            
+                .document(selectedPostId)            
 
-            val commentData =          
-                hashMapOf<String, Any>(          
-                    "commentId" to          
-                        commentReference.id,          
-                    "postId" to          
-                        selectedPostId,          
-                    "userId" to          
-                        currentUser.uid,          
-                    "userName" to          
-                        savedUserName,          
-                    "text" to  
-                        newComment.trim(),  
-                    "timestamp" to  
-                        System.currentTimeMillis(),  
-                    "parentCommentId" to (replyToComment?.id ?: ""),  
-                    "parentUserName" to (replyToComment?.userName ?: "")  
-                )          
+        val commentData =            
+            hashMapOf<String, Any>(            
+                "commentId" to            
+                    commentReference.id,            
+                "postId" to            
+                    selectedPostId,            
+                "userId" to            
+                    currentUser.uid,            
+                "userName" to            
+                    savedUserName,            
+                "text" to    
+                    newComment.trim(),    
+                "timestamp" to    
+                    System.currentTimeMillis(),    
+                "parentCommentId" to (replyToComment?.id ?: ""),    
+                "parentUserName" to (replyToComment?.userName ?: "")    
+            )            
 
-            firestore.runTransaction { transaction ->          
+        firestore.runTransaction { transaction ->            
 
-                val postSnapshot =          
-                    transaction.get(postReference)          
+            val postSnapshot =            
+                transaction.get(postReference)            
 
-                val currentCommentCount =          
-                    postSnapshot          
-                        .getLong("commentCount")          
-                        ?.toInt()          
-                        ?: 0          
+            val currentCommentCount =            
+                postSnapshot            
+                    .getLong("commentCount")            
+                    ?.toInt()            
+                    ?: 0            
 
-                transaction.set(          
-                    commentReference,          
-                    commentData          
-                )          
+            transaction.set(            
+                commentReference,            
+                commentData            
+            )            
 
-                transaction.update(          
-                    postReference,          
-                    "commentCount",          
-                    currentCommentCount + 1          
-                )          
+            transaction.update(            
+                postReference,            
+                "commentCount",            
+                currentCommentCount + 1            
+            )            
 
-                null          
+            null            
 
-            }.addOnSuccessListener {          
+        }.addOnSuccessListener {            
 
-                sendingComment = false          
+            sendingComment = false            
 
-                val postOwnerId =          
-                    posts          
-                        .firstOrNull { it.id == selectedPostId }          
-                        ?.userId          
-                        ?: ""          
+            val postOwnerId =            
+                posts            
+                    .firstOrNull { it.id == selectedPostId }            
+                    ?.userId            
+                    ?: ""            
 
-                createPeejeeNotification(          
-                    firestore = firestore,          
-                    recipientUserId = postOwnerId,          
-                    type = "comment",          
-                    actorId = currentUser.uid,          
-                    actorName = savedUserName,          
-                    text = if (replyToComment == null) "commented on your post" else "replied to a comment on your post",  
-                    postId = selectedPostId          
-                )          
+            createPeejeeNotification(            
+                firestore = firestore,            
+                recipientUserId = postOwnerId,            
+                type = "comment",            
+                actorId = currentUser.uid,            
+                actorName = savedUserName,            
+                text = if (replyToComment == null) "commented on your post" else "replied to a comment on your post",    
+                postId = selectedPostId            
+            )            
 
-                findMentionedUsers(          
-                    firestore = firestore,          
-                    text = newComment.trim(),          
-                    currentUserId = currentUser.uid          
-                ) { mentionedUsers ->          
-                    mentionedUsers.forEach { mentioned ->          
-                        createPeejeeNotification(          
-                            firestore = firestore,          
-                            recipientUserId = mentioned.uid,          
-                            type = "mention",          
-                            actorId = currentUser.uid,          
-                            actorName = savedUserName,          
-                            text = "mentioned you in a comment",          
-                            postId = selectedPostId          
-                        )          
-                    }          
-                }          
+            findMentionedUsers(            
+                firestore = firestore,            
+                text = newComment.trim(),            
+                currentUserId = currentUser.uid            
+            ) { mentionedUsers ->            
+                mentionedUsers.forEach { mentioned ->            
+                    createPeejeeNotification(            
+                        firestore = firestore,            
+                        recipientUserId = mentioned.uid,            
+                        type = "mention",            
+                        actorId = currentUser.uid,            
+                        actorName = savedUserName,            
+                        text = "mentioned you in a comment",            
+                        postId = selectedPostId            
+                    )            
+                }            
+            }            
 
-                newComment = ""  
-                replyToComment = null  
+            newComment = ""    
+            replyToComment = null    
 
-            }.addOnFailureListener { exception ->          
+        }.addOnFailureListener { exception ->            
 
-                sendingComment = false          
+            sendingComment = false            
 
-                commentError =          
-                    exception.message          
-                        ?: "Could not post comment."          
-            }          
-        }          
-        .addOnFailureListener { exception ->          
+            commentError =            
+                exception.message            
+                    ?: "Could not post comment."            
+        }            
+    }            
+    .addOnFailureListener { exception ->            
 
-            sendingComment = false          
+        sendingComment = false            
 
-            commentError =          
-                exception.message          
-                    ?: "Could not load your profile."          
-        }          
+        commentError =            
+            exception.message            
+                ?: "Could not load your profile."            
+    }
+
 }
 
 ) {
 
-Text(          
-    if (sendingComment) {          
-        "Posting..."          
-    } else {          
-        "Comment"          
-    }          
+Text(
+if (sendingComment) {
+"Posting..."
+} else {
+"Comment"
+}
 )
 
 }
@@ -2377,17 +2388,18 @@ modifier = Modifier
 .padding(horizontal = 16.dp)
 ) {
 
-Column(          
-    modifier = Modifier.padding(20.dp),          
-    horizontalAlignment =          
-        Alignment.CenterHorizontally          
-) {          
+Column(
+modifier = Modifier.padding(20.dp),
+horizontalAlignment =
+Alignment.CenterHorizontally
+) {
 
-    PeejeeLogo(size = 75)          
+PeejeeLogo(size = 75)            
 
-    Spacer(Modifier.height(8.dp))          
+Spacer(Modifier.height(8.dp))            
 
-    Text("No posts yet")          
+Text("No posts yet")
+
 }
 
 }
@@ -2580,15 +2592,15 @@ modifier = Modifier.fillMaxWidth()
 
 if (post.sharedFromPostId.isNotBlank()) {
 
-Text(          
-    "🔁 ${post.userName} shared a post",          
-    fontSize = 14.sp,          
-    fontWeight = FontWeight.Bold,          
-    modifier = Modifier.padding(          
-        start = 14.dp,          
-        top = 12.dp,          
-        end = 14.dp          
-    )          
+Text(
+"🔁 ${post.userName} shared a post",
+fontSize = 14.sp,
+fontWeight = FontWeight.Bold,
+modifier = Modifier.padding(
+start = 14.dp,
+top = 12.dp,
+end = 14.dp
+)
 )
 
 }
@@ -2605,69 +2617,71 @@ verticalAlignment =
 Alignment.CenterVertically
 ) {
 
-val authorPhoto = authorProfilePhotoBase64  
-if (authorPhoto.isNotBlank()) {  
-    val authorBitmap = remember(authorPhoto) { base64ToBitmap(authorPhoto) }  
-    if (authorBitmap != null) {  
-        Image(  
-            bitmap = authorBitmap.asImageBitmap(),  
-            contentDescription = "Profile photo",  
-            modifier = Modifier.size(48.dp).clip(CircleShape),  
-            contentScale = ContentScale.Crop  
-        )  
-    } else {  
-        DefaultProfileIcon(size = 48)  
-    }  
-} else {  
-    DefaultProfileIcon(size = 48)  
-}  
+val authorPhoto = authorProfilePhotoBase64
+if (authorPhoto.isNotBlank()) {
+val authorBitmap = remember(authorPhoto) { base64ToBitmap(authorPhoto) }
+if (authorBitmap != null) {
+Image(
+bitmap = authorBitmap.asImageBitmap(),
+contentDescription = "Profile photo",
+modifier = Modifier.size(48.dp).clip(CircleShape),
+contentScale = ContentScale.Crop
+)
+} else {
+DefaultProfileIcon(size = 48)
+}
+} else {
+DefaultProfileIcon(size = 48)
+}
 
-Spacer(Modifier.width(10.dp))          
+Spacer(Modifier.width(10.dp))
 
-Column(          
-    modifier = Modifier          
-        .weight(1f)          
-        .clickable { onProfile() }          
-) {          
+Column(
+modifier = Modifier
+.weight(1f)
+.clickable { onProfile() }
+) {
 
-    Text(          
-        post.userName,          
-        fontSize = 17.sp,          
-        fontWeight = FontWeight.Bold          
-    )          
+Text(            
+    post.userName,            
+    fontSize = 17.sp,            
+    fontWeight = FontWeight.Bold            
+)            
 
-    Text(          
-        "@${post.userName          
-            .replace(" ", "")          
-            .lowercase()}",          
-        fontSize = 12.sp          
-    )          
-}          
+Text(            
+    "@${post.userName            
+        .replace(" ", "")            
+        .lowercase()}",            
+    fontSize = 12.sp            
+)
 
-if (          
-    post.userId.isNotEmpty() &&          
-    post.userId != currentUserId          
-) {          
+}
 
-    OutlinedButton(          
-        onClick = onFollow,          
-        enabled = !isFollowProcessing,          
-        contentPadding =          
-            PaddingValues(          
-                horizontal = 12.dp,          
-                vertical = 0.dp          
-            ),          
-        modifier = Modifier.height(36.dp)          
-    ) {          
+if (
+post.userId.isNotEmpty() &&
+post.userId != currentUserId
+) {
 
-        Text(          
-            when {          
-                isFollowProcessing -> "..."          
-                isFollowing -> "Unfollow"  
-                else -> "Follow"          
-            }          
-        )          
-    }          
+OutlinedButton(            
+    onClick = onFollow,            
+    enabled = !isFollowProcessing,            
+    contentPadding =            
+        PaddingValues(            
+            horizontal = 12.dp,            
+            vertical = 0.dp            
+        ),            
+    modifier = Modifier.height(36.dp)            
+) {            
+
+    Text(            
+        when {            
+            isFollowProcessing -> "..."            
+            isFollowing -> "Unfollow"    
+            else -> "Follow"            
+        }            
+    )            
+}
+
 }
 
 }
@@ -2676,36 +2690,37 @@ Spacer(Modifier.height(12.dp))
 
 if (post.sharedFromPostId.isNotBlank()) {
 
-Card(          
-    modifier = Modifier          
-        .fillMaxWidth()          
-        .padding(horizontal = 12.dp),          
-    shape = RoundedCornerShape(14.dp)          
-) {          
+Card(
+modifier = Modifier
+.fillMaxWidth()
+.padding(horizontal = 12.dp),
+shape = RoundedCornerShape(14.dp)
+) {
 
-    Column(          
-        modifier = Modifier.padding(14.dp)          
-    ) {          
+Column(            
+    modifier = Modifier.padding(14.dp)            
+) {            
 
-        Text(          
-            "Original post by ${post.sharedFromUserName}",          
-            fontSize = 13.sp,          
-            fontWeight = FontWeight.Bold          
-        )          
+    Text(            
+        "Original post by ${post.sharedFromUserName}",            
+        fontSize = 13.sp,            
+        fontWeight = FontWeight.Bold            
+    )            
 
-        Spacer(Modifier.height(6.dp))          
+    Spacer(Modifier.height(6.dp))            
 
-        if (          
-            post.sharedFromText.isNotBlank()          
-        ) {          
+    if (            
+        post.sharedFromText.isNotBlank()            
+    ) {            
 
-            Text(          
-                post.sharedFromText,          
-                fontSize = 15.sp          
-            )          
-        }          
-    }          
-}          
+        Text(            
+            post.sharedFromText,            
+            fontSize = 15.sp            
+        )            
+    }            
+}
+
+}
 
 Spacer(Modifier.height(10.dp))
 
@@ -2713,93 +2728,95 @@ Spacer(Modifier.height(10.dp))
 
 if (post.mediaUrl.isNotBlank()) {
 
-Box(          
-    modifier = Modifier          
-        .fillMaxWidth()          
-        .height(420.dp)          
-        .background(          
-            MaterialTheme          
-                .colorScheme          
-                .surfaceVariant          
-        ),          
-    contentAlignment =          
-        Alignment.Center          
-) {          
+Box(
+modifier = Modifier
+.fillMaxWidth()
+.height(420.dp)
+.background(
+MaterialTheme
+.colorScheme
+.surfaceVariant
+),
+contentAlignment =
+Alignment.Center
+) {
 
-    if (          
-        post.mediaType          
-            .lowercase()          
-            .contains("image") ||          
-        post.mediaType          
-            .lowercase() == "photo"          
-    ) {          
+if (            
+    post.mediaType            
+        .lowercase()            
+        .contains("image") ||            
+    post.mediaType            
+        .lowercase() == "photo"            
+) {            
 
-        Text(          
-            "🖼️",          
-            fontSize = 70.sp          
-        )          
+    Text(            
+        "🖼️",            
+        fontSize = 70.sp            
+    )            
 
-    } else {          
+} else {            
 
-        Column(          
-            horizontalAlignment =          
-                Alignment.CenterHorizontally          
-        ) {          
+    Column(            
+        horizontalAlignment =            
+            Alignment.CenterHorizontally            
+    ) {            
 
-            Text(          
-                "▶",          
-                fontSize = 70.sp          
-            )          
+        Text(            
+            "▶",            
+            fontSize = 70.sp            
+        )            
 
-            Text(          
-                "Video post",          
-                fontSize = 18.sp,          
-                fontWeight = FontWeight.Bold          
-            )          
-        }          
-    }          
+        Text(            
+            "Video post",            
+            fontSize = 18.sp,            
+            fontWeight = FontWeight.Bold            
+        )            
+    }            
+}
+
 }
 
 } else {
 
-Box(          
-    modifier = Modifier          
-        .fillMaxWidth()          
-        .height(300.dp)          
-        .background(          
-            MaterialTheme          
-                .colorScheme          
-                .surfaceVariant          
-        ),          
-    contentAlignment =          
-        Alignment.Center          
-) {          
+Box(
+modifier = Modifier
+.fillMaxWidth()
+.height(300.dp)
+.background(
+MaterialTheme
+.colorScheme
+.surfaceVariant
+),
+contentAlignment =
+Alignment.Center
+) {
 
-    Column(          
-        horizontalAlignment =          
-            Alignment.CenterHorizontally          
-    ) {          
+Column(            
+    horizontalAlignment =            
+        Alignment.CenterHorizontally            
+) {            
 
-        PeejeeLogo(size = 90)          
+    PeejeeLogo(size = 90)            
 
-        Spacer(Modifier.height(8.dp))          
+    Spacer(Modifier.height(8.dp))            
 
-        Text("Post")          
-    }          
+    Text("Post")            
+}
+
 }
 
 }
 
 if (post.text.isNotBlank()) {
 
-Spacer(Modifier.height(10.dp))          
+Spacer(Modifier.height(10.dp))
 
-Text(          
-    post.text,          
-    fontSize = 16.sp,          
-    modifier = Modifier.padding(          
-        horizontal = 16.dp          
-    )          
+Text(
+post.text,
+fontSize = 16.sp,
+modifier = Modifier.padding(
+horizontal = 16.dp
+)
 )
 
 }
@@ -2998,42 +3015,42 @@ firestore
 val currentId =
 auth.currentUser?.uid
 
-results =          
-    snapshot.documents.mapNotNull { document ->          
+results =
+snapshot.documents.mapNotNull { document ->
 
-        val uid =          
-            document.id          
+val uid =            
+        document.id            
 
-        if (uid == currentId) {          
-            null          
-        } else {          
+    if (uid == currentId) {            
+        null            
+    } else {            
 
-            PeejeePerson(          
-                uid = uid,          
-                name =          
-                    document.getString("name")          
-                        ?: "Peejee User",          
-                email =          
-                    document.getString("email")          
-                        ?: "",          
-                isOnline =          
-                    document.getBoolean("isOnline")          
-                        ?: false,          
-                profilePhoto = document.getString("profilePhoto") ?: ""          
-            )          
-        }          
-    }          
+        PeejeePerson(            
+            uid = uid,            
+            name =            
+                document.getString("name")            
+                    ?: "Peejee User",            
+            email =            
+                document.getString("email")            
+                    ?: "",            
+            isOnline =            
+                document.getBoolean("isOnline")            
+                    ?: false,            
+            profilePhoto = document.getString("profilePhoto") ?: ""            
+        )            
+    }            
+}
 
 searching = false
 
 }
 .addOnFailureListener { exception ->
 
-searching = false          
+searching = false
 
-errorMessage =          
-    exception.message          
-        ?: "Could not search users."
+errorMessage =
+exception.message
+?: "Could not search users."
 
 }
 
@@ -3149,50 +3166,51 @@ modifier = Modifier
 .padding(bottom = 10.dp)
 ) {
 
-Row(          
-    modifier = Modifier          
-        .fillMaxWidth()          
-        .padding(14.dp),          
-    verticalAlignment =          
-        Alignment.CenterVertically          
-) {          
+Row(
+modifier = Modifier
+.fillMaxWidth()
+.padding(14.dp),
+verticalAlignment =
+Alignment.CenterVertically
+) {
 
-    PeejeeSmallProfileAvatar(          
-        photoBase64 = person.profilePhoto,          
-        name = person.name,          
-        size = 52          
-    )          
+PeejeeSmallProfileAvatar(            
+    photoBase64 = person.profilePhoto,            
+    name = person.name,            
+    size = 52            
+)            
 
-    Spacer(Modifier.width(12.dp))          
+Spacer(Modifier.width(12.dp))            
 
-    Column(          
-        modifier = Modifier          
-            .weight(1f)          
-            .clickable { onProfile(person) }          
-    ) {          
+Column(            
+    modifier = Modifier            
+        .weight(1f)            
+        .clickable { onProfile(person) }            
+) {            
 
-        Text(          
-            person.name,          
-            fontSize = 18.sp,          
-            fontWeight = FontWeight.Bold          
-        )          
+    Text(            
+        person.name,            
+        fontSize = 18.sp,            
+        fontWeight = FontWeight.Bold            
+    )            
 
-        if (person.email.isNotBlank()) {          
+    if (person.email.isNotBlank()) {            
 
-            Text(          
-                person.email,          
-                fontSize = 12.sp          
-            )          
-        }          
-    }          
+        Text(            
+            person.email,            
+            fontSize = 12.sp            
+        )            
+    }            
+}            
 
-    Button(          
-        onClick = {          
-            onMessage(person)          
-        }          
-    ) {          
-        Text("Message")          
-    }          
+Button(            
+    onClick = {            
+        onMessage(person)            
+    }            
+) {            
+    Text("Message")            
+}
+
 }
 
 }
@@ -3631,32 +3649,32 @@ Column(
 modifier = Modifier.padding(16.dp)
 ) {
 
-Text(          
-    if (mediaType == "photo") {          
-        "Photo selected"          
-    } else {          
-        "Video selected"          
-    },          
-    fontWeight = FontWeight.Bold,          
-    fontSize = 18.sp          
-)          
+Text(
+if (mediaType == "photo") {
+"Photo selected"
+} else {
+"Video selected"
+},
+fontWeight = FontWeight.Bold,
+fontSize = 18.sp
+)
 
-Spacer(Modifier.height(8.dp))          
+Spacer(Modifier.height(8.dp))
 
-Text(          
-    selectedMedia.toString(),          
-    fontSize = 12.sp          
-)          
+Text(
+selectedMedia.toString(),
+fontSize = 12.sp
+)
 
-Spacer(Modifier.height(12.dp))          
+Spacer(Modifier.height(12.dp))
 
-OutlinedButton(          
-    onClick = {          
-        selectedMedia = null          
-        mediaType = ""          
-    }          
-) {          
-    Text("Remove")          
+OutlinedButton(
+onClick = {
+selectedMedia = null
+mediaType = ""
+}
+) {
+Text("Remove")
 }
 
 }
@@ -3703,8 +3721,8 @@ auth.currentUser
 
 if (currentUser == null) {
 
-errorMessage =          
-    "Please log in again."          
+errorMessage =
+"Please log in again."
 
 return@Button
 
@@ -3715,8 +3733,8 @@ postText.isBlank() &&
 selectedMedia == null
 ) {
 
-errorMessage =          
-    "Please write something or select media."          
+errorMessage =
+"Please write something or select media."
 
 return@Button
 
@@ -3746,11 +3764,11 @@ System.currentTimeMillis()
 
 if (mediaType.isNotBlank()) {
 
-postData["mediaType"] =          
-    mediaType          
+postData["mediaType"] =
+mediaType
 
-postData["mediaUrl"] =          
-    selectedMedia?.toString() ?: ""
+postData["mediaUrl"] =
+selectedMedia?.toString() ?: ""
 
 }
 
@@ -3760,74 +3778,76 @@ firestore
 .get()
 .addOnSuccessListener { userDocument ->
 
-postData["userName"] =          
-        userDocument.getString("name")          
-            ?: "Peejee User"          
+postData["userName"] =
+userDocument.getString("name")
+?: "Peejee User"
 
-    postReference          
-        .set(postData)          
-        .addOnSuccessListener {          
+postReference            
+    .set(postData)            
+    .addOnSuccessListener {            
 
-            publishing = false          
+        publishing = false            
 
-            findMentionedUsers(          
-                firestore = firestore,          
-                text = postText.trim(),          
-                currentUserId = currentUser.uid          
-            ) { mentionedUsers ->          
-                val actorName =          
-                    userDocument.getString("name")          
-                        ?: "Peejee User"          
+        findMentionedUsers(            
+            firestore = firestore,            
+            text = postText.trim(),            
+            currentUserId = currentUser.uid            
+        ) { mentionedUsers ->            
+            val actorName =            
+                userDocument.getString("name")            
+                    ?: "Peejee User"            
 
-                mentionedUsers.forEach { mentioned ->          
-                    createPeejeeNotification(          
-                        firestore = firestore,          
-                        recipientUserId = mentioned.uid,          
-                        type = "mention",          
-                        actorId = currentUser.uid,          
-                        actorName = actorName,          
-                        text = "mentioned you in a post",          
-                        postId = postReference.id          
-                    )          
-                }          
-            }          
+            mentionedUsers.forEach { mentioned ->            
+                createPeejeeNotification(            
+                    firestore = firestore,            
+                    recipientUserId = mentioned.uid,            
+                    type = "mention",            
+                    actorId = currentUser.uid,            
+                    actorName = actorName,            
+                    text = "mentioned you in a post",            
+                    postId = postReference.id            
+                )            
+            }            
+        }            
 
-            postText = ""          
-            selectedMedia = null          
-            mediaType = ""          
+        postText = ""            
+        selectedMedia = null            
+        mediaType = ""            
 
-            onPostCreated()          
-        }          
-        .addOnFailureListener { exception ->          
+        onPostCreated()            
+    }            
+    .addOnFailureListener { exception ->            
 
-            publishing = false          
+        publishing = false            
 
-            errorMessage =          
-                exception.message          
-                    ?: "Could not publish post."          
-        }          
-}          
-.addOnFailureListener {          
+        errorMessage =            
+            exception.message            
+                ?: "Could not publish post."            
+    }
 
-    postReference          
-        .set(postData)          
-        .addOnSuccessListener {          
+}
+.addOnFailureListener {
 
-            publishing = false          
-            postText = ""          
-            selectedMedia = null          
-            mediaType = ""          
+postReference            
+    .set(postData)            
+    .addOnSuccessListener {            
 
-            onPostCreated()          
-        }          
-        .addOnFailureListener { exception ->          
+        publishing = false            
+        postText = ""            
+        selectedMedia = null            
+        mediaType = ""            
 
-            publishing = false          
+        onPostCreated()            
+    }            
+    .addOnFailureListener { exception ->            
 
-            errorMessage =          
-                exception.message          
-                    ?: "Could not publish post."          
-        }          
+        publishing = false            
+
+        errorMessage =            
+            exception.message            
+                ?: "Could not publish post."            
+    }
+
 }
 
 },
@@ -4005,21 +4025,21 @@ if (selectedUri != null) {
 
 try {
 
-context          
-        .contentResolver          
-        .openInputStream(selectedUri)          
-        ?.use {          
-            BitmapFactory.decodeStream(it)          
-        }          
+context
+.contentResolver
+.openInputStream(selectedUri)
+?.use {
+BitmapFactory.decodeStream(it)
+}
 
-} catch (exception: Exception) {          
-    null          
+} catch (exception: Exception) {
+null
 }
 
 } else {
 
-base64ToBitmap(          
-    savedProfilePhoto          
+base64ToBitmap(
+savedProfilePhoto
 )
 
 }
@@ -4072,61 +4092,62 @@ firestore
 
 if (error != null) {
 
-loading = false          
+loading = false
 
-        profileError =          
-            error.message          
-                ?: "Could not load your profile."          
+profileError =            
+        error.message            
+            ?: "Could not load your profile."            
 
-        return@addSnapshotListener          
-    }          
+    return@addSnapshotListener            
+}            
 
-    if (          
-        document != null &&          
-        document.exists()          
-    ) {          
+if (            
+    document != null &&            
+    document.exists()            
+) {            
 
-        val savedName =          
-            document.getString("name")          
-                ?.trim()          
-                ?.takeIf { it.isNotBlank() }          
-                ?: name          
+    val savedName =            
+        document.getString("name")            
+            ?.trim()            
+            ?.takeIf { it.isNotBlank() }            
+            ?: name            
 
-        val savedBio =          
-            document.getString("bio")          
-                ?: ""          
+    val savedBio =            
+        document.getString("bio")            
+            ?: ""            
 
-        profileName = savedName          
-        bio = savedBio          
-        editedName = savedName          
-        editedBio = savedBio          
+    profileName = savedName            
+    bio = savedBio            
+    editedName = savedName            
+    editedBio = savedBio            
 
-        savedProfilePhoto =          
-            document.getString("profilePhoto")          
-                ?: ""          
+    savedProfilePhoto =            
+        document.getString("profilePhoto")            
+            ?: ""            
 
-        savedCoverPhoto =          
-            document.getString("coverPhoto")          
-                ?: ""          
+    savedCoverPhoto =            
+        document.getString("coverPhoto")            
+            ?: ""            
 
-        followersCount =          
-            document          
-                .getLong("followersCount")          
-                ?.toInt()          
-                ?: 0          
+    followersCount =            
+        document            
+            .getLong("followersCount")            
+            ?.toInt()            
+            ?: 0            
 
-        followingCount =          
-            document          
-                .getLong("followingCount")          
-                ?.toInt()          
-                ?: 0          
+    followingCount =            
+        document            
+            .getLong("followingCount")            
+            ?.toInt()            
+            ?: 0            
 
-        loading = false          
+    loading = false            
 
-    } else {          
+} else {            
 
-        loading = false          
-    }          
+    loading = false            
+}
+
 }
 
 onDispose {
@@ -4161,85 +4182,86 @@ error == null &&
 snapshot != null
 ) {
 
-profilePosts =          
-            snapshot.documents          
-                .mapNotNull { document ->          
+profilePosts =
+snapshot.documents
+.mapNotNull { document ->
 
-                    PeejeePost(          
-                        id = document.id,          
+PeejeePost(            
+                    id = document.id,            
 
-                        userId =          
-                            document.getString(          
-                                "userId"          
-                            ) ?: userId,          
+                    userId =            
+                        document.getString(            
+                            "userId"            
+                        ) ?: userId,            
 
-                        userName =          
-                            document.getString(          
-                                "userName"          
-                            )          
-                                ?.takeIf {          
-                                    it.isNotBlank()          
-                                }          
-                                ?: profileName,          
+                    userName =            
+                        document.getString(            
+                            "userName"            
+                        )            
+                            ?.takeIf {            
+                                it.isNotBlank()            
+                            }            
+                            ?: profileName,            
 
-                        text =          
-                            document.getString(          
-                                "text"          
-                            ) ?: "",          
+                    text =            
+                        document.getString(            
+                            "text"            
+                        ) ?: "",            
 
-                        timestamp =          
-                            document.getLong(          
-                                "timestamp"          
-                            ) ?: 0L,          
+                    timestamp =            
+                        document.getLong(            
+                            "timestamp"            
+                        ) ?: 0L,            
 
-                        mediaUrl =          
-                            document.getString(          
-                                "mediaUrl"          
-                            ) ?: "",          
+                    mediaUrl =            
+                        document.getString(            
+                            "mediaUrl"            
+                        ) ?: "",            
 
-                        mediaType =          
-                            document.getString(          
-                                "mediaType"          
-                            ) ?: "",          
+                    mediaType =            
+                        document.getString(            
+                            "mediaType"            
+                        ) ?: "",            
 
-                        likeCount =          
-                            document.getLong(          
-                                "likes"          
-                            )?.toInt() ?: 0,          
+                    likeCount =            
+                        document.getLong(            
+                            "likes"            
+                        )?.toInt() ?: 0,            
 
-                        likedBy =          
-                            getLikedBy(document),          
+                    likedBy =            
+                        getLikedBy(document),            
 
-                        commentCount =          
-                            document.getLong(          
-                                "commentCount"          
-                            )?.toInt() ?: 0,          
+                    commentCount =            
+                        document.getLong(            
+                            "commentCount"            
+                        )?.toInt() ?: 0,            
 
-                        shareCount =          
-                            document.getLong(          
-                                "shareCount"          
-                            )?.toInt() ?: 0,          
+                    shareCount =            
+                        document.getLong(            
+                            "shareCount"            
+                        )?.toInt() ?: 0,            
 
-                        sharedFromPostId =          
-                            document.getString(          
-                                "sharedFromPostId"          
-                            ) ?: "",          
+                    sharedFromPostId =            
+                        document.getString(            
+                            "sharedFromPostId"            
+                        ) ?: "",            
 
-                        sharedFromUserName =          
-                            document.getString(          
-                                "sharedFromUserName"          
-                            ) ?: "",          
+                    sharedFromUserName =            
+                        document.getString(            
+                            "sharedFromUserName"            
+                        ) ?: "",            
 
-                        sharedFromText =          
-                            document.getString(          
-                                "sharedFromText"          
-                            ) ?: ""          
-                    )          
-                }          
-                .sortedByDescending {          
-                    it.timestamp          
-                }          
-    }          
+                    sharedFromText =            
+                        document.getString(            
+                            "sharedFromText"            
+                        ) ?: ""            
+                )            
+            }            
+            .sortedByDescending {            
+                it.timestamp            
+            }            
+}
+
 }
 
 onDispose {
@@ -4282,27 +4304,28 @@ error == null &&
 snapshot != null
 ) {
 
-followers =          
-            snapshot.documents.mapNotNull { document ->          
+followers =
+snapshot.documents.mapNotNull { document ->
 
-                val uid =          
-                    document.getString("uid")          
-                        ?: document.id          
+val uid =            
+                document.getString("uid")            
+                    ?: document.id            
 
-                val savedName =          
-                    document.getString("name")          
-                        ?.trim()          
-                        ?.takeIf {          
-                            it.isNotBlank()          
-                        }          
-                        ?: "Peejee User"          
+            val savedName =            
+                document.getString("name")            
+                    ?.trim()            
+                    ?.takeIf {            
+                        it.isNotBlank()            
+                    }            
+                    ?: "Peejee User"            
 
-                PeejeePerson(          
-                    uid = uid,          
-                    name = savedName          
-                )          
-            }          
-    }          
+            PeejeePerson(            
+                uid = uid,            
+                name = savedName            
+            )            
+        }            
+}
+
 }
 
 onDispose {
@@ -4345,27 +4368,28 @@ error == null &&
 snapshot != null
 ) {
 
-following =          
-            snapshot.documents.mapNotNull { document ->          
+following =
+snapshot.documents.mapNotNull { document ->
 
-                val uid =          
-                    document.getString("uid")          
-                        ?: document.id          
+val uid =            
+                document.getString("uid")            
+                    ?: document.id            
 
-                val savedName =          
-                    document.getString("name")          
-                        ?.trim()          
-                        ?.takeIf {          
-                            it.isNotBlank()          
-                        }          
-                        ?: "Peejee User"          
+            val savedName =            
+                document.getString("name")            
+                    ?.trim()            
+                    ?.takeIf {            
+                        it.isNotBlank()            
+                    }            
+                    ?: "Peejee User"            
 
-                PeejeePerson(          
-                    uid = uid,          
-                    name = savedName          
-                )          
-            }          
-    }          
+            PeejeePerson(            
+                uid = uid,            
+                name = savedName            
+            )            
+        }            
+}
+
 }
 
 onDispose {
@@ -4450,24 +4474,25 @@ contentAlignment =
 Alignment.Center
 ) {
 
-if (profileBitmap != null) {          
+if (profileBitmap != null) {
 
-    Image(          
-        bitmap =          
-            profileBitmap!!          
-                .asImageBitmap(),          
-        contentDescription =          
-            "Profile photo",          
-        modifier = Modifier          
-            .fillMaxSize()          
-            .clip(CircleShape),          
-        contentScale =          
-            ContentScale.Crop          
-    )          
+Image(            
+    bitmap =            
+        profileBitmap!!            
+            .asImageBitmap(),            
+    contentDescription =            
+        "Profile photo",            
+    modifier = Modifier            
+        .fillMaxSize()            
+        .clip(CircleShape),            
+    contentScale =            
+        ContentScale.Crop            
+)
 
-} else {          
+} else {
 
-    DefaultProfileIcon(size = 90)          
+DefaultProfileIcon(size = 90)
+
 }
 
 }
@@ -4495,28 +4520,28 @@ CircularProgressIndicator()
 
 } else if (bio.isBlank()) {
 
-Text(          
-    "No bio yet.",          
-    fontSize = 16.sp          
+Text(
+"No bio yet.",
+fontSize = 16.sp
 )
 
 } else {
 
-Text(          
-    bio,          
-    fontSize = 16.sp          
+Text(
+bio,
+fontSize = 16.sp
 )
 
 }
 
 if (profileError.isNotEmpty()) {
 
-Spacer(Modifier.height(8.dp))          
+Spacer(Modifier.height(8.dp))
 
-Text(          
-    profileError,          
-    color = MaterialTheme.colorScheme.error,          
-    fontSize = 13.sp          
+Text(
+profileError,
+color = MaterialTheme.colorScheme.error,
+fontSize = 13.sp
 )
 
 }
@@ -4529,25 +4554,25 @@ horizontalArrangement =
 Arrangement.SpaceEvenly
 ) {
 
-ProfileStat(          
-    count = profilePosts.size,          
-    label = "Posts"          
-)          
+ProfileStat(
+count = profilePosts.size,
+label = "Posts"
+)
 
-ProfileStat(          
-    count = followersCount,          
-    label = "Followers",          
-    onClick = {          
-        showFollowersDialog = true          
-    }          
-)          
+ProfileStat(
+count = followersCount,
+label = "Followers",
+onClick = {
+showFollowersDialog = true
+}
+)
 
-ProfileStat(          
-    count = followingCount,          
-    label = "Following",          
-    onClick = {          
-        showFollowingDialog = true          
-    }          
+ProfileStat(
+count = followingCount,
+label = "Following",
+onClick = {
+showFollowingDialog = true
+}
 )
 
 }
@@ -4557,14 +4582,14 @@ Spacer(Modifier.height(24.dp))
 Button(
 onClick = {
 
-editedName = profileName          
-    editedBio = bio          
-    profileError = ""          
-    selectedProfilePhotoUri = null          
-    selectedCoverPhotoUri = null          
-    showEditDialog = true          
+editedName = profileName
+editedBio = bio
+profileError = ""
+selectedProfilePhotoUri = null
+selectedCoverPhotoUri = null
+showEditDialog = true
 
-},          
+},
 modifier = Modifier.fillMaxWidth()
 
 ) {
@@ -4587,25 +4612,26 @@ Spacer(Modifier.height(10.dp))
 OutlinedButton(
 onClick = {
 
-val shareText =          
-        "Check out my profile on Peejee: $profileName"          
+val shareText =
+"Check out my profile on Peejee: $profileName"
 
-    val shareIntent =          
-        Intent(Intent.ACTION_SEND).apply {          
-            type = "text/plain"          
-            putExtra(          
-                Intent.EXTRA_TEXT,          
-                shareText          
-            )          
-        }          
+val shareIntent =            
+    Intent(Intent.ACTION_SEND).apply {            
+        type = "text/plain"            
+        putExtra(            
+            Intent.EXTRA_TEXT,            
+            shareText            
+        )            
+    }            
 
-    context.startActivity(          
-        Intent.createChooser(          
-            shareIntent,          
-            "Share Profile"          
-        )          
-    )          
-},          
+context.startActivity(            
+    Intent.createChooser(            
+        shareIntent,            
+        "Share Profile"            
+    )            
+)
+
+},
 modifier = Modifier.fillMaxWidth()
 
 ) {
@@ -4631,17 +4657,17 @@ verticalAlignment =
 Alignment.CenterVertically
 ) {
 
-Text(          
-    "My Posts",          
-    fontSize = 24.sp,          
-    fontWeight = FontWeight.Bold          
-)          
+Text(
+"My Posts",
+fontSize = 24.sp,
+fontWeight = FontWeight.Bold
+)
 
-Spacer(Modifier.width(8.dp))          
+Spacer(Modifier.width(8.dp))
 
-Text(          
-    "(${profilePosts.size})",          
-    fontSize = 18.sp          
+Text(
+"(${profilePosts.size})",
+fontSize = 18.sp
 )
 
 }
@@ -4654,28 +4680,29 @@ if (profilePosts.isEmpty()) {
 
 item {
 
-Card(          
-    modifier = Modifier          
-        .fillMaxWidth()          
-        .padding(vertical = 8.dp)          
-) {          
+Card(
+modifier = Modifier
+.fillMaxWidth()
+.padding(vertical = 8.dp)
+) {
 
-    Column(          
-        modifier = Modifier          
-            .fillMaxWidth()          
-            .padding(25.dp),          
-        horizontalAlignment =          
-            Alignment.CenterHorizontally          
-    ) {          
+Column(            
+    modifier = Modifier            
+        .fillMaxWidth()            
+        .padding(25.dp),            
+    horizontalAlignment =            
+        Alignment.CenterHorizontally            
+) {            
 
-        PeejeeLogo(size = 70)          
+    PeejeeLogo(size = 70)            
 
-        Spacer(Modifier.height(8.dp))          
+    Spacer(Modifier.height(8.dp))            
 
-        Text(          
-            "You haven't posted yet."          
-        )          
-    }          
+    Text(            
+        "You haven't posted yet."            
+    )            
+}
+
 }
 
 }
@@ -4709,9 +4736,9 @@ onDismissRequest = {
 
 if (!savingProfile) {
 
-selectedProfilePhotoUri = null          
-selectedCoverPhotoUri = null          
-profileError = ""          
+selectedProfilePhotoUri = null
+selectedCoverPhotoUri = null
+profileError = ""
 showEditDialog = false
 
 }
@@ -4726,98 +4753,102 @@ text = {
 
 Column {
 
-OutlinedTextField(          
-    value = editedName,          
-    onValueChange = {          
-        editedName = it          
-        profileError = ""          
-    },          
-    label = {          
-        Text("Name")          
-    },          
-    modifier = Modifier.fillMaxWidth()          
-)          
+OutlinedTextField(
+value = editedName,
+onValueChange = {
+editedName = it
+profileError = ""
+},
+label = {
+Text("Name")
+},
+modifier = Modifier.fillMaxWidth()
+)
 
-Spacer(Modifier.height(12.dp))          
+Spacer(Modifier.height(12.dp))
 
-OutlinedTextField(          
-    value = editedBio,          
-    onValueChange = {          
-        editedBio = it          
-        profileError = ""          
-    },          
-    label = {          
-        Text("Bio")          
-    },          
-    modifier = Modifier.fillMaxWidth()          
-)          
+OutlinedTextField(
+value = editedBio,
+onValueChange = {
+editedBio = it
+profileError = ""
+},
+label = {
+Text("Bio")
+},
+modifier = Modifier.fillMaxWidth()
+)
 
-Spacer(Modifier.height(16.dp))          
+Spacer(Modifier.height(16.dp))
 
-Button(          
-    onClick = {          
-        profilePhotoPicker.launch("image/*")          
-    },          
-    enabled = !savingProfile,          
-    modifier = Modifier.fillMaxWidth()          
-) {          
+Button(
+onClick = {
+profilePhotoPicker.launch("image/*")
+},
+enabled = !savingProfile,
+modifier = Modifier.fillMaxWidth()
+) {
 
-    Text(          
-        if (selectedProfilePhotoUri == null) {          
-            "🖼️ Choose Profile Photo"          
-        } else {          
-            "🖼️ Change Profile Photo"          
-        }          
-    )          
-}          
+Text(            
+    if (selectedProfilePhotoUri == null) {            
+        "🖼️ Choose Profile Photo"            
+    } else {            
+        "🖼️ Change Profile Photo"            
+    }            
+)
 
-if (selectedProfilePhotoUri != null) {          
+}
 
-    Spacer(Modifier.height(8.dp))          
+if (selectedProfilePhotoUri != null) {
 
-    Text(          
-        "Photo selected",          
-        fontWeight = FontWeight.Bold          
-    )          
-}          
+Spacer(Modifier.height(8.dp))            
 
-Spacer(Modifier.height(10.dp))          
+Text(            
+    "Photo selected",            
+    fontWeight = FontWeight.Bold            
+)
 
-Button(          
-    onClick = {          
-        coverPhotoPicker.launch("image/*")          
-    },          
-    enabled = !savingProfile,          
-    modifier = Modifier.fillMaxWidth()          
-) {          
-    Text(          
-        if (selectedCoverPhotoUri == null) {          
-            "🖼️ Choose Cover Photo"          
-        } else {          
-            "🖼️ Change Cover Photo"          
-        }          
-    )          
-}          
+}
 
-if (selectedCoverPhotoUri != null) {          
+Spacer(Modifier.height(10.dp))
 
-    Spacer(Modifier.height(8.dp))          
+Button(
+onClick = {
+coverPhotoPicker.launch("image/*")
+},
+enabled = !savingProfile,
+modifier = Modifier.fillMaxWidth()
+) {
+Text(
+if (selectedCoverPhotoUri == null) {
+"🖼️ Choose Cover Photo"
+} else {
+"🖼️ Change Cover Photo"
+}
+)
+}
 
-    Text(          
-        "Cover photo selected",          
-        fontWeight = FontWeight.Bold          
-    )          
-}          
+if (selectedCoverPhotoUri != null) {
 
-if (profileError.isNotEmpty()) {          
+Spacer(Modifier.height(8.dp))            
 
-    Spacer(Modifier.height(8.dp))          
+Text(            
+    "Cover photo selected",            
+    fontWeight = FontWeight.Bold            
+)
 
-    Text(          
-        profileError,          
-        color =          
-            MaterialTheme.colorScheme.error          
-    )          
+}
+
+if (profileError.isNotEmpty()) {
+
+Spacer(Modifier.height(8.dp))            
+
+Text(            
+    profileError,            
+    color =            
+        MaterialTheme.colorScheme.error            
+)
+
 }
 
 }
@@ -4828,189 +4859,190 @@ confirmButton = {
 
 TextButton(
 
-enabled =          
-    !savingProfile &&          
-    editedName.isNotBlank(),          
+enabled =
+!savingProfile &&
+editedName.isNotBlank(),
 
-onClick = {          
+onClick = {
 
-    if (userId == null) {          
+if (userId == null) {            
 
-        profileError =          
-            "Please log in again."          
+    profileError =            
+        "Please log in again."            
 
-        return@TextButton          
-    }          
+    return@TextButton            
+}            
 
-    savingProfile = true          
-    profileError = ""          
+savingProfile = true            
+profileError = ""            
 
-    val selectedUri =          
-        selectedProfilePhotoUri          
+val selectedUri =            
+    selectedProfilePhotoUri            
 
-    val newName =          
-        editedName.trim()          
+val newName =            
+    editedName.trim()            
 
-    val newBio =          
-        editedBio.trim()          
+val newBio =            
+    editedBio.trim()            
 
-    scope.launch {          
+scope.launch {            
 
-        try {          
+    try {            
 
-            val photoBase64 =          
-                if (selectedUri != null) {          
+        val photoBase64 =            
+            if (selectedUri != null) {            
 
-                    withContext(          
-                        Dispatchers.IO          
-                    ) {          
+                withContext(            
+                    Dispatchers.IO            
+                ) {            
 
-                        try {          
+                    try {            
 
-                            val bitmap =          
-                                context          
-                                    .contentResolver          
-                                    .openInputStream(          
-                                        selectedUri          
-                                    )          
-                                    ?.use {          
-                                        BitmapFactory          
-                                            .decodeStream(it)          
-                                    }          
+                        val bitmap =            
+                            context            
+                                .contentResolver            
+                                .openInputStream(            
+                                    selectedUri            
+                                )            
+                                ?.use {            
+                                    BitmapFactory            
+                                        .decodeStream(it)            
+                                }            
 
-                            if (bitmap != null) {          
-                                bitmapToBase64(bitmap)          
-                            } else {          
-                                ""          
-                            }          
+                        if (bitmap != null) {            
+                            bitmapToBase64(bitmap)            
+                        } else {            
+                            ""            
+                        }            
 
-                        } catch (          
-                            exception: Exception          
-                        ) {          
-                            ""          
-                        }          
-                    }          
+                    } catch (            
+                        exception: Exception            
+                    ) {            
+                        ""            
+                    }            
+                }            
 
-                } else {          
-                    savedProfilePhoto          
-                }          
+            } else {            
+                savedProfilePhoto            
+            }            
 
-            if (          
-                selectedUri != null &&          
-                photoBase64.isBlank()          
-            ) {          
+        if (            
+            selectedUri != null &&            
+            photoBase64.isBlank()            
+        ) {            
 
-                savingProfile = false          
+            savingProfile = false            
 
-                profileError =          
-                    "Could not read the selected photo."          
+            profileError =            
+                "Could not read the selected photo."            
 
-                return@launch          
-            }          
+            return@launch            
+        }            
 
-            val coverBase64 =          
-                if (selectedCoverPhotoUri != null) {          
-                    withContext(Dispatchers.IO) {          
-                        try {          
-                            val bitmap =          
-                                context          
-                                    .contentResolver          
-                                    .openInputStream(          
-                                        selectedCoverPhotoUri!!          
-                                    )          
-                                    ?.use {          
-                                        BitmapFactory.decodeStream(it)          
-                                    }          
+        val coverBase64 =            
+            if (selectedCoverPhotoUri != null) {            
+                withContext(Dispatchers.IO) {            
+                    try {            
+                        val bitmap =            
+                            context            
+                                .contentResolver            
+                                .openInputStream(            
+                                    selectedCoverPhotoUri!!            
+                                )            
+                                ?.use {            
+                                    BitmapFactory.decodeStream(it)            
+                                }            
 
-                            if (bitmap != null) {          
-                                bitmapToBase64(bitmap)          
-                            } else {          
-                                ""          
-                            }          
-                        } catch (exception: Exception) {          
-                            ""          
-                        }          
-                    }          
-                } else {          
-                    savedCoverPhoto          
-                }          
+                        if (bitmap != null) {            
+                            bitmapToBase64(bitmap)            
+                        } else {            
+                            ""            
+                        }            
+                    } catch (exception: Exception) {            
+                        ""            
+                    }            
+                }            
+            } else {            
+                savedCoverPhoto            
+            }            
 
-            if (          
-                selectedCoverPhotoUri != null &&          
-                coverBase64.isBlank()          
-            ) {          
-                savingProfile = false          
-                profileError =          
-                    "Could not read the selected cover photo."          
-                return@launch          
-            }          
+        if (            
+            selectedCoverPhotoUri != null &&            
+            coverBase64.isBlank()            
+        ) {            
+            savingProfile = false            
+            profileError =            
+                "Could not read the selected cover photo."            
+            return@launch            
+        }            
 
-            val updates =          
-                hashMapOf<String, Any>(          
-                    "name" to newName,          
-                    "bio" to newBio,          
-                    "profilePhoto" to          
-                        photoBase64,          
-                    "coverPhoto" to          
-                        coverBase64,          
-                    "updatedAt" to          
-                        System.currentTimeMillis()          
-                )          
+        val updates =            
+            hashMapOf<String, Any>(            
+                "name" to newName,            
+                "bio" to newBio,            
+                "profilePhoto" to            
+                    photoBase64,            
+                "coverPhoto" to            
+                    coverBase64,            
+                "updatedAt" to            
+                    System.currentTimeMillis()            
+            )            
 
-            firestore          
-                .collection("users")          
-                .document(userId)          
-                .set(          
-                    updates,          
-                    SetOptions.merge()          
-                )          
-                .addOnSuccessListener {          
+        firestore            
+            .collection("users")            
+            .document(userId)            
+            .set(            
+                updates,            
+                SetOptions.merge()            
+            )            
+            .addOnSuccessListener {            
 
-                    profileName = newName          
-                    bio = newBio          
-                    savedProfilePhoto =          
-                        photoBase64          
-                    savedCoverPhoto =          
-                        coverBase64          
-                    editedName = newName          
-                    editedBio = newBio          
-                    selectedProfilePhotoUri = null          
-                    selectedCoverPhotoUri = null          
-                    savingProfile = false          
-                    showEditDialog = false          
+                profileName = newName            
+                bio = newBio            
+                savedProfilePhoto =            
+                    photoBase64            
+                savedCoverPhoto =            
+                    coverBase64            
+                editedName = newName            
+                editedBio = newBio            
+                selectedProfilePhotoUri = null            
+                selectedCoverPhotoUri = null            
+                savingProfile = false            
+                showEditDialog = false            
 
-                    onProfileNameChanged(          
-                        newName          
-                    )          
-                }          
-                .addOnFailureListener { exception ->          
+                onProfileNameChanged(            
+                    newName            
+                )            
+            }            
+            .addOnFailureListener { exception ->            
 
-                    savingProfile = false          
+                savingProfile = false            
 
-                    profileError =          
-                        exception.message          
-                            ?: "Could not save your profile."          
-                }          
+                profileError =            
+                    exception.message            
+                        ?: "Could not save your profile."            
+            }            
 
-        } catch (exception: Exception) {          
+    } catch (exception: Exception) {            
 
-            savingProfile = false          
+        savingProfile = false            
 
-            profileError =          
-                exception.message          
-                    ?: "Could not save your profile."          
-        }          
-    }          
+        profileError =            
+            exception.message            
+                ?: "Could not save your profile."            
+    }            
+}
+
 }
 
 ) {
 
-Text(          
-    if (savingProfile) {          
-        "Saving..."          
-    } else {          
-        "Save"          
-    }          
+Text(
+if (savingProfile) {
+"Saving..."
+} else {
+"Save"
+}
 )
 
 }
@@ -5023,10 +5055,10 @@ TextButton(
 enabled = !savingProfile,
 onClick = {
 
-selectedProfilePhotoUri = null          
-    selectedCoverPhotoUri = null          
-    profileError = ""          
-    showEditDialog = false          
+selectedProfilePhotoUri = null
+selectedCoverPhotoUri = null
+profileError = ""
+showEditDialog = false
 }
 
 ) {
@@ -5062,11 +5094,12 @@ confirmButton = {
 TextButton(
 onClick = {
 
-showLogoutDialog = false          
+showLogoutDialog = false
 
-    auth.signOut()          
+auth.signOut()            
 
-    onLoggedOut()          
+onLoggedOut()
+
 }
 
 ) {
@@ -5270,26 +5303,27 @@ modifier = Modifier
 .heightIn(max = 350.dp)
 ) {
 
-itemsIndexed(people) { _, person ->          
+itemsIndexed(people) { _, person ->
 
-    Row(          
-        modifier = Modifier          
-            .fillMaxWidth()          
-            .padding(vertical = 8.dp),          
-        verticalAlignment =          
-            Alignment.CenterVertically          
-    ) {          
+Row(            
+    modifier = Modifier            
+        .fillMaxWidth()            
+        .padding(vertical = 8.dp),            
+    verticalAlignment =            
+        Alignment.CenterVertically            
+) {            
 
-        DefaultProfileIcon(size = 45)          
+    DefaultProfileIcon(size = 45)            
 
-        Spacer(Modifier.width(12.dp))          
+    Spacer(Modifier.width(12.dp))            
 
-        Text(          
-            person.name,          
-            fontSize = 17.sp,          
-            fontWeight = FontWeight.Bold          
-        )          
-    }          
+    Text(            
+        person.name,            
+        fontSize = 17.sp,            
+        fontWeight = FontWeight.Bold            
+    )            
+}
+
 }
 
 }
