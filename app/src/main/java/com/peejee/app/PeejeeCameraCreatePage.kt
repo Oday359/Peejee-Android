@@ -1,6 +1,8 @@
 package com.peejee.app
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -128,7 +130,6 @@ mutableStateOf<VideoCapture<Recorder>?>(null)
 
 var boundCamera by remember { mutableStateOf<Camera?>(null) }
 var activeRecording by remember { mutableStateOf<Recording?>(null) }
-var showGalleryChoice by remember { mutableStateOf(false) }
 
 val permissionLauncher =
 rememberLauncherForActivityResult(
@@ -141,35 +142,28 @@ context,
 Manifest.permission.CAMERA
 ) == PackageManager.PERMISSION_GRANTED
 
-audioPermission =    
-        grants[Manifest.permission.RECORD_AUDIO] == true ||    
-            ContextCompat.checkSelfPermission(    
-                context,    
-                Manifest.permission.RECORD_AUDIO    
-            ) == PackageManager.PERMISSION_GRANTED    
+audioPermission =
+grants[Manifest.permission.RECORD_AUDIO] == true ||
+ContextCompat.checkSelfPermission(
+context,
+Manifest.permission.RECORD_AUDIO
+) == PackageManager.PERMISSION_GRANTED
 }
 
-val imagePicker =
+// One gallery button opens the phone picker for either photos or videos.
+val mediaPicker =
 rememberLauncherForActivityResult(
-ActivityResultContracts.GetContent()
-) { uri ->
+ActivityResultContracts.StartActivityForResult()
+) { result ->
+if (result.resultCode == Activity.RESULT_OK) {
+val uri = result.data?.data
 if (uri != null) {
 selectedMedia = uri
-selectedMediaType = "photo"
+selectedMediaType =
+if (context.contentResolver.getType(uri)?.startsWith("video/") == true) "video" else "photo"
 error = ""
 page = "PREVIEW"
 }
-}
-
-val videoPicker =
-rememberLauncherForActivityResult(
-ActivityResultContracts.GetContent()
-) { uri ->
-if (uri != null) {
-selectedMedia = uri
-selectedMediaType = "video"
-error = ""
-page = "PREVIEW"
 }
 }
 
@@ -187,65 +181,66 @@ error =
 fun bindCamera() {
 if (!cameraPermission) return
 
-val providerFuture = ProcessCameraProvider.getInstance(context)    
+val providerFuture = ProcessCameraProvider.getInstance(context)
 
-providerFuture.addListener(    
-    {    
-        try {    
-            val provider = providerFuture.get()    
-            val pv = previewView ?: return@addListener    
+providerFuture.addListener(
+{
+try {
+val provider = providerFuture.get()
+val pv = previewView ?: return@addListener
 
-            val preview = Preview.Builder()    
-                .build()    
-                .also {    
-                    it.surfaceProvider = pv.surfaceProvider    
-                }    
+val preview = Preview.Builder()      
+            .build()      
+            .also {      
+                it.surfaceProvider = pv.surfaceProvider      
+            }      
 
-            val capture = ImageCapture.Builder()    
-                .setCaptureMode(    
-                    ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY    
-                )    
-                .build()    
+        val capture = ImageCapture.Builder()      
+            .setCaptureMode(      
+                ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY      
+            )      
+            .build()      
 
-            val recorder = Recorder.Builder()    
-                .setQualitySelector(    
-                    QualitySelector.from(Quality.HD)    
-                )    
-                .build()    
+        val recorder = Recorder.Builder()      
+            .setQualitySelector(      
+                QualitySelector.from(Quality.HD)      
+            )      
+            .build()      
 
-            val video = VideoCapture.withOutput(recorder)    
+        val video = VideoCapture.withOutput(recorder)      
 
-            val selector = CameraSelector.Builder()    
-                .requireLensFacing(lensFacing)    
-                .build()    
+        val selector = CameraSelector.Builder()      
+            .requireLensFacing(lensFacing)      
+            .build()      
 
-            provider.unbindAll()    
+        provider.unbindAll()      
 
-            boundCamera = provider.bindToLifecycle(    
-                lifecycleOwner,    
-                selector,    
-                preview,    
-                capture,    
-                video    
-            )    
+        boundCamera = provider.bindToLifecycle(      
+            lifecycleOwner,      
+            selector,      
+            preview,      
+            capture,      
+            video      
+        )      
 
-            imageCapture = capture    
-            videoCapture = video    
+        imageCapture = capture      
+        videoCapture = video      
 
-            if (    
-                flashOn &&    
-                boundCamera?.cameraInfo?.hasFlashUnit() == true    
-            ) {    
-                boundCamera?.cameraControl?.enableTorch(true)    
-            }    
-        } catch (e: Exception) {    
-            error =    
-                "Camera could not start: ${    
-                    e.localizedMessage ?: "Please try again."    
-                }"    
-        }    
-    },    
-    ContextCompat.getMainExecutor(context)    
+        if (      
+            flashOn &&      
+            boundCamera?.cameraInfo?.hasFlashUnit() == true      
+        ) {      
+            boundCamera?.cameraControl?.enableTorch(true)      
+        }      
+    } catch (e: Exception) {      
+        error =      
+            "Camera could not start: ${      
+                e.localizedMessage ?: "Please try again."      
+            }"      
+    }      
+},      
+ContextCompat.getMainExecutor(context)
+
 )
 
 }
@@ -263,8 +258,8 @@ bindCamera()
 LaunchedEffect(flashOn, boundCamera) {
 val camera = boundCamera
 
-if (camera?.cameraInfo?.hasFlashUnit() == true) {    
-    camera.cameraControl.enableTorch(flashOn)    
+if (camera?.cameraInfo?.hasFlashUnit() == true) {
+camera.cameraControl.enableTorch(flashOn)
 }
 
 }
@@ -273,21 +268,22 @@ LaunchedEffect(recording, captureMode) {
 if (recording) {
 recordingSeconds = 0
 
-val limit = when (captureMode) {    
-        "15s" -> 15    
-        "60s" -> 60    
-        "10m" -> 600    
-        else -> 600    
-    }    
+val limit = when (captureMode) {
+"15s" -> 15
+"60s" -> 60
+"10m" -> 600
+else -> 600
+}
 
-    while (recording && recordingSeconds < limit) {    
-        delay(1000)    
-        recordingSeconds++    
-    }    
+while (recording && recordingSeconds < limit) {      
+    delay(1000)      
+    recordingSeconds++      
+}      
 
-    if (recording && recordingSeconds >= limit) {    
-        activeRecording?.stop()    
-    }    
+if (recording && recordingSeconds >= limit) {      
+    activeRecording?.stop()      
+}
+
 }
 
 }
@@ -298,65 +294,67 @@ error = "Camera is still starting. Please try again."
 return
 }
 
-if (!audioPermission) {    
-    permissionLauncher.launch(    
-        arrayOf(    
-            Manifest.permission.RECORD_AUDIO,    
-            Manifest.permission.CAMERA    
-        )    
-    )    
+if (!audioPermission) {
+permissionLauncher.launch(
+arrayOf(
+Manifest.permission.RECORD_AUDIO,
+Manifest.permission.CAMERA
+)
+)
 
-    error =    
-        "Allow microphone access to record a video with sound, then tap record again."    
-    return    
-}    
+error =      
+    "Allow microphone access to record a video with sound, then tap record again."      
+return
 
-val name = "peejee_${System.currentTimeMillis()}.mp4"    
+}
 
-val values = ContentValues().apply {    
-    put(MediaStore.MediaColumns.DISPLAY_NAME, name)    
-    put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")    
-    put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/Peejee")    
-}    
+val name = "peejee_${System.currentTimeMillis()}.mp4"
 
-val output = MediaStoreOutputOptions.Builder(    
-    context.contentResolver,    
-    MediaStore.Video.Media.EXTERNAL_CONTENT_URI    
-)    
-    .setContentValues(values)    
-    .build()    
+val values = ContentValues().apply {
+put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/Peejee")
+}
 
-val pending: PendingRecording =    
-    capture.output    
-        .prepareRecording(context, output)    
-        .withAudioEnabled()    
+val output = MediaStoreOutputOptions.Builder(
+context.contentResolver,
+MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+)
+.setContentValues(values)
+.build()
 
-activeRecording = pending.start(    
-    ContextCompat.getMainExecutor(context)    
-) { event ->    
-    when (event) {    
-        is VideoRecordEvent.Start -> {    
-            recording = true    
-            error = ""    
-        }    
+val pending: PendingRecording =
+capture.output
+.prepareRecording(context, output)
+.withAudioEnabled()
 
-        is VideoRecordEvent.Finalize -> {    
-            recording = false    
-            activeRecording = null    
+activeRecording = pending.start(
+ContextCompat.getMainExecutor(context)
+) { event ->
+when (event) {
+is VideoRecordEvent.Start -> {
+recording = true
+error = ""
+}
 
-            if (    
-                !event.hasError() &&    
-                event.outputResults.outputUri != Uri.EMPTY    
-            ) {    
-                selectedMedia = event.outputResults.outputUri    
-                selectedMediaType = "video"    
-                page = "PREVIEW"    
-                error = ""    
-            } else {    
-                error = "Video recording failed. Please try again."    
-            }    
-        }    
-    }    
+is VideoRecordEvent.Finalize -> {      
+        recording = false      
+        activeRecording = null      
+
+        if (      
+            !event.hasError() &&      
+            event.outputResults.outputUri != Uri.EMPTY      
+        ) {      
+            selectedMedia = event.outputResults.outputUri      
+            selectedMediaType = "video"      
+            page = "PREVIEW"      
+            error = ""      
+        } else {      
+            error = "Video recording failed. Please try again."      
+        }      
+    }      
+}
+
 }
 
 }
@@ -367,44 +365,45 @@ error = "Camera is still starting. Please try again."
 return
 }
 
-val values = ContentValues().apply {    
-    put(    
-        MediaStore.MediaColumns.DISPLAY_NAME,    
-        "peejee_${System.currentTimeMillis()}.jpg"    
-    )    
-    put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")    
-    put(    
-        MediaStore.Images.Media.RELATIVE_PATH,    
-        "Pictures/Peejee"    
-    )    
-}    
+val values = ContentValues().apply {
+put(
+MediaStore.MediaColumns.DISPLAY_NAME,
+"peejee_${System.currentTimeMillis()}.jpg"
+)
+put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+put(
+MediaStore.Images.Media.RELATIVE_PATH,
+"Pictures/Peejee"
+)
+}
 
-val output = ImageCapture.OutputFileOptions.Builder(    
-    context.contentResolver,    
-    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,    
-    values    
-).build()    
+val output = ImageCapture.OutputFileOptions.Builder(
+context.contentResolver,
+MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+values
+).build()
 
-capture.takePicture(    
-    output,    
-    ContextCompat.getMainExecutor(context),    
-    object : ImageCapture.OnImageSavedCallback {    
-        override fun onImageSaved(    
-            result: ImageCapture.OutputFileResults    
-        ) {    
-            selectedMedia = result.savedUri    
-            selectedMediaType = "photo"    
-            page = "PREVIEW"    
-            error = ""    
-        }    
+capture.takePicture(
+output,
+ContextCompat.getMainExecutor(context),
+object : ImageCapture.OnImageSavedCallback {
+override fun onImageSaved(
+result: ImageCapture.OutputFileResults
+) {
+selectedMedia = result.savedUri
+selectedMediaType = "photo"
+page = "PREVIEW"
+error = ""
+}
 
-        override fun onError(exception: ImageCaptureException) {    
-            error =    
-                "Photo capture failed: ${    
-                    exception.localizedMessage ?: "Please try again."    
-                }"    
-        }    
-    }    
+override fun onError(exception: ImageCaptureException) {      
+        error =      
+            "Photo capture failed: ${      
+                exception.localizedMessage ?: "Please try again."      
+            }"      
+    }      
+}
+
 )
 
 }
@@ -412,154 +411,129 @@ capture.takePicture(
 fun publishPost() {
 val user = auth.currentUser
 
-if (user == null) {    
-    error = "Please log in again."    
-    return    
-}    
-
-if (    
-    selectedMedia == null &&    
-    caption.isBlank() &&    
-    textPost.isBlank()    
-) {    
-    error =    
-        "Take a photo, record a video, or write a text post first."    
-    return    
-}    
-
-publishing = true    
-error = ""    
-
-firestore.collection("users")    
-    .document(user.uid)    
-    .get()    
-    .addOnSuccessListener { userDoc ->    
-
-        val name =    
-            userDoc.getString("name")    
-                ?: userDoc.getString("username")    
-                ?: "Peejee User"    
-
-        fun savePost(mediaUrl: String, mediaType: String) {    
-            val postRef = firestore.collection("posts").document()    
-
-            val post = hashMapOf<String, Any>(    
-                "postId" to postRef.id,    
-                "userId" to user.uid,    
-                "userName" to name,    
-                "text" to (    
-                    if (textPost.isNotBlank()) {    
-                        textPost.trim()    
-                    } else {    
-                        caption.trim()    
-                    }    
-                ),    
-                "likes" to 0,    
-                "likedBy" to emptyMap<String, Boolean>(),    
-                "commentCount" to 0,    
-                "shareCount" to 0,    
-                "timestamp" to System.currentTimeMillis()    
-            )    
-
-            if (mediaUrl.isNotBlank()) {    
-                post["mediaType"] = mediaType    
-                post["mediaUrl"] = mediaUrl    
-            }    
-
-            postRef.set(post)    
-                .addOnSuccessListener {    
-                    publishing = false    
-                    onPostCreated()    
-                }    
-                .addOnFailureListener { e ->    
-                    publishing = false    
-                    error =    
-                        e.localizedMessage ?: "Could not publish post."    
-                }    
-        }    
-
-        val uri = selectedMedia    
-
-        if (uri == null) {    
-            savePost("", "")    
-        } else {    
-            val extension =    
-                if (selectedMediaType == "video") {    
-                    "video.mp4"    
-                } else {    
-                    "photo.jpg"    
-                }    
-
-            val path =    
-                "posts/${user.uid}/${System.currentTimeMillis()}_$extension"    
-
-            storage.reference.child(path)    
-                .putFile(uri)    
-                .continueWithTask { task ->    
-                    if (!task.isSuccessful) {    
-                        throw (    
-                            task.exception    
-                                ?: Exception("Upload failed")    
-                        )    
-                    }    
-
-                    storage.reference.child(path).downloadUrl    
-                }    
-                .addOnSuccessListener { downloadUri ->    
-                    savePost(    
-                        downloadUri.toString(),    
-                        selectedMediaType    
-                    )    
-                }    
-                .addOnFailureListener { e ->    
-                    publishing = false    
-                    error =    
-                        "Media upload failed: ${    
-                            e.localizedMessage ?: "Please try again."    
-                        }"    
-                }    
-        }    
-    }    
-    .addOnFailureListener { e ->    
-        publishing = false    
-        error =    
-            e.localizedMessage ?: "Could not load your profile."    
-    }
-
+if (user == null) {
+error = "Please log in again."
+return
 }
 
-if (showGalleryChoice) {
-AlertDialog(
-onDismissRequest = {
-showGalleryChoice = false
-},
-title = {
-Text("Choose media")
-},
-text = {
-Text("Choose a photo or a video from your phone.")
-},
-confirmButton = {
-TextButton(
-onClick = {
-showGalleryChoice = false
-imagePicker.launch("image/")
-}
+if (
+selectedMedia == null &&
+caption.isBlank() &&
+textPost.isBlank()
 ) {
-Text("Photo")
+error =
+"Take a photo, record a video, or write a text post first."
+return
 }
-},
-dismissButton = {
-TextButton(
-onClick = {
-showGalleryChoice = false
-videoPicker.launch("video/")
+
+publishing = true
+error = ""
+
+firestore.collection("users")
+.document(user.uid)
+.get()
+.addOnSuccessListener { userDoc ->
+
+val name =      
+        userDoc.getString("name")      
+            ?: userDoc.getString("username")      
+            ?: "Peejee User"      
+
+    fun savePost(mediaUrl: String, mediaType: String) {      
+        val postRef = firestore.collection("posts").document()      
+
+        val post = hashMapOf<String, Any>(      
+            "postId" to postRef.id,      
+            "userId" to user.uid,      
+            "userName" to name,      
+            "text" to (      
+                if (textPost.isNotBlank()) {      
+                    textPost.trim()      
+                } else {      
+                    caption.trim()      
+                }      
+            ),      
+            "likes" to 0,      
+            "likedBy" to emptyMap<String, Boolean>(),      
+            "commentCount" to 0,      
+            "shareCount" to 0,      
+            "timestamp" to System.currentTimeMillis()      
+        )      
+
+        if (mediaUrl.isNotBlank()) {      
+            post["mediaType"] = mediaType      
+            post["mediaUrl"] = mediaUrl      
+        }      
+
+        postRef.set(post)      
+            .addOnSuccessListener {      
+                publishing = false      
+                onPostCreated()      
+            }      
+            .addOnFailureListener { e ->      
+                publishing = false      
+                error =      
+                    e.localizedMessage ?: "Could not publish post."      
+            }      
+    }      
+
+    val uri = selectedMedia      
+
+    if (uri == null) {      
+        savePost("", "")      
+    } else {      
+        val extension =      
+            if (selectedMediaType == "video") {      
+                "video.mp4"      
+            } else {      
+                "photo.jpg"      
+            }      
+
+        val path =      
+            "posts/${user.uid}/${System.currentTimeMillis()}_$extension"      
+
+        storage.reference.child(path)      
+            .putFile(uri)      
+            .continueWithTask { task ->      
+                if (!task.isSuccessful) {      
+                    throw (      
+                        task.exception      
+                            ?: Exception("Upload failed")      
+                    )      
+                }      
+
+                storage.reference.child(path).downloadUrl      
+            }      
+            .addOnSuccessListener { downloadUri ->      
+                savePost(      
+                    downloadUri.toString(),      
+                    selectedMediaType      
+                )      
+            }      
+            .addOnFailureListener { e ->      
+                publishing = false      
+                error =      
+                    "Media upload failed: ${      
+                        e.localizedMessage ?: "Please try again."      
+                    }"      
+            }      
+    }      
+}      
+.addOnFailureListener { e ->      
+    publishing = false      
+    error =      
+        e.localizedMessage ?: "Could not load your profile."      
 }
-) {
-Text("Video")
+
 }
+
+fun openMediaPicker() {
+val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+type = "/"
+putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/", "video/"))
+addCategory(Intent.CATEGORY_OPENABLE)
 }
-)
+mediaPicker.launch(Intent.createChooser(intent, "Select photo or video"))
 }
 
 Column(
@@ -569,716 +543,576 @@ Modifier
 .padding(paddingValues)
 ) {
 
-// MEDIA PREVIEW AND PUBLISH PAGE    
-if (page == "PREVIEW") {    
+// MEDIA PREVIEW AND PUBLISH PAGE
+if (page == "PREVIEW") {
 
-    Row(    
-        Modifier    
-            .fillMaxWidth()    
-            .padding(horizontal = 16.dp, vertical = 10.dp),    
-        verticalAlignment = Alignment.CenterVertically    
-    ) {    
-        Text(    
-            "✕",    
-            color = Color.White,    
-            fontSize = 26.sp,    
-            modifier = Modifier.clickable {    
-                selectedMedia = null    
-                selectedMediaType = ""    
-                page = "CAMERA"    
-                error = ""    
-            }    
-        )    
+Row(      
+    Modifier      
+        .fillMaxWidth()      
+        .padding(horizontal = 16.dp, vertical = 10.dp),      
+    verticalAlignment = Alignment.CenterVertically      
+) {      
+    Text(      
+        "✕",      
+        color = Color.White,      
+        fontSize = 26.sp,      
+        modifier = Modifier.clickable {      
+            selectedMedia = null      
+            selectedMediaType = ""      
+            page = "CAMERA"      
+            error = ""      
+        }      
+    )      
 
-        Spacer(Modifier.width(18.dp))    
+    Spacer(Modifier.width(18.dp))      
 
-        Text(    
-            "Preview your post",    
-            color = Color.White,    
-            fontSize = 20.sp,    
-            fontWeight = FontWeight.Bold    
-        )    
-    }    
+    Text(      
+        "Preview your post",      
+        color = Color.White,      
+        fontSize = 20.sp,      
+        fontWeight = FontWeight.Bold      
+    )      
+}      
 
-    Box(    
-        Modifier    
-            .weight(1f)    
-            .fillMaxWidth()    
-            .padding(horizontal = 14.dp)    
-            .clip(RoundedCornerShape(20.dp))    
-            .background(Color(0xFF17131F)),    
-        contentAlignment = Alignment.Center    
-    ) {    
-        if (selectedMediaType == "photo") {    
-            AsyncImage(    
-                model = selectedMedia,    
-                contentDescription = "Selected photo",    
-                modifier = Modifier.fillMaxSize()    
-            )    
-        } else if (selectedMediaType == "video") {    
-            AndroidView(    
-                factory = { ctx ->    
-                    VideoView(ctx).apply {    
-                        setVideoURI(selectedMedia)    
-                        setOnPreparedListener {    
-                            it.isLooping = true    
-                            start()    
-                        }    
-                    }    
-                },    
-                modifier = Modifier.fillMaxSize()    
-            )    
-        }    
-    }    
-
-    OutlinedTextField(    
-        value = caption,    
-        onValueChange = { caption = it },    
-        label = {    
-            Text("Add a caption", color = Color.LightGray)    
-        },    
-        modifier = Modifier    
-            .fillMaxWidth()    
-            .padding(14.dp),    
-        colors = OutlinedTextFieldDefaults.colors(    
-            focusedTextColor = Color.White,    
-            unfocusedTextColor = Color.White,    
-            focusedBorderColor = PeejeePurple,    
-            unfocusedBorderColor = Color.Gray    
-        )    
-    )    
-
-    if (error.isNotBlank()) {    
-        Text(    
-            error,    
-            color = Color(0xFFFF8080),    
-            modifier = Modifier.padding(horizontal = 16.dp)    
-        )    
-    }    
-
-    Button(    
-        onClick = { publishPost() },    
-        enabled = !publishing,    
-        modifier = Modifier    
-            .fillMaxWidth()    
-            .padding(14.dp),    
-        colors = ButtonDefaults.buttonColors(    
-            containerColor = PeejeePurple    
-        )    
-    ) {    
-        Text(    
-            if (publishing) {    
-                "Uploading and publishing…"    
-            } else {    
-                "Publish to Peejee"    
-            }    
-        )    
-    }    
-
-// TEXT POST PAGE    
-} else if (page == "TEXT") {    
-
-    Row(    
-        Modifier    
-            .fillMaxWidth()    
-            .padding(16.dp),    
-        verticalAlignment = Alignment.CenterVertically    
-    ) {    
-        Text(    
-            "‹",    
-            color = Color.White,    
-            fontSize = 32.sp,    
-            modifier = Modifier.clickable {    
-                page = "CAMERA"    
-            }    
-        )    
-
-        Spacer(Modifier.width(14.dp))    
-
-        Text(    
-            "Create a text post",    
-            color = Color.White,    
-            fontSize = 22.sp,    
-            fontWeight = FontWeight.Bold    
-        )    
-    }    
-
-    Box(    
-        Modifier    
-            .weight(1f)    
-            .fillMaxWidth()    
-            .padding(16.dp)    
-            .clip(RoundedCornerShape(24.dp))    
-            .background(Color(0xFF201A2B))    
-            .padding(18.dp)    
-    ) {    
-        OutlinedTextField(    
-            value = textPost,    
-            onValueChange = { textPost = it },    
-            placeholder = {    
-                Text("Write your text…", color = Color.Gray)    
-            },    
-            modifier = Modifier.fillMaxSize(),    
-            colors = OutlinedTextFieldDefaults.colors(    
-                focusedTextColor = Color.White,    
-                unfocusedTextColor = Color.White,    
-                focusedBorderColor = PeejeePurple,    
-                unfocusedBorderColor = Color.DarkGray    
-            )    
-        )    
-    }    
-
-    if (error.isNotBlank()) {    
-        Text(    
-            error,    
-            color = Color(0xFFFF8080),    
-            modifier = Modifier.padding(16.dp)    
-        )    
-    }    
-
-    Button(    
-        onClick = { publishPost() },    
-        enabled = !publishing && textPost.isNotBlank(),    
-        modifier = Modifier    
-            .fillMaxWidth()    
-            .padding(16.dp),    
-        colors = ButtonDefaults.buttonColors(    
-            containerColor = PeejeePurple    
-        )    
-    ) {    
-        Text(    
-            if (publishing) {    
-                "Publishing…"    
-            } else {    
-                "Publish text post"    
-            }    
-        )    
-    }    
-
-// CREATE PAGE    
-} else if (page == "CREATE") {    
-
-    Row(    
-        Modifier    
-            .fillMaxWidth()    
-            .padding(16.dp),    
-        verticalAlignment = Alignment.CenterVertically    
-    ) {    
-        Text(    
-            "‹",    
-            color = Color.White,    
-            fontSize = 32.sp,    
-            modifier = Modifier.clickable {    
-                page = "CAMERA"    
-            }    
-        )    
-
-        Spacer(Modifier.width(14.dp))    
-
-        Text(    
-            "Create",    
-            color = Color.White,    
-            fontSize = 22.sp,    
-            fontWeight = FontWeight.Bold    
-        )    
-    }    
-
-    Column(    
-        Modifier    
-            .weight(1f)    
-            .fillMaxWidth()    
-            .padding(18.dp),    
-        verticalArrangement = Arrangement.Center,    
-        horizontalAlignment = Alignment.CenterHorizontally    
-    ) {    
-        Text(    
-            "Create for Peejee",    
-            color = Color.White,    
-            fontSize = 28.sp,    
-            fontWeight = FontWeight.Bold    
-        )    
-
-        Text(    
-            "Choose a photo or video to start creating a post.",    
-            color = Color.LightGray,    
-            textAlign = TextAlign.Center,    
-            modifier = Modifier.padding(    
-                top = 12.dp,    
-                bottom = 24.dp    
-            )    
-        )    
-
-        Button(    
-            onClick = {    
-                showGalleryChoice = true    
-            },    
-            colors = ButtonDefaults.buttonColors(    
-                containerColor = PeejeePurple    
-            )    
-        ) {    
-            Text("Choose photo or video")    
-        }    
-
-        OutlinedButton(    
-            onClick = {    
-                page = "TEXT"    
-            }    
-        ) {    
-            Text("Create text post", color = Color.White)    
-        }    
-    }    
-
-// CAMERA PAGE    
-} else {    
-
-    Row(    
-        Modifier    
-            .fillMaxWidth()    
-            .padding(horizontal = 18.dp, vertical = 12.dp),    
-        verticalAlignment = Alignment.CenterVertically    
-    ) {    
-        Text(    
-            "✕",    
-            color = Color.White,    
-            fontSize = 26.sp,    
-            modifier = Modifier.clickable {    
-                onPostCreated()    
-            }    
+Box(      
+    Modifier      
+        .weight(1f)      
+        .fillMaxWidth()      
+        .padding(horizontal = 14.dp)      
+        .clip(RoundedCornerShape(20.dp))      
+        .background(Color(0xFF17131F)),      
+    contentAlignment = Alignment.Center      
+) {      
+    if (selectedMediaType == "photo") {      
+        AsyncImage(      
+            model = selectedMedia,      
+            contentDescription = "Selected photo",      
+            modifier = Modifier.fillMaxSize()      
         )      
-    }    
+    } else if (selectedMediaType == "video") {      
+        AndroidView(      
+            factory = { ctx ->      
+                VideoView(ctx).apply {      
+                    setVideoURI(selectedMedia)      
+                    setOnPreparedListener {      
+                        it.isLooping = true      
+                        start()      
+                    }      
+                }      
+            },      
+            modifier = Modifier.fillMaxSize()      
+        )      
+    }      
+}      
 
-    // Keep the camera preview compact enough that the controls below it    
-    // remain visible above Peejee's main bottom navigation.    
-    Box(    
-        Modifier    
-            .fillMaxWidth()    
-            .heightIn(max = 300.dp)    
-            .weight(1f, fill = true)    
-            .padding(horizontal = 10.dp)    
-            .clip(RoundedCornerShape(26.dp))    
-            .background(Color(0xFF17131F))    
-    ) {    
-        if (cameraPermission) {    
-            AndroidView(    
-                factory = { ctx ->    
-                    PreviewView(ctx).apply {    
-                        scaleType =    
-                            PreviewView.ScaleType.FILL_CENTER    
+OutlinedTextField(      
+    value = caption,      
+    onValueChange = { caption = it },      
+    label = {      
+        Text("Add a caption", color = Color.LightGray)      
+    },      
+    modifier = Modifier      
+        .fillMaxWidth()      
+        .padding(14.dp),      
+    colors = OutlinedTextFieldDefaults.colors(      
+        focusedTextColor = Color.White,      
+        unfocusedTextColor = Color.White,      
+        focusedBorderColor = PeejeePurple,      
+        unfocusedBorderColor = Color.Gray      
+    )      
+)      
 
-                        layoutParams = ViewGroup.LayoutParams(    
-                            ViewGroup.LayoutParams.MATCH_PARENT,    
-                            ViewGroup.LayoutParams.MATCH_PARENT    
-                        )    
+if (error.isNotBlank()) {      
+    Text(      
+        error,      
+        color = Color(0xFFFF8080),      
+        modifier = Modifier.padding(horizontal = 16.dp)      
+    )      
+}      
 
-                        previewView = this    
-                    }    
-                },    
-                modifier = Modifier.fillMaxSize()    
-            )    
-        } else {    
-            Column(    
-                Modifier    
-                    .align(Alignment.Center)    
-                    .padding(20.dp),    
-                horizontalAlignment = Alignment.CenterHorizontally    
-            ) {    
-                Text(    
-                    "Peejee needs camera access",    
-                    color = Color.White,    
-                    fontSize = 20.sp,    
-                    fontWeight = FontWeight.Bold    
-                )    
+Button(      
+    onClick = { publishPost() },      
+    enabled = !publishing,      
+    modifier = Modifier      
+        .fillMaxWidth()      
+        .padding(14.dp),      
+    colors = ButtonDefaults.buttonColors(      
+        containerColor = PeejeePurple      
+    )      
+) {      
+    Text(      
+        if (publishing) {      
+            "Uploading and publishing…"      
+        } else {      
+            "Publish to Peejee"      
+        }      
+    )      
+}
 
-                Button(    
-                    onClick = {    
-                        permissionLauncher.launch(    
-                            arrayOf(    
-                                Manifest.permission.CAMERA,    
-                                Manifest.permission.RECORD_AUDIO    
-                            )    
-                        )    
-                    },    
-                    colors = ButtonDefaults.buttonColors(    
-                        containerColor = PeejeePurple    
-                    )    
-                ) {    
-                    Text("Allow camera")    
-                }    
-            }    
-        }    
+// TEXT POST PAGE
+} else if (page == "TEXT") {
 
-        Column(    
-            Modifier    
-                .align(Alignment.CenterEnd)    
-                .padding(end = 10.dp),    
-            verticalArrangement = Arrangement.spacedBy(4.dp),    
-            horizontalAlignment = Alignment.CenterHorizontally    
-        ) {    
-            Row(  
-                horizontalArrangement = Arrangement.spacedBy(4.dp),  
-                verticalAlignment = Alignment.CenterVertically  
-            ) {  
-                CameraTool("↻", "Flip") {  
-                    if (!recording) {  
-                        lensFacing =  
-                            if (  
-                                lensFacing ==  
-                                CameraSelector.LENS_FACING_FRONT  
-                            ) {  
-                                CameraSelector.LENS_FACING_BACK  
-                            } else {  
-                                CameraSelector.LENS_FACING_FRONT  
-                            }  
+Row(      
+    Modifier      
+        .fillMaxWidth()      
+        .padding(16.dp),      
+    verticalAlignment = Alignment.CenterVertically      
+) {      
+    Text(      
+        "‹",      
+        color = Color.White,      
+        fontSize = 32.sp,      
+        modifier = Modifier.clickable {      
+            page = "CAMERA"      
+        }      
+    )      
+
+    Spacer(Modifier.width(14.dp))      
+
+    Text(      
+        "Create a text post",      
+        color = Color.White,      
+        fontSize = 22.sp,      
+        fontWeight = FontWeight.Bold      
+    )      
+}      
+
+Box(      
+    Modifier      
+        .weight(1f)      
+        .fillMaxWidth()      
+        .padding(16.dp)      
+        .clip(RoundedCornerShape(24.dp))      
+        .background(Color(0xFF201A2B))      
+        .padding(18.dp)      
+) {      
+    OutlinedTextField(      
+        value = textPost,      
+        onValueChange = { textPost = it },      
+        placeholder = {      
+            Text("Write your text…", color = Color.Gray)      
+        },      
+        modifier = Modifier.fillMaxSize(),      
+        colors = OutlinedTextFieldDefaults.colors(      
+            focusedTextColor = Color.White,      
+            unfocusedTextColor = Color.White,      
+            focusedBorderColor = PeejeePurple,      
+            unfocusedBorderColor = Color.DarkGray      
+        )      
+    )      
+}      
+
+if (error.isNotBlank()) {      
+    Text(      
+        error,      
+        color = Color(0xFFFF8080),      
+        modifier = Modifier.padding(16.dp)      
+    )      
+}      
+
+Button(      
+    onClick = { publishPost() },      
+    enabled = !publishing && textPost.isNotBlank(),      
+    modifier = Modifier      
+        .fillMaxWidth()      
+        .padding(16.dp),      
+    colors = ButtonDefaults.buttonColors(      
+        containerColor = PeejeePurple      
+    )      
+) {      
+    Text(      
+        if (publishing) {      
+            "Publishing…"      
+        } else {      
+            "Publish text post"      
+        }      
+    )      
+}
+
+// CREATE PAGE
+} else if (page == "CREATE") {
+
+Row(      
+    Modifier      
+        .fillMaxWidth()      
+        .padding(16.dp),      
+    verticalAlignment = Alignment.CenterVertically      
+) {      
+    Text(      
+        "‹",      
+        color = Color.White,      
+        fontSize = 32.sp,      
+        modifier = Modifier.clickable {      
+            page = "CAMERA"      
+        }      
+    )      
+
+    Spacer(Modifier.width(14.dp))      
+
+    Text(      
+        "Create",      
+        color = Color.White,      
+        fontSize = 22.sp,      
+        fontWeight = FontWeight.Bold      
+    )      
+}      
+
+Column(      
+    Modifier      
+        .weight(1f)      
+        .fillMaxWidth()      
+        .padding(18.dp),      
+    verticalArrangement = Arrangement.Center,      
+    horizontalAlignment = Alignment.CenterHorizontally      
+) {      
+    Text(      
+        "Create for Peejee",      
+        color = Color.White,      
+        fontSize = 28.sp,      
+        fontWeight = FontWeight.Bold      
+    )      
+
+    Text(      
+        "Choose a photo or video to start creating a post.",      
+        color = Color.LightGray,      
+        textAlign = TextAlign.Center,      
+        modifier = Modifier.padding(      
+            top = 12.dp,      
+            bottom = 24.dp      
+        )      
+    )      
+
+    Button(      
+        onClick = {  
+            openMediaPicker()  
+        },      
+        colors = ButtonDefaults.buttonColors(      
+            containerColor = PeejeePurple      
+        )      
+    ) {      
+        Text("Choose photo or video")      
+    }      
+
+    OutlinedButton(      
+        onClick = {      
+            page = "TEXT"      
+        }      
+    ) {      
+        Text("Create text post", color = Color.White)      
+    }      
+}
+
+// CAMERA PAGE
+} else {
+
+// Large live preview, matching the approved Peejee camera design.  
+Box(      
+    Modifier      
+        .fillMaxWidth()      
+        .weight(1f, fill = true)      
+        .padding(horizontal = 10.dp)      
+        .clip(RoundedCornerShape(26.dp))      
+        .background(Color(0xFF17131F))      
+) {      
+    if (cameraPermission) {      
+        AndroidView(      
+            factory = { ctx ->      
+                PreviewView(ctx).apply {      
+                    scaleType =      
+                        PreviewView.ScaleType.FILL_CENTER      
+
+                    layoutParams = ViewGroup.LayoutParams(      
+                        ViewGroup.LayoutParams.MATCH_PARENT,      
+                        ViewGroup.LayoutParams.MATCH_PARENT      
+                    )      
+
+                    previewView = this      
+                }      
+            },      
+            modifier = Modifier.fillMaxSize()      
+        )      
+    } else {      
+        Column(      
+            Modifier      
+                .align(Alignment.Center)      
+                .padding(20.dp),      
+            horizontalAlignment = Alignment.CenterHorizontally      
+        ) {      
+            Text(      
+                "Peejee needs camera access",      
+                color = Color.White,      
+                fontSize = 20.sp,      
+                fontWeight = FontWeight.Bold      
+            )      
+
+            Button(      
+                onClick = {      
+                    permissionLauncher.launch(      
+                        arrayOf(      
+                            Manifest.permission.CAMERA,      
+                            Manifest.permission.RECORD_AUDIO      
+                        )      
+                    )      
+                },      
+                colors = ButtonDefaults.buttonColors(      
+                    containerColor = PeejeePurple      
+                )      
+            ) {      
+                Text("Allow camera")      
+            }      
+        }      
+    }      
+
+    Column(  
+        Modifier  
+            .align(Alignment.CenterEnd)  
+            .padding(end = 8.dp),  
+        verticalArrangement = Arrangement.spacedBy(5.dp),  
+        horizontalAlignment = Alignment.CenterHorizontally  
+    ) {  
+        CameraTool("↻", "Flip") {  
+            if (!recording) {  
+                lensFacing =  
+                    if (lensFacing == CameraSelector.LENS_FACING_FRONT) {  
+                        CameraSelector.LENS_FACING_BACK  
+                    } else {  
+                        CameraSelector.LENS_FACING_FRONT  
+                    }  
+            }  
+        }  
+
+        CameraTool("♫", "Music") {  
+            soundPicker.launch("audio/*")  
+        }  
+
+        CameraTool(if (flashOn) "⚡" else "ϟ", "Flash") {  
+            flashOn = !flashOn  
+        }  
+
+        CameraTool("◷", "Timer") {  
+            timerSeconds = when (timerSeconds) {  
+                0 -> 3  
+                3 -> 10  
+                else -> 0  
+            }  
+            error = if (timerSeconds == 0) {  
+                "Timer off"  
+            } else {  
+                "Photo timer set to ${timerSeconds}s"  
+            }  
+        }  
+
+        CameraTool("▦", "Layout") {  
+            error = "Layout controls are not implemented yet."  
+        }  
+
+        CameraTool("✦", "Effects") {  
+            selectedEffect =  
+                if (selectedEffect == "Original") "Glow" else "Original"  
+            error = "Effect selection changes the label only; applying visual effects is not implemented yet."  
+        }  
+
+        CameraTool("◉", "Filters") {  
+            selectedFilter =  
+                if (selectedFilter == "Natural") "Warm" else "Natural"  
+            error = "Filter selection changes the label only; applying visual filters are not implemented yet."  
+        }  
+
+        CameraTool("✧", "Beauty") {  
+            error = "Beauty controls are not implemented yet."  
+        }  
+    }  
+
+    if (recording) {      
+        Box(      
+            Modifier      
+                .align(Alignment.TopCenter)      
+                .padding(top = 12.dp)      
+                .clip(CircleShape)      
+                .background(Color.Red)      
+                .padding(      
+                    horizontal = 14.dp,      
+                    vertical = 6.dp      
+                )      
+        ) {      
+            Text(      
+                "● REC ${recordingSeconds}s",      
+                color = Color.White,      
+                fontWeight = FontWeight.Bold      
+            )      
+        }      
+    }      
+}      
+
+// RECORDING MODES      
+Row(      
+    Modifier      
+        .fillMaxWidth()      
+        .padding(top = 12.dp, bottom = 6.dp),      
+    horizontalArrangement = Arrangement.Center,      
+    verticalAlignment = Alignment.CenterVertically      
+) {      
+    listOf("10m", "60s", "15s", "PHOTO", "TEXT")      
+        .forEach { mode ->      
+
+            val chosen = captureMode == mode      
+
+            Text(      
+                mode,      
+                color = if (chosen) PeejeeDark else Color.White,      
+                fontWeight = if (chosen) {      
+                    FontWeight.Bold      
+                } else {      
+                    FontWeight.Medium      
+                },      
+                modifier = Modifier      
+                    .padding(horizontal = 4.dp)      
+                    .clip(CircleShape)      
+                    .background(      
+                        if (chosen) {      
+                            Color.White      
+                        } else {      
+                            Color.Transparent      
+                        }      
+                    )      
+                    .clickable {      
+                        captureMode = mode      
+
+                        if (mode == "TEXT") {      
+                            page = "TEXT"      
+                        }      
+                    }      
+                    .padding(      
+                        horizontal = 9.dp,      
+                        vertical = 7.dp      
+                    ),      
+                fontSize = 13.sp      
+            )      
+        }      
+}      
+
+// One gallery button and one purple capture button.  
+Row(  
+    Modifier  
+        .fillMaxWidth()  
+        .padding(horizontal = 22.dp, vertical = 8.dp),  
+    verticalAlignment = Alignment.CenterVertically  
+) {  
+    Box(  
+        Modifier  
+            .size(58.dp)  
+            .clip(CircleShape)  
+            .background(Color(0x55202020))  
+            .clickable { openMediaPicker() },  
+        contentAlignment = Alignment.Center  
+    ) {  
+        Text(  
+            "▧",  
+            color = Color.White,  
+            fontSize = 32.sp  
+        )  
+    }  
+
+    Spacer(Modifier.weight(1f))  
+
+    Box(  
+        Modifier  
+            .size(82.dp)  
+            .clip(CircleShape)  
+            .background(Color.White)  
+            .padding(5.dp)  
+            .clip(CircleShape)  
+            .background(if (recording) Color(0xFF8B1538) else PeejeePurple)  
+            .clickable {  
+                if (timerRunning) {  
+                    return@clickable  
+                }  
+
+                if (captureMode == "TEXT") {  
+                    page = "TEXT"  
+                } else if (captureMode == "PHOTO") {  
+                    if (timerSeconds > 0) {  
+                        timerRunning = true  
+                        scope.launch {  
+                            val delayTime = timerSeconds * 1000L  
+                            error = "Taking photo in ${timerSeconds}s…"  
+                            delay(delayTime)  
+                            takePhoto()  
+                            timerRunning = false  
+                        }  
+                    } else {  
+                        takePhoto()  
+                    }  
+                } else {  
+                    if (recording) {  
+                        activeRecording?.stop()  
+                    } else {  
+                        startRecording()  
                     }  
                 }  
+            },  
+        contentAlignment = Alignment.Center  
+    ) {  
+        if (recording) {  
+            Box(  
+                Modifier  
+                    .size(28.dp)  
+                    .clip(RoundedCornerShape(6.dp))  
+                    .background(Color.White)  
+            )  
+        }  
+    }  
 
-                CameraTool(  
-                    "♫",  
-                    if (selectedSound == null) "Music" else "Selected"  
-                ) {  
-                    soundPicker.launch("audio/*")  
-                }  
-            }  
+    Spacer(Modifier.weight(1f))  
 
-            CameraTool(  
-                if (flashOn) "⚡" else "ϟ",  
-                "Flash"  
-            ) {    
-                flashOn = !flashOn    
-            }    
+    // Keeps the shutter centered; no extra thumbnail or effects strip.  
+    Spacer(Modifier.size(58.dp))  
+}  
 
-            CameraTool("◷", "Timer") {    
-                timerSeconds = when (timerSeconds) {    
-                    0 -> 3    
-                    3 -> 10    
-                    else -> 0    
-                }    
+// BOTTOM CAMERA / CREATE TABS      
+Row(      
+    Modifier      
+        .fillMaxWidth()      
+        .background(Color.Black)      
+        .padding(vertical = 12.dp),      
+    horizontalArrangement = Arrangement.SpaceEvenly,      
+    verticalAlignment = Alignment.CenterVertically      
+) {      
+    Text(      
+        "CAMERA",      
+        color = Color.White,      
+        fontWeight = FontWeight.Bold,      
+        modifier = Modifier.clickable {      
+            page = "CAMERA"      
+        }      
+    )      
 
-                error = if (timerSeconds == 0) {    
-                    "Timer off"    
-                } else {    
-                    "Photo timer set to ${timerSeconds}s"    
-                }    
-            }    
+    Text(      
+        "CREATE",      
+        color = Color.Gray,      
+        fontWeight = FontWeight.Bold,      
+        modifier = Modifier.clickable {      
+            page = "CREATE"      
+        }      
+    )      
+}      
 
-            CameraTool("▣", "Layout") {    
-                error =    
-                    "Layout controls are not implemented yet."    
-            }    
+if (error.isNotBlank()) {      
+    Text(      
+        error,      
+        color = Color(0xFFFFA6A6),      
+        fontSize = 11.sp,      
+        modifier = Modifier      
+            .fillMaxWidth()      
+            .background(Color.Black)      
+            .padding(      
+                horizontal = 10.dp,      
+                vertical = 4.dp      
+            ),      
+        textAlign = TextAlign.Center      
+    )      
+}
 
-            CameraTool("✦", "Effects") {    
-                selectedEffect =    
-                    if (selectedEffect == "Original") {    
-                        "Glow"    
-                    } else {    
-                        "Original"    
-                    }    
-
-                error =    
-                    "Effect selection changes the label only; applying visual effects is not implemented yet."    
-            }    
-
-            CameraTool("◉", "Filters") {    
-                selectedFilter =    
-                    if (selectedFilter == "Natural") {    
-                        "Warm"    
-                    } else {    
-                        "Natural"    
-                    }    
-
-                error =    
-                    "Filter selection changes the label only; applying visual filters is not implemented yet."    
-            }    
-
-            CameraTool("✧", "Beauty") {    
-                error =    
-                    "Beauty controls are not implemented yet."    
-            }    
-        }    
-
-        if (recording) {    
-            Box(    
-                Modifier    
-                    .align(Alignment.TopCenter)    
-                    .padding(top = 12.dp)    
-                    .clip(CircleShape)    
-                    .background(Color.Red)    
-                    .padding(    
-                        horizontal = 14.dp,    
-                        vertical = 6.dp    
-                    )    
-            ) {    
-                Text(    
-                    "● REC ${recordingSeconds}s",    
-                    color = Color.White,    
-                    fontWeight = FontWeight.Bold    
-                )    
-            }    
-        }    
-    }    
-
-    // RECORDING MODES    
-    Row(    
-        Modifier    
-            .fillMaxWidth()    
-            .padding(top = 12.dp, bottom = 6.dp),    
-        horizontalArrangement = Arrangement.Center,    
-        verticalAlignment = Alignment.CenterVertically    
-    ) {    
-        listOf("10m", "60s", "15s", "PHOTO", "TEXT")    
-            .forEach { mode ->    
-
-                val chosen = captureMode == mode    
-
-                Text(    
-                    mode,    
-                    color = if (chosen) PeejeeDark else Color.White,    
-                    fontWeight = if (chosen) {    
-                        FontWeight.Bold    
-                    } else {    
-                        FontWeight.Medium    
-                    },    
-                    modifier = Modifier    
-                        .padding(horizontal = 4.dp)    
-                        .clip(CircleShape)    
-                        .background(    
-                            if (chosen) {    
-                                Color.White    
-                            } else {    
-                                Color.Transparent    
-                            }    
-                        )    
-                        .clickable {    
-                            captureMode = mode    
-
-                            if (mode == "TEXT") {    
-                                page = "TEXT"    
-                            }    
-                        }    
-                        .padding(    
-                            horizontal = 9.dp,    
-                            vertical = 7.dp    
-                        ),    
-                    fontSize = 13.sp    
-                )    
-            }    
-    }    
-
-    // GALLERY AND SHUTTER    
-    Row(    
-        Modifier    
-            .fillMaxWidth()    
-            .padding(horizontal = 16.dp, vertical = 6.dp),    
-        verticalAlignment = Alignment.CenterVertically    
-    ) {    
-        Box(    
-            Modifier    
-                .size(58.dp)    
-                .clip(RoundedCornerShape(12.dp))    
-                .background(Color(0xFF2A2434))    
-                .clickable {    
-                    showGalleryChoice = true    
-                },    
-            contentAlignment = Alignment.Center    
-        ) {    
-            if (    
-                selectedMedia != null &&    
-                selectedMediaType == "photo"    
-            ) {    
-                AsyncImage(    
-                    model = selectedMedia,    
-                    contentDescription = "Gallery thumbnail",    
-                    modifier = Modifier.fillMaxSize()    
-                )    
-            } else {    
-                Text(    
-                    "▧",    
-                    color = Color.White,    
-                    fontSize = 30.sp    
-                )    
-            }    
-        }    
-
-        Spacer(Modifier.weight(1f))    
-
-        Box(    
-            Modifier    
-                .size(82.dp)    
-                .clip(CircleShape)    
-                .background(Color.White)    
-                .padding(5.dp)    
-                .clip(CircleShape)    
-                .background(    
-                    if (recording) {    
-                        Color(0xFF8B1538)    
-                    } else {    
-                        Color(0xFFFF2857)    
-                    }    
-                )    
-                .clickable {    
-                    if (timerRunning) {    
-                        return@clickable    
-                    }    
-
-                    if (captureMode == "TEXT") {    
-                        page = "TEXT"    
-                    } else if (captureMode == "PHOTO") {    
-                        if (timerSeconds > 0) {    
-                            timerRunning = true    
-
-                            scope.launch {    
-                                val delayTime =    
-                                    timerSeconds * 1000L    
-
-                                error =    
-                                    "Taking photo in ${timerSeconds}s…"    
-
-                                delay(delayTime)    
-
-                                takePhoto()    
-
-                                timerRunning = false    
-                            }    
-                        } else {    
-                            takePhoto()    
-                        }    
-                    } else {    
-                        if (recording) {    
-                            activeRecording?.stop()    
-                        } else {    
-                            startRecording()    
-                        }    
-                    }    
-                },    
-            contentAlignment = Alignment.Center    
-        ) {    
-            if (recording) {    
-                Box(    
-                    Modifier    
-                        .size(28.dp)    
-                        .clip(RoundedCornerShape(6.dp))    
-                        .background(Color.White)    
-                )    
-            }    
-        }    
-
-        Spacer(Modifier.weight(1f))    
-
-        Column(    
-            horizontalAlignment = Alignment.CenterHorizontally    
-        ) {    
-            Text(    
-                "●",    
-                color = PeejeePurple,    
-                fontSize = 24.sp    
-            )    
-
-            Text(    
-                selectedEffect,    
-                color = Color.White,    
-                fontSize = 10.sp    
-            )    
-        }    
-    }    
-
-    // EFFECT SELECTION STRIP    
-    LazyRow(    
-        Modifier    
-            .fillMaxWidth()    
-            .padding(horizontal = 10.dp, vertical = 4.dp),    
-        horizontalArrangement = Arrangement.spacedBy(8.dp)    
-    ) {    
-        items(    
-            listOf(    
-                "Original",    
-                "Glow",    
-                "Warm",    
-                "Cool",    
-                "Soft"    
-            )    
-        ) { effect ->    
-
-            Column(    
-                horizontalAlignment = Alignment.CenterHorizontally,    
-                modifier = Modifier.clickable {    
-                    selectedEffect = effect    
-
-                    error =    
-                        "Selected $effect. Applying camera effects is not implemented yet."    
-                }    
-            ) {    
-                Box(    
-                    Modifier    
-                        .size(48.dp)    
-                        .clip(CircleShape)    
-                        .background(    
-                            if (selectedEffect == effect) {    
-                                PeejeePurple    
-                            } else {    
-                                Color(0xFF39313F)    
-                            }    
-                        ),    
-                    contentAlignment = Alignment.Center    
-                ) {    
-                    Text(    
-                        if (effect == "Original") "○" else "✦",    
-                        color = Color.White,    
-                        fontSize = 20.sp    
-                    )    
-                }    
-
-                Text(    
-                    effect,    
-                    color = Color.White,    
-                    fontSize = 10.sp    
-                )    
-            }    
-        }    
-    }    
-
-    // BOTTOM CAMERA / CREATE TABS    
-    Row(    
-        Modifier    
-            .fillMaxWidth()    
-            .background(Color.Black)    
-            .padding(vertical = 12.dp),    
-        horizontalArrangement = Arrangement.SpaceEvenly,    
-        verticalAlignment = Alignment.CenterVertically    
-    ) {    
-        Text(    
-            "CAMERA",    
-            color = Color.White,    
-            fontWeight = FontWeight.Bold,    
-            modifier = Modifier.clickable {    
-                page = "CAMERA"    
-            }    
-        )    
-
-        Text(    
-            "CREATE",    
-            color = Color.Gray,    
-            fontWeight = FontWeight.Bold,    
-            modifier = Modifier.clickable {    
-                page = "CREATE"    
-            }    
-        )    
-    }    
-
-    if (error.isNotBlank()) {    
-        Text(    
-            error,    
-            color = Color(0xFFFFA6A6),    
-            fontSize = 11.sp,    
-            modifier = Modifier    
-                .fillMaxWidth()    
-                .background(Color.Black)    
-                .padding(    
-                    horizontal = 10.dp,    
-                    vertical = 4.dp    
-                ),    
-            textAlign = TextAlign.Center    
-        )    
-    }    
 }
 
 }
@@ -1291,33 +1125,18 @@ icon: String,
 label: String,
 onClick: () -> Unit
 ) {
-Column(
-horizontalAlignment = Alignment.CenterHorizontally,
-modifier = Modifier
-.width(48.dp)
-.clickable(onClick = onClick)
-.padding(vertical = 2.dp)
-) {
 Box(
-Modifier
-.size(36.dp)
+modifier = Modifier
+.size(44.dp)
 .clip(CircleShape)
-.background(Color(0x77000000)),
+.background(Color(0x99000000))
+.clickable(onClick = onClick),
 contentAlignment = Alignment.Center
 ) {
 Text(
 icon,
 color = Color.White,
-fontSize = 22.sp
+fontSize = 24.sp
 )
 }
-
-Text(
-label,
-color = Color.White,
-fontSize = 9.sp,
-textAlign = TextAlign.Center
-)
-}
-
 }
