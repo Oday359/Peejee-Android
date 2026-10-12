@@ -16,6 +16,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
@@ -51,10 +53,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,6 +67,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
@@ -1175,17 +1180,33 @@ Box(
             }  
         }  
 
-        LazyColumn(  
+        val messageListState = rememberLazyListState()  
+        val messageListScope = rememberCoroutineScope()  
+
+        // Keep the newest conversation visible when the chat first opens  
+        // and when a new message arrives, while retaining the jump-to-latest button.  
+        LaunchedEffect(messages.size) {  
+            if (messages.isNotEmpty()) {  
+                messageListState.animateScrollToItem(messages.lastIndex)  
+            }  
+        }  
+
+        Box(  
             modifier = Modifier  
                 .weight(1f)  
                 .fillMaxWidth()  
-                .padding(horizontal = 10.dp),  
-            reverseLayout = false  
         ) {  
-            itemsIndexed(  
-                messages,  
-                key = { _, message -> message.id }  
-            ) { _, message ->  
+            LazyColumn(  
+                state = messageListState,  
+                modifier = Modifier  
+                    .fillMaxSize()  
+                    .padding(horizontal = 10.dp),  
+                reverseLayout = false  
+            ) {  
+                itemsIndexed(  
+                    messages,  
+                    key = { _, message -> message.id }  
+                ) { _, message ->  
                 val mine = message.senderId == currentUserId  
                 val replyInfo = replyInfoByMessageId[message.id]  
                 val voiceInfo = voiceInfoByMessageId[message.id]  
@@ -1359,6 +1380,34 @@ Box(
                         }  
                     }  
                 }  
+                }  
+            }  
+
+            // Floating jump-to-latest button, restored at the lower-right of the chat.  
+            TextButton(  
+                onClick = {  
+                    if (messages.isNotEmpty()) {  
+                        messageListScope.launch {  
+                            messageListState.animateScrollToItem(messages.lastIndex)  
+                        }  
+                    }  
+                },  
+                modifier = Modifier  
+                    .align(Alignment.BottomEnd)  
+                    .padding(end = 16.dp, bottom = 14.dp)  
+                    .size(48.dp)  
+                    .background(  
+                        color = Color(0xFF6B4FA1),  
+                        shape = RoundedCornerShape(50)  
+                    ),  
+                contentPadding = PaddingValues(0.dp)  
+            ) {  
+                Text(  
+                    text = "⬇",  
+                    color = Color.White,  
+                    fontSize = 24.sp,  
+                    fontWeight = FontWeight.Bold  
+                )  
             }  
         }  
 
