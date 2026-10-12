@@ -1769,11 +1769,11 @@ selectedProfileUser = person
 paddingValues = paddingValues
 )
 
-2 -> CreatePostPage(
+2 -> PeejeeCameraCreatePage(
 onPostCreated = {
 selectedTab = 0
 },
-paddingValues = paddingValues
+paddingValues = PaddingValues(0.dp)
 )
 
 3 -> MessagesPage(
