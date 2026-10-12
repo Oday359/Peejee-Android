@@ -1,9 +1,12 @@
 package com.peejee.app
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.MediaPlayer
+import android.media.MediaRecorder
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.VibrationEffect
@@ -29,7 +32,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
@@ -45,12 +47,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,11 +58,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
@@ -248,44 +248,45 @@ var selectedReply by remember {
     mutableStateOf<PeejeeMessage?>(null)  
 }  
 
+var isRecording by remember {  
+    mutableStateOf(false)  
+}  
+
+var recordingStartedAt by remember {  
+    mutableStateOf(0L)  
+}  
+
+var recordingFilePath by remember {  
+    mutableStateOf("")  
+}  
+
+// NEW: a stopped recording is kept for preview until Send or Discard.  
+var previewFilePath by remember {  
+    mutableStateOf("")  
+}  
+
+var previewDurationMs by remember {  
+    mutableStateOf(0L)  
+}  
+
+var isPreviewPlaying by remember {  
+    mutableStateOf(false)  
+}  
+
+var previewPlayer by remember {  
+    mutableStateOf<MediaPlayer?>(null)  
+}  
+
+var mediaRecorder by remember {  
+    mutableStateOf<MediaRecorder?>(null)  
+}  
+
 var currentlyPlayingMessageId by remember {  
     mutableStateOf<String?>(null)  
 }  
 
 var currentPlayer by remember {  
     mutableStateOf<MediaPlayer?>(null)  
-}  
-
-// Scroll state for the private conversation and its jump-to-latest button.  
-val chatListState = rememberLazyListState()  
-val chatCoroutineScope = rememberCoroutineScope()  
-var initialChatScrollDone by remember(person.uid) { mutableStateOf(false) }  
-val showJumpToLatest by remember {  
-    derivedStateOf {  
-        val lastVisibleIndex =  
-            chatListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1  
-        chatListState.layoutInfo.totalItemsCount > 0 &&  
-            lastVisibleIndex < chatListState.layoutInfo.totalItemsCount - 1  
-    }  
-}  
-
-// On first load, open at the newest message. When a new message arrives,  
-// follow it only if the user was already near the bottom; don't interrupt  
-// someone who is reading older messages.  
-LaunchedEffect(person.uid, messages.size) {  
-    if (messages.isNotEmpty()) {  
-        if (!initialChatScrollDone) {  
-            chatListState.scrollToItem(messages.lastIndex)  
-            initialChatScrollDone = true  
-        } else {  
-            val lastVisibleIndex =  
-                chatListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1  
-            val previousTotalCount = chatListState.layoutInfo.totalItemsCount  
-            if (lastVisibleIndex >= previousTotalCount - 2) {  
-                chatListState.animateScrollToItem(messages.lastIndex)  
-            }  
-        }  
-    }  
 }  
 
 val chatBackgroundKey =  
@@ -426,6 +427,79 @@ fun stopCurrentPlayback() {
     currentlyPlayingMessageId = null  
 }  
 
+fun stopPreviewPlayback() {  
+    val player = previewPlayer  
+    previewPlayer = null  
+    isPreviewPlaying = false  
+    try {  
+        player?.stop()  
+    } catch (_: Exception) {  
+    }  
+    try {  
+        player?.release()  
+    } catch (_: Exception) {  
+    }  
+}  
+
+fun discardPreview() {  
+    stopPreviewPlayback()  
+    if (previewFilePath.isNotBlank()) {  
+        try {  
+            File(previewFilePath).delete()  
+        } catch (_: Exception) {  
+        }  
+    }  
+    previewFilePath = ""  
+    previewDurationMs = 0L  
+    errorMessage = ""  
+}  
+
+fun playPreview() {  
+    if (previewFilePath.isBlank()) return  
+
+    if (isPreviewPlaying) {  
+        stopPreviewPlayback()  
+        return  
+    }  
+
+    stopPreviewPlayback()  
+
+    try {  
+        val player = MediaPlayer()  
+        previewPlayer = player  
+        player.setDataSource(previewFilePath)  
+        player.setOnCompletionListener { completedPlayer ->  
+            try {  
+                completedPlayer.release()  
+            } catch (_: Exception) {  
+            }  
+            if (previewPlayer === completedPlayer) {  
+                previewPlayer = null  
+                isPreviewPlaying = false  
+            }  
+        }  
+        player.setOnErrorListener { failedPlayer, _, _ ->  
+            try {  
+                failedPlayer.release()  
+            } catch (_: Exception) {  
+            }  
+            if (previewPlayer === failedPlayer) {  
+                previewPlayer = null  
+                isPreviewPlaying = false  
+            }  
+            errorMessage = "Could not play the voice-note preview."  
+            true  
+        }  
+        player.prepare()  
+        player.start()  
+        isPreviewPlaying = true  
+    } catch (exception: Exception) {  
+        stopPreviewPlayback()  
+        errorMessage =  
+            exception.message ?: "Could not preview the voice note."  
+    }  
+}  
+
 fun playVoiceMessage(messageId: String) {  
     val voice = voiceInfoByMessageId[messageId] ?: return  
 
@@ -477,14 +551,12 @@ fun playVoiceMessage(messageId: String) {
     }  
 }  
 
-fun sendVoiceNote(  
-    filePath: String,  
-    durationMs: Long,  
-    onComplete: (Boolean) -> Unit  
-) {  
-    if (currentUserId.isBlank() || person.uid.isBlank() || sending) {  
-        errorMessage = "Could not send voice note. Please try again."  
-        onComplete(false)  
+fun sendVoiceNote(filePath: String, durationMs: Long) {  
+    if (  
+        currentUserId.isBlank() ||  
+        person.uid.isBlank() ||  
+        sending  
+    ) {  
         return  
     }  
 
@@ -492,36 +564,45 @@ fun sendVoiceNote(
         val file = File(filePath)  
         if (!file.exists()) {  
             errorMessage = "Voice recording was not found."  
-            onComplete(false)  
             return  
         }  
 
         val bytes = file.readBytes()  
+
+        // Keep the existing 700 KB size limit; no 20-second duration limit.  
         if (bytes.size > 700_000) {  
-            errorMessage = "Voice note is too large. Please record a shorter note."  
-            onComplete(false)  
+            errorMessage =  
+                "Voice note is too large. Please record a shorter note."  
             return  
         }  
 
         sending = true  
         errorMessage = ""  
 
-        val messageReference = firestore.collection("messages").document()  
-        val messageData = hashMapOf<String, Any>(  
-            "messageId" to messageReference.id,  
-            "senderId" to currentUserId,  
-            "receiverId" to person.uid,  
-            "text" to "",  
-            "messageType" to "voice",  
-            "voiceBase64" to Base64.encodeToString(bytes, Base64.NO_WRAP),  
-            "voiceDurationMs" to durationMs.coerceAtLeast(0L),  
-            "timestamp" to System.currentTimeMillis(),  
-            "read" to false  
-        )  
+        val messageReference =  
+            firestore.collection("messages").document()  
 
-        messageReference.set(messageData)  
+        val messageData =  
+            hashMapOf<String, Any>(  
+                "messageId" to messageReference.id,  
+                "senderId" to currentUserId,  
+                "receiverId" to person.uid,  
+                "text" to "",  
+                "messageType" to "voice",  
+                "voiceBase64" to Base64.encodeToString(  
+                    bytes,  
+                    Base64.NO_WRAP  
+                ),  
+                "voiceDurationMs" to durationMs,  
+                "timestamp" to System.currentTimeMillis(),  
+                "read" to false  
+            )  
+
+        messageReference  
+            .set(messageData)  
             .addOnSuccessListener {  
-                firestore.collection("users")  
+                firestore  
+                    .collection("users")  
                     .document(currentUserId)  
                     .get()  
                     .addOnSuccessListener { userDocument ->  
@@ -530,29 +611,174 @@ fun sendVoiceNote(
                             recipientUserId = person.uid,  
                             type = "message",  
                             actorId = currentUserId,  
-                            actorName = userDocument.getString("name") ?: "Peejee User",  
+                            actorName = userDocument.getString("name")  
+                                ?: "Peejee User",  
                             text = "sent you a voice note",  
                             messageId = messageReference.id  
                         )  
                     }  
+
                 sending = false  
                 showEmojiPicker = false  
-                onComplete(true)  
+                try {  
+                    file.delete()  
+                } catch (_: Exception) {  
+                }  
+                previewFilePath = ""  
+                previewDurationMs = 0L  
+                stopPreviewPlayback()  
             }  
             .addOnFailureListener { exception ->  
                 sending = false  
-                errorMessage = exception.message ?: "Could not send voice note."  
-                onComplete(false)  
+                errorMessage =  
+                    exception.message ?: "Could not send voice note."  
+                // Keep the preview file so the user can retry or discard.  
             }  
     } catch (exception: Exception) {  
         sending = false  
-        errorMessage = exception.message ?: "Could not send voice note."  
-        onComplete(false)  
+        errorMessage =  
+            exception.message ?: "Could not send voice note."  
     }  
 }  
 
+// Stop recording and prepare it for preview. Do not send automatically.  
+fun stopRecordingAndPreparePreview() {  
+    if (!isRecording) return  
+
+    val recorder = mediaRecorder  
+    val path = recordingFilePath  
+    val duration =  
+        (System.currentTimeMillis() - recordingStartedAt)  
+            .coerceAtLeast(0L)  
+
+    isRecording = false  
+    mediaRecorder = null  
+    recordingFilePath = ""  
+
+    try {  
+        recorder?.stop()  
+    } catch (_: Exception) {  
+        try {  
+            if (path.isNotBlank()) File(path).delete()  
+        } catch (_: Exception) {  
+        }  
+        errorMessage = "Could not save the voice note. Please record again."  
+        try {  
+            recorder?.release()  
+        } catch (_: Exception) {  
+        }  
+        return  
+    }  
+
+    try {  
+        recorder?.release()  
+    } catch (_: Exception) {  
+    }  
+
+    if (path.isBlank() || !File(path).exists() || File(path).length() == 0L) {  
+        errorMessage = "The recording is empty. Please record again."  
+        try {  
+            File(path).delete()  
+        } catch (_: Exception) {  
+        }  
+        return  
+    }  
+
+    // Replace any older unsent preview safely.  
+    discardPreview()  
+    previewFilePath = path  
+    previewDurationMs = duration  
+    isPreviewPlaying = false  
+    errorMessage = ""  
+}  
+
+fun startRecording() {  
+    if (  
+        isRecording ||  
+        sending ||  
+        previewFilePath.isNotBlank() ||  
+        currentUserId.isBlank() ||  
+        person.uid.isBlank()  
+    ) {  
+        return  
+    }  
+
+    try {  
+        val outputFile =  
+            File(  
+                context.cacheDir,  
+                "peejee_recording_${System.currentTimeMillis()}.3gp"  
+            )  
+
+        val recorder =  
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {  
+                MediaRecorder(context)  
+            } else {  
+                @Suppress("DEPRECATION")  
+                MediaRecorder()  
+            }  
+
+        recorder.setAudioSource(MediaRecorder.AudioSource.MIC)  
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)  
+        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)  
+        recorder.setOutputFile(outputFile.absolutePath)  
+        recorder.prepare()  
+        recorder.start()  
+
+        mediaRecorder = recorder  
+        recordingFilePath = outputFile.absolutePath  
+        recordingStartedAt = System.currentTimeMillis()  
+        isRecording = true  
+        errorMessage = ""  
+    } catch (exception: Exception) {  
+        try {  
+            mediaRecorder?.release()  
+        } catch (_: Exception) {  
+        }  
+        mediaRecorder = null  
+        isRecording = false  
+        errorMessage =  
+            exception.message ?: "Could not start voice recording."  
+    }  
+}  
+
+val recordAudioLauncher =  
+    rememberLauncherForActivityResult(  
+        contract = ActivityResultContracts.RequestPermission()  
+    ) { granted ->  
+        if (granted) {  
+            startRecording()  
+        } else {  
+            errorMessage =  
+                "Microphone permission is required to record a voice note."  
+        }  
+    }  
+
+fun requestOrStartRecording() {  
+    val granted =  
+        ContextCompat.checkSelfPermission(  
+            context,  
+            Manifest.permission.RECORD_AUDIO  
+        ) == PackageManager.PERMISSION_GRANTED  
+
+    if (granted) {  
+        startRecording()  
+    } else {  
+        recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)  
+    }  
+}  
+
+// Intentionally no timer: recording does not auto-stop after 20 seconds.  
 DisposableEffect(Unit) {  
     onDispose {  
+        try {  
+            mediaRecorder?.stop()  
+        } catch (_: Exception) {  
+        }  
+        try {  
+            mediaRecorder?.release()  
+        } catch (_: Exception) {  
+        }  
         try {  
             currentPlayer?.stop()  
         } catch (_: Exception) {  
@@ -560,6 +786,20 @@ DisposableEffect(Unit) {
         try {  
             currentPlayer?.release()  
         } catch (_: Exception) {  
+        }  
+        try {  
+            previewPlayer?.stop()  
+        } catch (_: Exception) {  
+        }  
+        try {  
+            previewPlayer?.release()  
+        } catch (_: Exception) {  
+        }  
+        if (previewFilePath.isNotBlank()) {  
+            try {  
+                File(previewFilePath).delete()  
+            } catch (_: Exception) {  
+            }  
         }  
     }  
 }  
@@ -768,6 +1008,8 @@ fun sendMessage() {
     if (  
         text.isBlank() ||  
         sending ||  
+        isRecording ||  
+        previewFilePath.isNotBlank() ||  
         currentUserId.isBlank() ||  
         person.uid.isBlank()  
     ) {  
@@ -880,12 +1122,13 @@ Box(
 
             PeejeeChatCallControls(  
                 person = person,  
-                enabled = !sending  
+                enabled = !isRecording && !sending &&  
+                    previewFilePath.isBlank()  
             )  
 
             IconButton(  
                 onClick = { showBackgroundPicker = true },  
-                enabled = !sending  
+                enabled = !isRecording && !sending  
             ) {  
                 Text("🎨", fontSize = 24.sp)  
             }  
@@ -932,18 +1175,13 @@ Box(
             }  
         }  
 
-        Box(  
+        LazyColumn(  
             modifier = Modifier  
                 .weight(1f)  
                 .fillMaxWidth()  
+                .padding(horizontal = 10.dp),  
+            reverseLayout = false  
         ) {  
-            LazyColumn(  
-                state = chatListState,  
-                modifier = Modifier  
-                    .fillMaxSize()  
-                    .padding(horizontal = 10.dp),  
-                reverseLayout = false  
-            ) {  
             itemsIndexed(  
                 messages,  
                 key = { _, message -> message.id }  
@@ -1122,36 +1360,6 @@ Box(
                     }  
                 }  
             }  
-            }  
-
-            if (showJumpToLatest) {  
-                Surface(  
-                    modifier = Modifier  
-                        .align(Alignment.BottomEnd)  
-                        .padding(end = 16.dp, bottom = 12.dp),  
-                    shape = RoundedCornerShape(50),  
-                    shadowElevation = 6.dp,  
-                    color = MaterialTheme.colorScheme.surface  
-                ) {  
-                    IconButton(  
-                        onClick = {  
-                            if (messages.isNotEmpty()) {  
-                                chatCoroutineScope.launch {  
-                                    chatListState.animateScrollToItem(messages.lastIndex)  
-                                }  
-                            }  
-                        },  
-                        enabled = messages.isNotEmpty(),  
-                        modifier = Modifier.size(48.dp)  
-                    ) {  
-                        Text(  
-                            text = "⬇",  
-                            fontSize = 25.sp,  
-                            fontWeight = FontWeight.Bold  
-                        )  
-                    }  
-                }  
-            }  
         }  
 
         if (errorMessage.isNotBlank()) {  
@@ -1187,7 +1395,8 @@ Box(
                                 newMessage += emoji  
                                 showEmojiPicker = false  
                             },  
-                            enabled = !sending  
+                            enabled = !sending && !isRecording &&  
+                                previewFilePath.isBlank()  
                         ) {  
                             Text(emoji, fontSize = 23.sp)  
                         }  
@@ -1196,15 +1405,88 @@ Box(
             }  
         }  
 
-        PeejeeVoiceMessages(  
-            sending = sending,  
-            onSendVoice = { filePath, durationMs, onComplete ->  
-                sendVoiceNote(filePath, durationMs, onComplete)  
-            },  
-            modifier = Modifier  
-                .fillMaxWidth()  
-                .padding(horizontal = 8.dp, vertical = 4.dp)  
-        )  
+        // NEW: recording stops into preview mode, not directly into sending.  
+        if (isRecording) {  
+            Card(  
+                modifier = Modifier  
+                    .fillMaxWidth()  
+                    .padding(horizontal = 8.dp, vertical = 4.dp)  
+            ) {  
+                Row(  
+                    modifier = Modifier  
+                        .fillMaxWidth()  
+                        .padding(8.dp),  
+                    verticalAlignment = Alignment.CenterVertically  
+                ) {  
+                    Text(  
+                        "🔴 Recording voice note…",  
+                        fontWeight = FontWeight.Bold,  
+                        modifier = Modifier.weight(1f)  
+                    )  
+                    TextButton(  
+                        onClick = { stopRecordingAndPreparePreview() }  
+                    ) {  
+                        Text("⏹ Stop")  
+                    }  
+                }  
+            }  
+        }  
+
+        // NEW: preview has independent Play, Stop, Discard, and Send controls.  
+        if (previewFilePath.isNotBlank() && !isRecording) {  
+            Card(  
+                modifier = Modifier  
+                    .fillMaxWidth()  
+                    .padding(horizontal = 8.dp, vertical = 4.dp)  
+            ) {  
+                Column(  
+                    modifier = Modifier  
+                        .fillMaxWidth()  
+                        .padding(10.dp)  
+                ) {  
+                    Text(  
+                        "Voice note preview • ${  
+                            formatPeejeeVoiceDuration(previewDurationMs)  
+                        }",  
+                        fontWeight = FontWeight.Bold  
+                    )  
+
+                    Row(  
+                        modifier = Modifier.fillMaxWidth(),  
+                        verticalAlignment = Alignment.CenterVertically,  
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)  
+                    ) {  
+                        Button(  
+                            onClick = { playPreview() },  
+                            enabled = !sending,  
+                            modifier = Modifier.weight(1f)  
+                        ) {  
+                            Text(if (isPreviewPlaying) "⏹ Stop" else "▶ Preview")  
+                        }  
+
+                        TextButton(  
+                            onClick = { discardPreview() },  
+                            enabled = !sending  
+                        ) {  
+                            Text("🗑 Discard")  
+                        }  
+
+                        Button(  
+                            onClick = {  
+                                stopPreviewPlayback()  
+                                sendVoiceNote(  
+                                    previewFilePath,  
+                                    previewDurationMs  
+                                )  
+                            },  
+                            enabled = !sending  
+                        ) {  
+                            Text(if (sending) "Sending…" else "📤 Send")  
+                        }  
+                    }  
+                }  
+            }  
+        }  
 
         Row(  
             modifier = Modifier  
@@ -1214,7 +1496,8 @@ Box(
         ) {  
             IconButton(  
                 onClick = { showEmojiPicker = !showEmojiPicker },  
-                enabled = !sending  
+                enabled = !sending && !isRecording &&  
+                    previewFilePath.isBlank()  
             ) {  
                 Text("😊", fontSize = 25.sp)  
             }  
@@ -1225,14 +1508,36 @@ Box(
                 modifier = Modifier.weight(1f),  
                 placeholder = { Text("Write a message…") },  
                 maxLines = 4,  
-                enabled = !sending  
+                enabled = !sending && !isRecording &&  
+                    previewFilePath.isBlank()  
             )  
 
             Spacer(Modifier.width(4.dp))  
 
+            IconButton(  
+                onClick = {  
+                    if (isRecording) {  
+                        stopRecordingAndPreparePreview()  
+                    } else {  
+                        requestOrStartRecording()  
+                    }  
+                },  
+                enabled = !sending &&  
+                    (isRecording || (newMessage.isBlank() &&  
+                        previewFilePath.isBlank()))  
+            ) {  
+                Text(  
+                    if (isRecording) "⏹" else "🎙️",  
+                    fontSize = 25.sp  
+                )  
+            }  
+
+            Spacer(Modifier.width(2.dp))  
+
             Button(  
                 onClick = { sendMessage() },  
-                enabled = !sending &&  
+                enabled = !sending && !isRecording &&  
+                    previewFilePath.isBlank() &&  
                     newMessage.trim().isNotBlank()  
             ) {  
                 Text(if (sending) "..." else "Send")  
