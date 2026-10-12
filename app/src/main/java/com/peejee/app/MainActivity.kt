@@ -225,13 +225,13 @@ return if (raw is Map<*, *>) {
 
 raw.entries.mapNotNull { entry ->
 
-val key = entry.key as? String      
-val value = entry.value as? Boolean      
+val key = entry.key as? String
+val value = entry.value as? Boolean
 
-if (key != null && value != null) {      
-    key to value      
-} else {      
-    null      
+if (key != null && value != null) {
+key to value
+} else {
+null
 }
 
 }.toMap()
@@ -354,12 +354,12 @@ if (uid == currentUserId) return@mapNotNull null
 val name = document.getString("name") ?: return@mapNotNull null
 val normalized = name.replace(" ", "").lowercase()
 
-if (mentions.contains(normalized)) {      
-        PeejeePerson(uid = uid, name = name)      
-    } else {      
-        null      
-    }      
-}      
+if (mentions.contains(normalized)) {
+PeejeePerson(uid = uid, name = name)
+} else {
+null
+}
+}
 onFound(people)
 
 }
@@ -400,27 +400,27 @@ val currentUser = auth.currentUser
 
 if (currentUser != null) {
 
-firestore      
-    .collection("users")      
-    .document(currentUser.uid)      
-    .get()      
-    .addOnSuccessListener { document ->      
+firestore
+.collection("users")
+.document(currentUser.uid)
+.get()
+.addOnSuccessListener { document ->
 
-        userName =      
-            document.getString("name")      
-                ?: currentUser.displayName      
-                ?: "Peejee User"      
+userName =        
+        document.getString("name")        
+            ?: currentUser.displayName        
+            ?: "Peejee User"        
 
-        screen = "home"      
-    }      
-    .addOnFailureListener {      
+    screen = "home"        
+}        
+.addOnFailureListener {        
 
-        userName =      
-            currentUser.displayName      
-                ?: "Peejee User"      
+    userName =        
+        currentUser.displayName        
+            ?: "Peejee User"        
 
-        screen = "home"      
-    }
+    screen = "home"        
+}
 
 }
 
@@ -597,10 +597,10 @@ Spacer(Modifier.height(16.dp))
 
 if (errorMessage.isNotEmpty()) {
 
-Text(      
-    errorMessage,      
-    color = MaterialTheme.colorScheme.error      
-)      
+Text(
+errorMessage,
+color = MaterialTheme.colorScheme.error
+)
 
 Spacer(Modifier.height(12.dp))
 
@@ -609,96 +609,97 @@ Spacer(Modifier.height(12.dp))
 Button(
 onClick = {
 
-errorMessage = ""      
+errorMessage = ""
 
-    when {      
+when {        
 
-        name.isBlank() ->      
-            errorMessage =      
-                "Please enter your full name."      
+    name.isBlank() ->        
+        errorMessage =        
+            "Please enter your full name."        
 
-        email.isBlank() ->      
-            errorMessage =      
-                "Please enter your email."      
+    email.isBlank() ->        
+        errorMessage =        
+            "Please enter your email."        
 
-        password.length < 6 ->      
-            errorMessage =      
-                "Password must be at least 6 characters."      
+    password.length < 6 ->        
+        errorMessage =        
+            "Password must be at least 6 characters."        
 
-        password != confirmPassword ->      
-            errorMessage =      
-                "Passwords do not match."      
+    password != confirmPassword ->        
+        errorMessage =        
+            "Passwords do not match."        
 
-        else -> {      
+    else -> {        
 
-            loading = true      
+        loading = true        
 
-            auth.createUserWithEmailAndPassword(      
-                email.trim(),      
-                password      
-            ).addOnCompleteListener { task ->      
+        auth.createUserWithEmailAndPassword(        
+            email.trim(),        
+            password        
+        ).addOnCompleteListener { task ->        
 
-                if (task.isSuccessful) {      
+            if (task.isSuccessful) {        
 
-                    val user = auth.currentUser      
+                val user = auth.currentUser        
 
-                    if (user != null) {      
+                if (user != null) {        
 
-                        val profile =      
-                            hashMapOf<String, Any>(      
-                                "uid" to user.uid,      
-                                "name" to name.trim(),      
-                                "email" to email.trim(),      
-                                "bio" to "",      
-                                "profilePhoto" to "",      
-                                "followersCount" to 0,      
-                                "followingCount" to 0,      
-                                "updatedAt" to      
-                                    System.currentTimeMillis()      
-                            )      
+                    val profile =        
+                        hashMapOf<String, Any>(        
+                            "uid" to user.uid,        
+                            "name" to name.trim(),        
+                            "email" to email.trim(),        
+                            "bio" to "",        
+                            "profilePhoto" to "",        
+                            "followersCount" to 0,        
+                            "followingCount" to 0,        
+                            "updatedAt" to        
+                                System.currentTimeMillis()        
+                        )        
 
-                        firestore      
-                            .collection("users")      
-                            .document(user.uid)      
-                            .set(profile)      
-                            .addOnSuccessListener {      
+                    firestore        
+                        .collection("users")        
+                        .document(user.uid)        
+                        .set(profile)        
+                        .addOnSuccessListener {        
 
-                                loading = false      
+                            loading = false        
 
-                                onAccountCreated(      
-                                    name.trim()      
-                                )      
-                            }      
-                            .addOnFailureListener { exception ->      
+                            onAccountCreated(        
+                                name.trim()        
+                            )        
+                        }        
+                        .addOnFailureListener { exception ->        
 
-                                loading = false      
+                            loading = false        
 
-                                errorMessage =      
-                                    exception.message      
-                                        ?: "Could not save your profile."      
-                            }      
+                            errorMessage =        
+                                exception.message        
+                                    ?: "Could not save your profile."        
+                        }        
 
-                    } else {      
+                } else {        
 
-                        loading = false      
+                    loading = false        
 
-                        errorMessage =      
-                            "Account creation failed."      
-                    }      
+                    errorMessage =        
+                        "Account creation failed."        
+                }        
 
-                } else {      
+            } else {        
 
-                    loading = false      
+                loading = false        
 
-                    errorMessage =      
-                        task.exception?.message      
-                            ?: "Could not create account."      
-                }      
-            }      
-        }      
-    }      
-},      
-enabled = !loading,      
+                errorMessage =        
+                    task.exception?.message        
+                        ?: "Could not create account."        
+            }        
+        }        
+    }        
+}
+
+},
+enabled = !loading,
 modifier = Modifier.fillMaxWidth()
 
 ) {
@@ -785,10 +786,10 @@ Spacer(Modifier.height(16.dp))
 
 if (errorMessage.isNotEmpty()) {
 
-Text(      
-    errorMessage,      
-    color = MaterialTheme.colorScheme.error      
-)      
+Text(
+errorMessage,
+color = MaterialTheme.colorScheme.error
+)
 
 Spacer(Modifier.height(12.dp))
 
@@ -797,77 +798,78 @@ Spacer(Modifier.height(12.dp))
 Button(
 onClick = {
 
-errorMessage = ""      
+errorMessage = ""
 
-    when {      
+when {        
 
-        email.isBlank() ->      
-            errorMessage =      
-                "Please enter your email."      
+    email.isBlank() ->        
+        errorMessage =        
+            "Please enter your email."        
 
-        password.isBlank() ->      
-            errorMessage =      
-                "Please enter your password."      
+    password.isBlank() ->        
+        errorMessage =        
+            "Please enter your password."        
 
-        else -> {      
+    else -> {        
 
-            loading = true      
+        loading = true        
 
-            auth.signInWithEmailAndPassword(      
-                email.trim(),      
-                password      
-            ).addOnCompleteListener { task ->      
+        auth.signInWithEmailAndPassword(        
+            email.trim(),        
+            password        
+        ).addOnCompleteListener { task ->        
 
-                if (task.isSuccessful) {      
+            if (task.isSuccessful) {        
 
-                    val user = auth.currentUser      
+                val user = auth.currentUser        
 
-                    if (user != null) {      
+                if (user != null) {        
 
-                        firestore      
-                            .collection("users")      
-                            .document(user.uid)      
-                            .get()      
-                            .addOnSuccessListener { document ->      
+                    firestore        
+                        .collection("users")        
+                        .document(user.uid)        
+                        .get()        
+                        .addOnSuccessListener { document ->        
 
-                                loading = false      
+                            loading = false        
 
-                                onLoginSuccess(      
-                                    document.getString("name")      
-                                        ?: "Peejee User"      
-                                )      
-                            }      
-                            .addOnFailureListener {      
+                            onLoginSuccess(        
+                                document.getString("name")        
+                                    ?: "Peejee User"        
+                            )        
+                        }        
+                        .addOnFailureListener {        
 
-                                loading = false      
-                                onLoginSuccess("Peejee User")      
-                            }      
+                            loading = false        
+                            onLoginSuccess("Peejee User")        
+                        }        
 
-                    } else {      
+                } else {        
 
-                        loading = false      
-                        errorMessage = "Login failed."      
-                    }      
+                    loading = false        
+                    errorMessage = "Login failed."        
+                }        
 
-                } else {      
+            } else {        
 
-                    loading = false      
+                loading = false        
 
-                    errorMessage =      
-                        task.exception?.message      
-                            ?: "Could not log in."      
-                }      
-            }      
-        }      
-    }      
-},      
-enabled = !loading,      
+                errorMessage =        
+                    task.exception?.message        
+                        ?: "Could not log in."        
+            }        
+        }        
+    }        
+}
+
+},
+enabled = !loading,
 modifier = Modifier.fillMaxWidth()
 
 ) {
 
-Text(      
-    if (loading) "Logging In..." else "Log In"      
+Text(
+if (loading) "Logging In..." else "Log In"
 )
 
 }
@@ -1061,8 +1063,8 @@ unreadNotificationCount = snapshot?.size() ?: 0
 }
 }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -1086,8 +1088,8 @@ unreadMessageCount = snapshot?.size() ?: 0
 }
 }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -1105,18 +1107,18 @@ Query.Direction.DESCENDING
 )
 .addSnapshotListener { snapshot, error ->
 
-if (error != null) {      
-            loadingPosts = false      
-            return@addSnapshotListener      
-        }      
+if (error != null) {
+loadingPosts = false
+return@addSnapshotListener
+}
 
-        if (snapshot != null) {      
+if (snapshot != null) {        
 
-            posts = mapHomePosts(snapshot)      
-        }      
+        posts = mapHomePosts(snapshot)        
+    }        
 
-        loadingPosts = false      
-    }
+    loadingPosts = false        
+}
 
 onDispose {
 registration.remove()
@@ -1128,33 +1130,33 @@ DisposableEffect(currentUserId) {
 
 if (currentUserId.isBlank()) {
 
-followedUserIds = emptySet()      
+followedUserIds = emptySet()
 
 onDispose { }
 
 } else {
 
-val registration =      
-    firestore      
-        .collection("users")      
-        .document(currentUserId)      
-        .collection("following")      
-        .addSnapshotListener { snapshot, error ->      
+val registration =
+firestore
+.collection("users")
+.document(currentUserId)
+.collection("following")
+.addSnapshotListener { snapshot, error ->
 
-            if (      
-                error == null &&      
-                snapshot != null      
-            ) {      
+if (        
+            error == null &&        
+            snapshot != null        
+        ) {        
 
-                followedUserIds =      
-                    snapshot.documents      
-                        .map { it.id }      
-                        .toSet()      
-            }      
-        }      
+            followedUserIds =        
+                snapshot.documents        
+                    .map { it.id }        
+                    .toSet()        
+        }        
+    }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -1171,73 +1173,73 @@ if (
 selectedPostId.isBlank()
 ) {
 
-selectedComments = emptyList()      
-loadingComments = false      
-commentError = ""      
+selectedComments = emptyList()
+loadingComments = false
+commentError = ""
 
 onDispose { }
 
 } else {
 
-loadingComments = true      
-commentError = ""      
+loadingComments = true
+commentError = ""
 
-val registration =      
-    firestore      
-        .collection("posts")      
-        .document(selectedPostId)      
-        .collection("comments")      
-        .orderBy(      
-            "timestamp",      
-            Query.Direction.ASCENDING      
-        )      
-        .addSnapshotListener { snapshot, error ->      
+val registration =
+firestore
+.collection("posts")
+.document(selectedPostId)
+.collection("comments")
+.orderBy(
+"timestamp",
+Query.Direction.ASCENDING
+)
+.addSnapshotListener { snapshot, error ->
 
-            if (error != null) {      
+if (error != null) {        
 
-                loadingComments = false      
+            loadingComments = false        
 
-                commentError =      
-                    error.message      
-                        ?: "Could not load comments."      
+            commentError =        
+                error.message        
+                    ?: "Could not load comments."        
 
-                return@addSnapshotListener      
-            }      
+            return@addSnapshotListener        
+        }        
 
-            if (snapshot != null) {      
+        if (snapshot != null) {        
 
-                selectedComments =      
-                    snapshot.documents.mapNotNull { document ->      
+            selectedComments =        
+                snapshot.documents.mapNotNull { document ->        
 
-                        val text =      
-                            document.getString("text")      
-                                ?: ""      
+                    val text =        
+                        document.getString("text")        
+                            ?: ""        
 
-                        if (text.isBlank()) {      
-                            null      
-                        } else {      
-                            PeejeeComment(      
-                                id = document.id,      
-                                userId =      
-                                    document.getString("userId")      
-                                        ?: "",      
-                                userName =      
-                                    document.getString("userName")      
-                                        ?: "Peejee User",      
-                                text = text,      
-                                timestamp =      
-                                    document.getLong("timestamp")      
-                                        ?: 0L      
-                            )      
-                        }      
-                    }      
-            }      
+                    if (text.isBlank()) {        
+                        null        
+                    } else {        
+                        PeejeeComment(        
+                            id = document.id,        
+                            userId =        
+                                document.getString("userId")        
+                                    ?: "",        
+                            userName =        
+                                document.getString("userName")        
+                                    ?: "Peejee User",        
+                            text = text,        
+                            timestamp =        
+                                document.getLong("timestamp")        
+                                    ?: 0L        
+                        )        
+                    }        
+                }        
+        }        
 
-            loadingComments = false      
-        }      
+        loadingComments = false        
+    }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -1276,114 +1278,116 @@ verticalAlignment = Alignment.CenterVertically
 ) {
 Text("🔔", fontSize = 24.sp)
 
-if (unreadNotificationCount > 0) {      
-                    Spacer(Modifier.width(4.dp))      
+if (unreadNotificationCount > 0) {
+Spacer(Modifier.width(4.dp))
 
-                    Surface(      
-                        shape = CircleShape,      
-                        color = MaterialTheme.colorScheme.error      
-                    ) {      
-                        Text(      
-                            if (unreadNotificationCount > 99) {      
-                                "99+"      
-                            } else {      
-                                unreadNotificationCount.toString()      
-                            },      
-                            color = Color.White,      
-                            fontSize = 10.sp,      
-                            fontWeight = FontWeight.Bold,      
-                            modifier = Modifier.padding(      
-                                horizontal = 5.dp,      
-                                vertical = 2.dp      
-                            )      
-                        )      
-                    }      
-                }      
-            }      
-        }      
-    }      
+Surface(        
+                    shape = CircleShape,        
+                    color = MaterialTheme.colorScheme.error        
+                ) {        
+                    Text(        
+                        if (unreadNotificationCount > 99) {        
+                            "99+"        
+                        } else {        
+                            unreadNotificationCount.toString()        
+                        },        
+                        color = Color.White,        
+                        fontSize = 10.sp,        
+                        fontWeight = FontWeight.Bold,        
+                        modifier = Modifier.padding(        
+                            horizontal = 5.dp,        
+                            vertical = 2.dp        
+                        )        
+                    )        
+                }        
+            }        
+        }        
+    }        
+}
+
 )
 
 },
 
 bottomBar = {
 
-NavigationBar {      
+NavigationBar {
 
-    NavigationBarItem(      
-        selected = selectedTab == 0,      
-        onClick = {      
-            selectedTab = 0      
-            selectedChatUser = null      
-        },      
-        icon = { Text("🏠") },      
-        label = { Text("Home") }      
-    )      
+NavigationBarItem(        
+    selected = selectedTab == 0,        
+    onClick = {        
+        selectedTab = 0        
+        selectedChatUser = null        
+    },        
+    icon = { Text("🏠") },        
+    label = { Text("Home") }        
+)        
 
-    NavigationBarItem(      
-        selected = selectedTab == 1,      
-        onClick = {      
-            selectedTab = 1      
-            selectedChatUser = null      
-        },      
-        icon = { Text("🧭") },      
-        label = { Text("Discover") }      
-    )      
+NavigationBarItem(        
+    selected = selectedTab == 1,        
+    onClick = {        
+        selectedTab = 1        
+        selectedChatUser = null        
+    },        
+    icon = { Text("🧭") },        
+    label = { Text("Discover") }        
+)        
 
-    NavigationBarItem(      
-        selected = selectedTab == 2,      
-        onClick = {      
-            selectedTab = 2      
-            selectedChatUser = null      
-        },      
-        icon = { Text("➕") },      
-        label = { Text("Post") }      
-    )      
+NavigationBarItem(        
+    selected = selectedTab == 2,        
+    onClick = {        
+        selectedTab = 2        
+        selectedChatUser = null        
+    },        
+    icon = { Text("➕") },        
+    label = { Text("Post") }        
+)        
 
-    NavigationBarItem(      
-        selected = selectedTab == 3,      
-        onClick = {      
-            selectedTab = 3      
-        },      
-        icon = {      
-            Row(      
-                verticalAlignment = Alignment.CenterVertically      
-            ) {      
-                Text("💬")      
-                if (unreadMessageCount > 0) {      
-                    Spacer(Modifier.width(4.dp))      
-                    Surface(      
-                        shape = CircleShape,      
-                        color = MaterialTheme.colorScheme.error      
-                    ) {      
-                        Text(      
-                            if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),      
-                            color = Color.White,      
-                            fontSize = 9.sp,      
-                            fontWeight = FontWeight.Bold,      
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)      
-                        )      
-                    }      
-                }      
-            }      
-        },      
-        label = { Text("Messages") }      
-    )      
+NavigationBarItem(        
+    selected = selectedTab == 3,        
+    onClick = {        
+        selectedTab = 3        
+    },        
+    icon = {        
+        Row(        
+            verticalAlignment = Alignment.CenterVertically        
+        ) {        
+            Text("💬")        
+            if (unreadMessageCount > 0) {        
+                Spacer(Modifier.width(4.dp))        
+                Surface(        
+                    shape = CircleShape,        
+                    color = MaterialTheme.colorScheme.error        
+                ) {        
+                    Text(        
+                        if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),        
+                        color = Color.White,        
+                        fontSize = 9.sp,        
+                        fontWeight = FontWeight.Bold,        
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)        
+                    )        
+                }        
+            }        
+        }        
+    },        
+    label = { Text("Messages") }        
+)        
 
-    NavigationBarItem(      
-        selected = selectedTab == 4,      
-        onClick = {      
-            selectedTab = 4      
-            selectedChatUser = null      
-        },      
-        icon = { Text("👤") },      
-        label = { Text("Profile") }      
-    )      
+NavigationBarItem(        
+    selected = selectedTab == 4,        
+    onClick = {        
+        selectedTab = 4        
+        selectedChatUser = null        
+    },        
+    icon = { Text("👤") },        
+    label = { Text("Profile") }        
+)
+
 }
 
 }
 
-) { paddingValues ->
+) { paddingValues: PaddingValues ->
 
 if (showActivity) {
 ActivityPage(
@@ -1410,367 +1414,368 @@ selectedTab == 3 &&
 selectedChatUser != null
 ) {
 
-PrivateChatPage(      
-    person = selectedChatUser!!,      
-    paddingValues = paddingValues,      
-    onBack = {      
-        selectedChatUser = null      
-    }      
+PrivateChatPage(
+person = selectedChatUser!!,
+paddingValues = paddingValues,
+onBack = {
+selectedChatUser = null
+}
 )
 
 } else {
 
-when (selectedTab) {      
+when (selectedTab) {
 
-    0 -> HomeFeed(      
-        name = name,      
-        currentUserId = currentUserId,      
-        currentUserProfilePhotoBase64 = currentUserProfilePhoto,      
-        storyPeople = homeStoryPeople,      
-        onProfileTabClick = { selectedTab = 4 },      
-        onNavigateToTab = { tab -> selectedTab = tab; selectedChatUser = null },      
-        posts = posts,      
-        followedUserIds = followedUserIds,      
-        loadingPosts = loadingPosts,      
-        processingFollowUserId = processingFollowUserId,      
-        isRefreshing = refreshingPosts,      
-        onRefresh = { refreshHomePosts() },      
+0 -> HomeFeed(        
+    name = name,        
+    currentUserId = currentUserId,        
+    currentUserProfilePhotoBase64 = currentUserProfilePhoto,        
+    storyPeople = homeStoryPeople,        
+    onProfileTabClick = { selectedTab = 4 },        
+    onNavigateToTab = { tab -> selectedTab = tab; selectedChatUser = null },        
+    posts = posts,        
+    followedUserIds = followedUserIds,        
+    loadingPosts = loadingPosts,        
+    processingFollowUserId = processingFollowUserId,        
+    isRefreshing = refreshingPosts,        
+    onRefresh = { refreshHomePosts() },        
 
-        onLike = { postId ->      
+    onLike = { postId ->        
 
-            val userId =      
-                auth.currentUser?.uid      
+        val userId =        
+            auth.currentUser?.uid        
 
-            if (userId != null) {      
+        if (userId != null) {        
 
-                val postRef =      
-                    firestore      
-                        .collection("posts")      
-                        .document(postId)      
+            val postRef =        
+                firestore        
+                    .collection("posts")        
+                    .document(postId)        
 
-                var postOwnerId = ""      
-                var postOwnerName = "Peejee User"      
-                var wasAlreadyLiked = false      
+            var postOwnerId = ""        
+            var postOwnerName = "Peejee User"        
+            var wasAlreadyLiked = false        
 
-                firestore.runTransaction { transaction ->      
+            firestore.runTransaction { transaction ->        
 
-                    val snapshot =      
-                        transaction.get(postRef)      
+                val snapshot =        
+                    transaction.get(postRef)        
 
-                    val currentLikes =      
-                        snapshot.getLong("likes")      
-                            ?.toInt()      
-                            ?: 0      
+                val currentLikes =        
+                    snapshot.getLong("likes")        
+                        ?.toInt()        
+                        ?: 0        
 
-                    val currentLikedBy =      
-                        getLikedBy(snapshot).toMutableMap()      
+                val currentLikedBy =        
+                    getLikedBy(snapshot).toMutableMap()        
 
-                    val alreadyLiked =      
-                        currentLikedBy[userId] == true      
+                val alreadyLiked =        
+                    currentLikedBy[userId] == true        
 
-                    wasAlreadyLiked = alreadyLiked      
-                    postOwnerId =      
-                        snapshot.getString("userId") ?: ""      
-                    postOwnerName =      
-                        snapshot.getString("userName")      
-                            ?: "Peejee User"      
+                wasAlreadyLiked = alreadyLiked        
+                postOwnerId =        
+                    snapshot.getString("userId") ?: ""        
+                postOwnerName =        
+                    snapshot.getString("userName")        
+                        ?: "Peejee User"        
 
-                    if (alreadyLiked) {      
+                if (alreadyLiked) {        
 
-                        currentLikedBy.remove(userId)      
+                    currentLikedBy.remove(userId)        
 
-                        transaction.update(      
-                            postRef,      
-                            "likes",      
-                            (currentLikes - 1)      
-                                .coerceAtLeast(0)      
-                        )      
+                    transaction.update(        
+                        postRef,        
+                        "likes",        
+                        (currentLikes - 1)        
+                            .coerceAtLeast(0)        
+                    )        
 
-                    } else {      
+                } else {        
 
-                        currentLikedBy[userId] = true      
+                    currentLikedBy[userId] = true        
 
-                        transaction.update(      
-                            postRef,      
-                            "likes",      
-                            currentLikes + 1      
-                        )      
-                    }      
+                    transaction.update(        
+                        postRef,        
+                        "likes",        
+                        currentLikes + 1        
+                    )        
+                }        
 
-                    transaction.update(      
-                        postRef,      
-                        "likedBy",      
-                        currentLikedBy      
-                    )      
+                transaction.update(        
+                    postRef,        
+                    "likedBy",        
+                    currentLikedBy        
+                )        
 
-                    null      
-                }.addOnSuccessListener {      
-                    if (!wasAlreadyLiked) {      
-                        createPeejeeNotification(      
-                            firestore = firestore,      
-                            recipientUserId = postOwnerId,      
-                            type = "like",      
-                            actorId = userId,      
-                            actorName = name,      
-                            text = "liked your post",      
-                            postId = postId      
-                        )      
-                    }      
-                }      
-            }      
-        },      
+                null        
+            }.addOnSuccessListener {        
+                if (!wasAlreadyLiked) {        
+                    createPeejeeNotification(        
+                        firestore = firestore,        
+                        recipientUserId = postOwnerId,        
+                        type = "like",        
+                        actorId = userId,        
+                        actorName = name,        
+                        text = "liked your post",        
+                        postId = postId        
+                    )        
+                }        
+            }        
+        }        
+    },        
 
-        onFollow = { targetUserId ->      
+    onFollow = { targetUserId ->        
 
-            val currentUser = auth.currentUser      
+        val currentUser = auth.currentUser        
 
-            if (      
-                currentUser == null ||      
-                targetUserId.isBlank() ||      
-                targetUserId == currentUser.uid ||      
-                processingFollowUserId == targetUserId      
-            ) {      
-                return@HomeFeed      
-            }      
+        if (        
+            currentUser == null ||        
+            targetUserId.isBlank() ||        
+            targetUserId == currentUser.uid ||        
+            processingFollowUserId == targetUserId        
+        ) {        
+            return@HomeFeed        
+        }        
 
-            val wasFollowing = followedUserIds.contains(targetUserId)      
+        val wasFollowing = followedUserIds.contains(targetUserId)        
 
-            processingFollowUserId = targetUserId      
-            followedUserIds = if (wasFollowing) {      
-                followedUserIds - targetUserId      
-            } else {      
-                followedUserIds + targetUserId      
-            }      
+        processingFollowUserId = targetUserId        
+        followedUserIds = if (wasFollowing) {        
+            followedUserIds - targetUserId        
+        } else {        
+            followedUserIds + targetUserId        
+        }        
 
-            val currentUserRef = firestore.collection("users").document(currentUser.uid)      
-            val targetUserRef = firestore.collection("users").document(targetUserId)      
-            val followingRef = currentUserRef.collection("following").document(targetUserId)      
-            val followerRef = targetUserRef.collection("followers").document(currentUser.uid)      
+        val currentUserRef = firestore.collection("users").document(currentUser.uid)        
+        val targetUserRef = firestore.collection("users").document(targetUserId)        
+        val followingRef = currentUserRef.collection("following").document(targetUserId)        
+        val followerRef = targetUserRef.collection("followers").document(currentUser.uid)        
 
-            var actorName = name      
+        var actorName = name        
 
-            firestore.runTransaction { transaction ->      
-                val followingSnapshot = transaction.get(followingRef)      
-                val currentUserSnapshot = transaction.get(currentUserRef)      
-                val targetUserSnapshot = transaction.get(targetUserRef)      
+        firestore.runTransaction { transaction ->        
+            val followingSnapshot = transaction.get(followingRef)        
+            val currentUserSnapshot = transaction.get(currentUserRef)        
+            val targetUserSnapshot = transaction.get(targetUserRef)        
 
-                val currentFollowingCount = currentUserSnapshot.getLong("followingCount")?.toInt() ?: 0      
-                val targetFollowersCount = targetUserSnapshot.getLong("followersCount")?.toInt() ?: 0      
+            val currentFollowingCount = currentUserSnapshot.getLong("followingCount")?.toInt() ?: 0        
+            val targetFollowersCount = targetUserSnapshot.getLong("followersCount")?.toInt() ?: 0        
 
-                if (followingSnapshot.exists()) {      
-                    actorName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name      
+            if (followingSnapshot.exists()) {        
+                actorName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name        
 
-                    transaction.delete(followingRef)      
-                    transaction.delete(followerRef)      
-                    transaction.set(      
-                        currentUserRef,      
-                        mapOf("followingCount" to (currentFollowingCount - 1).coerceAtLeast(0)),      
-                        SetOptions.merge()      
-                    )      
-                    transaction.set(      
-                        targetUserRef,      
-                        mapOf("followersCount" to (targetFollowersCount - 1).coerceAtLeast(0)),      
-                        SetOptions.merge()      
-                    )      
-                } else {      
-                    val currentUserName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name      
-                    actorName = currentUserName      
-                    val targetUserName = targetUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: "Peejee User"      
-                    val now = System.currentTimeMillis()      
+                transaction.delete(followingRef)        
+                transaction.delete(followerRef)        
+                transaction.set(        
+                    currentUserRef,        
+                    mapOf("followingCount" to (currentFollowingCount - 1).coerceAtLeast(0)),        
+                    SetOptions.merge()        
+                )        
+                transaction.set(        
+                    targetUserRef,        
+                    mapOf("followersCount" to (targetFollowersCount - 1).coerceAtLeast(0)),        
+                    SetOptions.merge()        
+                )        
+            } else {        
+                val currentUserName = currentUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: name        
+                actorName = currentUserName        
+                val targetUserName = targetUserSnapshot.getString("name")?.trim()?.takeIf { it.isNotBlank() } ?: "Peejee User"        
+                val now = System.currentTimeMillis()        
 
-                    transaction.set(      
-                        followingRef,      
-                        hashMapOf<String, Any>(      
-                            "uid" to targetUserId,      
-                            "name" to targetUserName,      
-                            "timestamp" to now      
-                        )      
-                    )      
-                    transaction.set(      
-                        followerRef,      
-                        hashMapOf<String, Any>(      
-                            "uid" to currentUser.uid,      
-                            "name" to currentUserName,      
-                            "timestamp" to now      
-                        )      
-                    )      
-                    transaction.set(      
-                        currentUserRef,      
-                        mapOf("followingCount" to currentFollowingCount + 1),      
-                        SetOptions.merge()      
-                    )      
-                    transaction.set(      
-                        targetUserRef,      
-                        mapOf("followersCount" to targetFollowersCount + 1),      
-                        SetOptions.merge()      
-                    )      
-                }      
-                null      
-            }.addOnSuccessListener {      
-                processingFollowUserId = null      
-                if (!wasFollowing) {      
-                    createPeejeeNotification(      
-                        firestore = firestore,      
-                        recipientUserId = targetUserId,      
-                        type = "follow",      
-                        actorId = currentUser.uid,      
-                        actorName = actorName,      
-                        text = "started following you"      
-                    )      
-                }      
-            }.addOnFailureListener {      
-                followedUserIds = if (wasFollowing) {      
-                    followedUserIds + targetUserId      
-                } else {      
-                    followedUserIds - targetUserId      
-                }      
-                processingFollowUserId = null      
-            }      
-        },      
+                transaction.set(        
+                    followingRef,        
+                    hashMapOf<String, Any>(        
+                        "uid" to targetUserId,        
+                        "name" to targetUserName,        
+                        "timestamp" to now        
+                    )        
+                )        
+                transaction.set(        
+                    followerRef,        
+                    hashMapOf<String, Any>(        
+                        "uid" to currentUser.uid,        
+                        "name" to currentUserName,        
+                        "timestamp" to now        
+                    )        
+                )        
+                transaction.set(        
+                    currentUserRef,        
+                    mapOf("followingCount" to currentFollowingCount + 1),        
+                    SetOptions.merge()        
+                )        
+                transaction.set(        
+                    targetUserRef,        
+                    mapOf("followersCount" to targetFollowersCount + 1),        
+                    SetOptions.merge()        
+                )        
+            }        
+            null        
+        }.addOnSuccessListener {        
+            processingFollowUserId = null        
+            if (!wasFollowing) {        
+                createPeejeeNotification(        
+                    firestore = firestore,        
+                    recipientUserId = targetUserId,        
+                    type = "follow",        
+                    actorId = currentUser.uid,        
+                    actorName = actorName,        
+                    text = "started following you"        
+                )        
+            }        
+        }.addOnFailureListener {        
+            followedUserIds = if (wasFollowing) {        
+                followedUserIds + targetUserId        
+            } else {        
+                followedUserIds - targetUserId        
+            }        
+            processingFollowUserId = null        
+        }        
+    },        
 
-        onComment = { postId ->      
-            selectedPostId = postId      
-            newComment = ""      
-            commentError = ""      
-            showCommentDialog = true      
-        },      
+    onComment = { postId ->        
+        selectedPostId = postId        
+        newComment = ""        
+        commentError = ""        
+        showCommentDialog = true        
+    },        
 
-        onShare = { post ->      
+    onShare = { post ->        
 
-            val currentUser =      
-                auth.currentUser      
+        val currentUser =        
+            auth.currentUser        
 
-            if (currentUser == null) {      
-                return@HomeFeed      
-            }      
+        if (currentUser == null) {        
+            return@HomeFeed        
+        }        
 
-            val postRef =      
-                firestore      
-                    .collection("posts")      
-                    .document(post.id)      
+        val postRef =        
+            firestore        
+                .collection("posts")        
+                .document(post.id)        
 
-            val newPostRef =      
-                firestore      
-                    .collection("posts")      
-                    .document()      
+        val newPostRef =        
+            firestore        
+                .collection("posts")        
+                .document()        
 
-            val userRef =      
-                firestore      
-                    .collection("users")      
-                    .document(currentUser.uid)      
+        val userRef =        
+            firestore        
+                .collection("users")        
+                .document(currentUser.uid)        
 
-            firestore.runTransaction { transaction ->      
+        firestore.runTransaction { transaction ->        
 
-                val postSnapshot =      
-                    transaction.get(postRef)      
+            val postSnapshot =        
+                transaction.get(postRef)        
 
-                val userSnapshot =      
-                    transaction.get(userRef)      
+            val userSnapshot =        
+                transaction.get(userRef)        
 
-                val currentShares =      
-                    postSnapshot      
-                        .getLong("shareCount")      
-                        ?.toInt()      
-                        ?: 0      
+            val currentShares =        
+                postSnapshot        
+                    .getLong("shareCount")        
+                    ?.toInt()        
+                    ?: 0        
 
-                val currentName =      
-                    userSnapshot      
-                        .getString("name")      
-                        ?.trim()      
-                        ?.takeIf {      
-                            it.isNotBlank()      
-                        }      
-                        ?: name      
+            val currentName =        
+                userSnapshot        
+                    .getString("name")        
+                    ?.trim()        
+                    ?.takeIf {        
+                        it.isNotBlank()        
+                    }        
+                    ?: name        
 
-                val sharedPostData =      
-                    hashMapOf<String, Any>(      
-                        "postId" to newPostRef.id,      
-                        "userId" to currentUser.uid,      
-                        "userName" to currentName,      
-                        "text" to post.text,      
-                        "likes" to 0,      
-                        "likedBy" to      
-                            emptyMap<String, Boolean>(),      
-                        "commentCount" to 0,      
-                        "shareCount" to 0,      
-                        "timestamp" to      
-                            System.currentTimeMillis(),      
-                        "sharedFromPostId" to post.id,      
-                        "sharedFromUserName" to      
-                            post.userName,      
-                        "sharedFromText" to      
-                            post.text      
-                    )      
+            val sharedPostData =        
+                hashMapOf<String, Any>(        
+                    "postId" to newPostRef.id,        
+                    "userId" to currentUser.uid,        
+                    "userName" to currentName,        
+                    "text" to post.text,        
+                    "likes" to 0,        
+                    "likedBy" to        
+                        emptyMap<String, Boolean>(),        
+                    "commentCount" to 0,        
+                    "shareCount" to 0,        
+                    "timestamp" to        
+                        System.currentTimeMillis(),        
+                    "sharedFromPostId" to post.id,        
+                    "sharedFromUserName" to        
+                        post.userName,        
+                    "sharedFromText" to        
+                        post.text        
+                )        
 
-                if (post.mediaUrl.isNotBlank()) {      
-                    sharedPostData["mediaUrl"] =      
-                        post.mediaUrl      
+            if (post.mediaUrl.isNotBlank()) {        
+                sharedPostData["mediaUrl"] =        
+                    post.mediaUrl        
 
-                    sharedPostData["mediaType"] =      
-                        post.mediaType      
-                }      
+                sharedPostData["mediaType"] =        
+                    post.mediaType        
+            }        
 
-                transaction.set(      
-                    newPostRef,      
-                    sharedPostData      
-                )      
+            transaction.set(        
+                newPostRef,        
+                sharedPostData        
+            )        
 
-                transaction.update(      
-                    postRef,      
-                    "shareCount",      
-                    currentShares + 1      
-                )      
+            transaction.update(        
+                postRef,        
+                "shareCount",        
+                currentShares + 1        
+            )        
 
-                null      
+            null        
 
-            }.addOnFailureListener {      
-                // No external share.      
-            }      
-        },      
+        }.addOnFailureListener {        
+            // No external share.        
+        }        
+    },        
 
-        onProfile = { person ->      
-            if (person.uid == currentUserId) {      
-                selectedProfileUser = null      
-                selectedChatUser = null      
-                selectedTab = 4      
-            } else {      
-                selectedProfileUser = person      
-            }      
-        },      
-        paddingValues = paddingValues      
-    )      
+    onProfile = { person ->        
+        if (person.uid == currentUserId) {        
+            selectedProfileUser = null        
+            selectedChatUser = null        
+            selectedTab = 4        
+        } else {        
+            selectedProfileUser = person        
+        }        
+    },        
+    paddingValues = paddingValues        
+)        
 
-    1 -> SearchPage(      
-        onMessage = { person ->      
-            selectedChatUser = person      
-            selectedTab = 3      
-        },      
-        onProfile = { person ->      
-            selectedProfileUser = person      
-        },      
-        paddingValues = paddingValues      
-    )      
+1 -> SearchPage(        
+    onMessage = { person ->        
+        selectedChatUser = person        
+        selectedTab = 3        
+    },        
+    onProfile = { person ->        
+        selectedProfileUser = person        
+    },        
+    paddingValues = paddingValues        
+)        
 
-    2 -> CreatePostPage(      
-        onPostCreated = {      
-            selectedTab = 0      
-        },      
-        paddingValues = paddingValues      
-    )      
+2 -> CreatePostPage(        
+    onPostCreated = {        
+        selectedTab = 0        
+    },        
+    paddingValues = paddingValues        
+)        
 
-    3 -> MessagesPage(      
-        onMessage = { person ->      
-            selectedChatUser = person      
-        },      
-        paddingValues = paddingValues      
-    )      
+3 -> MessagesPage(        
+    onMessage = { person ->        
+        selectedChatUser = person        
+    },        
+    paddingValues = paddingValues        
+)        
 
-    4 -> ProfilePage(      
-        name = name,      
-        paddingValues = paddingValues,      
-        onProfileNameChanged = onProfileNameChanged,      
-        onLoggedOut = onLoggedOut      
-    )      
+4 -> ProfilePage(        
+    name = name,        
+    paddingValues = paddingValues,        
+    onProfileNameChanged = onProfileNameChanged,        
+    onLoggedOut = onLoggedOut        
+)
+
 }
 
 }
@@ -1781,262 +1786,265 @@ if (showCommentDialog) {
 
 AlertDialog(
 
-onDismissRequest = {      
-    if (!sendingComment) {      
-        showCommentDialog = false      
-    }      
-},      
+onDismissRequest = {
+if (!sendingComment) {
+showCommentDialog = false
+}
+},
 
-title = {      
-    Text("Comments")      
-},      
+title = {
+Text("Comments")
+},
 
-text = {      
+text = {
 
-    Column {      
+Column {        
 
-        if (loadingComments) {      
+    if (loadingComments) {        
 
-            Row(      
-                modifier = Modifier.fillMaxWidth(),      
-                horizontalArrangement =      
-                    Arrangement.Center      
-            ) {      
-                CircularProgressIndicator()      
-            }      
+        Row(        
+            modifier = Modifier.fillMaxWidth(),        
+            horizontalArrangement =        
+                Arrangement.Center        
+        ) {        
+            CircularProgressIndicator()        
+        }        
 
-        } else if (selectedComments.isEmpty()) {      
+    } else if (selectedComments.isEmpty()) {        
 
-            Text(      
-                "No comments yet. Be the first!"      
-            )      
+        Text(        
+            "No comments yet. Be the first!"        
+        )        
 
-        } else {      
+    } else {        
 
-            LazyColumn(      
-                modifier = Modifier      
-                    .fillMaxWidth()      
-                    .heightIn(max = 260.dp)      
-            ) {      
+        LazyColumn(        
+            modifier = Modifier        
+                .fillMaxWidth()        
+                .heightIn(max = 260.dp)        
+        ) {        
 
-                itemsIndexed(      
-                    selectedComments      
-                ) { _, comment ->      
+            itemsIndexed(        
+                selectedComments        
+            ) { _, comment ->        
 
-                    Column(      
-                        modifier = Modifier      
-                            .fillMaxWidth()      
-                            .padding(vertical = 6.dp)      
-                    ) {      
+                Column(        
+                    modifier = Modifier        
+                        .fillMaxWidth()        
+                        .padding(vertical = 6.dp)        
+                ) {        
 
-                        Text(      
-                            comment.userName,      
-                            fontWeight = FontWeight.Bold,      
-                            fontSize = 14.sp      
-                        )      
+                    Text(        
+                        comment.userName,        
+                        fontWeight = FontWeight.Bold,        
+                        fontSize = 14.sp        
+                    )        
 
-                        Text(      
-                            comment.text,      
-                            fontSize = 15.sp      
-                        )      
-                    }      
-                }      
-            }      
-        }      
+                    Text(        
+                        comment.text,        
+                        fontSize = 15.sp        
+                    )        
+                }        
+            }        
+        }        
+    }        
 
-        if (commentError.isNotEmpty()) {      
+    if (commentError.isNotEmpty()) {        
 
-            Spacer(Modifier.height(8.dp))      
+        Spacer(Modifier.height(8.dp))        
 
-            Text(      
-                commentError,      
-                color = MaterialTheme.colorScheme.error,      
-                fontSize = 13.sp      
-            )      
-        }      
+        Text(        
+            commentError,        
+            color = MaterialTheme.colorScheme.error,        
+            fontSize = 13.sp        
+        )        
+    }        
 
-        Spacer(Modifier.height(12.dp))      
+    Spacer(Modifier.height(12.dp))        
 
-        OutlinedTextField(      
-            value = newComment,      
-            onValueChange = {      
-                newComment = it      
-                commentError = ""      
-            },      
-            label = {      
-                Text("Write a comment")      
-            },      
-            enabled = !sendingComment,      
-            modifier = Modifier.fillMaxWidth()      
-        )      
-    }      
-},      
+    OutlinedTextField(        
+        value = newComment,        
+        onValueChange = {        
+            newComment = it        
+            commentError = ""        
+        },        
+        label = {        
+            Text("Write a comment")        
+        },        
+        enabled = !sendingComment,        
+        modifier = Modifier.fillMaxWidth()        
+    )        
+}
 
-confirmButton = {      
+},
 
-    TextButton(      
-        enabled =      
-            !sendingComment &&      
-            newComment.isNotBlank(),      
+confirmButton = {
 
-        onClick = {      
+TextButton(        
+    enabled =        
+        !sendingComment &&        
+        newComment.isNotBlank(),        
 
-            val currentUser =      
-                auth.currentUser      
+    onClick = {        
 
-            if (currentUser == null) {      
+        val currentUser =        
+            auth.currentUser        
 
-                commentError =      
-                    "Please log in again."      
+        if (currentUser == null) {        
 
-                return@TextButton      
-            }      
+            commentError =        
+                "Please log in again."        
 
-            sendingComment = true      
-            commentError = ""      
+            return@TextButton        
+        }        
 
-            firestore      
-                .collection("users")      
-                .document(currentUser.uid)      
-                .get()      
-                .addOnSuccessListener { userDocument ->      
+        sendingComment = true        
+        commentError = ""        
 
-                    val savedUserName =      
-                        userDocument.getString("name")      
-                            ?: "Peejee User"      
+        firestore        
+            .collection("users")        
+            .document(currentUser.uid)        
+            .get()        
+            .addOnSuccessListener { userDocument ->        
 
-                    val commentReference =      
-                        firestore      
-                            .collection("posts")      
-                            .document(selectedPostId)      
-                            .collection("comments")      
-                            .document()      
+                val savedUserName =        
+                    userDocument.getString("name")        
+                        ?: "Peejee User"        
 
-                    val postReference =      
-                        firestore      
-                            .collection("posts")      
-                            .document(selectedPostId)      
+                val commentReference =        
+                    firestore        
+                        .collection("posts")        
+                        .document(selectedPostId)        
+                        .collection("comments")        
+                        .document()        
 
-                    val commentData =      
-                        hashMapOf<String, Any>(      
-                            "commentId" to      
-                                commentReference.id,      
-                            "postId" to      
-                                selectedPostId,      
-                            "userId" to      
-                                currentUser.uid,      
-                            "userName" to      
-                                savedUserName,      
-                            "text" to      
-                                newComment.trim(),      
-                            "timestamp" to      
-                                System.currentTimeMillis()      
-                        )      
+                val postReference =        
+                    firestore        
+                        .collection("posts")        
+                        .document(selectedPostId)        
 
-                    firestore.runTransaction { transaction ->      
+                val commentData =        
+                    hashMapOf<String, Any>(        
+                        "commentId" to        
+                            commentReference.id,        
+                        "postId" to        
+                            selectedPostId,        
+                        "userId" to        
+                            currentUser.uid,        
+                        "userName" to        
+                            savedUserName,        
+                        "text" to        
+                            newComment.trim(),        
+                        "timestamp" to        
+                            System.currentTimeMillis()        
+                    )        
 
-                        val postSnapshot =      
-                            transaction.get(postReference)      
+                firestore.runTransaction { transaction ->        
 
-                        val currentCommentCount =      
-                            postSnapshot      
-                                .getLong("commentCount")      
-                                ?.toInt()      
-                                ?: 0      
+                    val postSnapshot =        
+                        transaction.get(postReference)        
 
-                        transaction.set(      
-                            commentReference,      
-                            commentData      
-                        )      
+                    val currentCommentCount =        
+                        postSnapshot        
+                            .getLong("commentCount")        
+                            ?.toInt()        
+                            ?: 0        
 
-                        transaction.update(      
-                            postReference,      
-                            "commentCount",      
-                            currentCommentCount + 1      
-                        )      
+                    transaction.set(        
+                        commentReference,        
+                        commentData        
+                    )        
 
-                        null      
+                    transaction.update(        
+                        postReference,        
+                        "commentCount",        
+                        currentCommentCount + 1        
+                    )        
 
-                    }.addOnSuccessListener {      
+                    null        
 
-                        sendingComment = false      
+                }.addOnSuccessListener {        
 
-                        val postOwnerId =      
-                            posts      
-                                .firstOrNull { it.id == selectedPostId }      
-                                ?.userId      
-                                ?: ""      
+                    sendingComment = false        
 
-                        createPeejeeNotification(      
-                            firestore = firestore,      
-                            recipientUserId = postOwnerId,      
-                            type = "comment",      
-                            actorId = currentUser.uid,      
-                            actorName = savedUserName,      
-                            text = "commented on your post",      
-                            postId = selectedPostId      
-                        )      
+                    val postOwnerId =        
+                        posts        
+                            .firstOrNull { it.id == selectedPostId }        
+                            ?.userId        
+                            ?: ""        
 
-                        findMentionedUsers(      
-                            firestore = firestore,      
-                            text = newComment.trim(),      
-                            currentUserId = currentUser.uid      
-                        ) { mentionedUsers ->      
-                            mentionedUsers.forEach { mentioned ->      
-                                createPeejeeNotification(      
-                                    firestore = firestore,      
-                                    recipientUserId = mentioned.uid,      
-                                    type = "mention",      
-                                    actorId = currentUser.uid,      
-                                    actorName = savedUserName,      
-                                    text = "mentioned you in a comment",      
-                                    postId = selectedPostId      
-                                )      
-                            }      
-                        }      
+                    createPeejeeNotification(        
+                        firestore = firestore,        
+                        recipientUserId = postOwnerId,        
+                        type = "comment",        
+                        actorId = currentUser.uid,        
+                        actorName = savedUserName,        
+                        text = "commented on your post",        
+                        postId = selectedPostId        
+                    )        
 
-                        newComment = ""      
+                    findMentionedUsers(        
+                        firestore = firestore,        
+                        text = newComment.trim(),        
+                        currentUserId = currentUser.uid        
+                    ) { mentionedUsers ->        
+                        mentionedUsers.forEach { mentioned ->        
+                            createPeejeeNotification(        
+                                firestore = firestore,        
+                                recipientUserId = mentioned.uid,        
+                                type = "mention",        
+                                actorId = currentUser.uid,        
+                                actorName = savedUserName,        
+                                text = "mentioned you in a comment",        
+                                postId = selectedPostId        
+                            )        
+                        }        
+                    }        
 
-                    }.addOnFailureListener { exception ->      
+                    newComment = ""        
 
-                        sendingComment = false      
+                }.addOnFailureListener { exception ->        
 
-                        commentError =      
-                            exception.message      
-                                ?: "Could not post comment."      
-                    }      
-                }      
-                .addOnFailureListener { exception ->      
+                    sendingComment = false        
 
-                    sendingComment = false      
+                    commentError =        
+                        exception.message        
+                            ?: "Could not post comment."        
+                }        
+            }        
+            .addOnFailureListener { exception ->        
 
-                    commentError =      
-                        exception.message      
-                            ?: "Could not load your profile."      
-                }      
-        }      
-    ) {      
+                sendingComment = false        
 
-        Text(      
-            if (sendingComment) {      
-                "Posting..."      
-            } else {      
-                "Comment"      
-            }      
-        )      
-    }      
-},      
+                commentError =        
+                    exception.message        
+                        ?: "Could not load your profile."        
+            }        
+    }        
+) {        
 
-dismissButton = {      
+    Text(        
+        if (sendingComment) {        
+            "Posting..."        
+        } else {        
+            "Comment"        
+        }        
+    )        
+}
 
-    TextButton(      
-        enabled = !sendingComment,      
-        onClick = {      
-            showCommentDialog = false      
-        }      
-    ) {      
-        Text("Close")      
-    }      
+},
+
+dismissButton = {
+
+TextButton(        
+    enabled = !sendingComment,        
+    onClick = {        
+        showCommentDialog = false        
+    }        
+) {        
+    Text("Close")        
+}
+
 }
 
 )
@@ -2094,12 +2102,12 @@ onRefresh()
 pullDistance = 0f
 }
 
-return Offset.Zero      
-}      
+return Offset.Zero
+}
 
-override suspend fun onPreFling(available: Velocity): Velocity {      
-    pullDistance = 0f      
-    return Velocity.Zero      
+override suspend fun onPreFling(available: Velocity): Velocity {
+pullDistance = 0f
+return Velocity.Zero
 }
 
 }
@@ -2175,166 +2183,169 @@ color = Color(0xFF777080)
 }
 }
 
-Spacer(Modifier.height(14.dp))      
+Spacer(Modifier.height(14.dp))
 
-    Row(      
-        modifier = Modifier.fillMaxWidth(),      
-        horizontalArrangement = Arrangement.spacedBy(7.dp),      
-        verticalAlignment = Alignment.CenterVertically      
-    ) {      
-        PeejeeHomeShortcut("👥", "Community", Modifier.weight(1f), onClick = { onNavigateToTab(1) })      
-        PeejeeHomeShortcut("🎬", "Drama", Modifier.weight(1f), onClick = { activeHomeShortcut = "Drama" })      
-        PeejeeHomeShortcut("🛍️", "Marketplace", Modifier.weight(1f), onClick = { activeHomeShortcut = "Marketplace" })      
-        PeejeeHomeShortcut("▦", "More", Modifier.weight(1f), onClick = { activeHomeShortcut = "More" })      
-        Button(      
-            onClick = { activeHomeShortcut = "Go Live" },      
-            modifier = Modifier.width(78.dp).height(76.dp),      
-            contentPadding = PaddingValues(4.dp),      
-            shape = RoundedCornerShape(14.dp),      
-            colors = ButtonDefaults.buttonColors(      
-                containerColor = Color(0xFF7B2FF7),      
-                contentColor = Color.White      
-            )      
-        ) {      
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {      
-                Canvas(modifier = Modifier.size(width = 25.dp, height = 21.dp)) {      
-                    drawRoundRect(      
-                        color = Color.White,      
-                        topLeft = Offset(size.width * 0.06f, size.height * 0.20f),      
-                        size = Size(size.width * 0.58f, size.height * 0.62f),      
-                        cornerRadius = CornerRadius(size.height * 0.10f)      
-                    )      
-                    val lens = Path().apply {      
-                        moveTo(size.width * 0.68f, size.height * 0.34f)      
-                        lineTo(size.width * 0.98f, size.height * 0.15f)      
-                        lineTo(size.width * 0.98f, size.height * 0.85f)      
-                        lineTo(size.width * 0.68f, size.height * 0.66f)      
-                        close()      
-                    }      
-                    drawPath(path = lens, color = Color.White)      
-                }      
-                Spacer(Modifier.height(4.dp))      
-                Text("Go Live", fontSize = 11.sp, maxLines = 1)      
-            }      
-        }      
-    }      
+Row(        
+    modifier = Modifier.fillMaxWidth(),        
+    horizontalArrangement = Arrangement.spacedBy(7.dp),        
+    verticalAlignment = Alignment.CenterVertically        
+) {        
+    PeejeeHomeShortcut("👥", "Community", Modifier.weight(1f), onClick = { onNavigateToTab(1) })        
+    PeejeeHomeShortcut("🎬", "Drama", Modifier.weight(1f), onClick = { activeHomeShortcut = "Drama" })        
+    PeejeeHomeShortcut("🛍️", "Marketplace", Modifier.weight(1f), onClick = { activeHomeShortcut = "Marketplace" })        
+    PeejeeHomeShortcut("▦", "More", Modifier.weight(1f), onClick = { activeHomeShortcut = "More" })        
+    Button(        
+        onClick = { activeHomeShortcut = "Go Live" },        
+        modifier = Modifier.width(78.dp).height(76.dp),        
+        contentPadding = PaddingValues(4.dp),        
+        shape = RoundedCornerShape(14.dp),        
+        colors = ButtonDefaults.buttonColors(        
+            containerColor = Color(0xFF7B2FF7),        
+            contentColor = Color.White        
+        )        
+    ) {        
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {        
+            Canvas(modifier = Modifier.size(width = 25.dp, height = 21.dp)) {        
+                drawRoundRect(        
+                    color = Color.White,        
+                    topLeft = Offset(size.width * 0.06f, size.height * 0.20f),        
+                    size = Size(size.width * 0.58f, size.height * 0.62f),        
+                    cornerRadius = CornerRadius(size.height * 0.10f)        
+                )        
+                val lens = Path().apply {        
+                    moveTo(size.width * 0.68f, size.height * 0.34f)        
+                    lineTo(size.width * 0.98f, size.height * 0.15f)        
+                    lineTo(size.width * 0.98f, size.height * 0.85f)        
+                    lineTo(size.width * 0.68f, size.height * 0.66f)        
+                    close()        
+                }        
+                drawPath(path = lens, color = Color.White)        
+            }        
+            Spacer(Modifier.height(4.dp))        
+            Text("Go Live", fontSize = 11.sp, maxLines = 1)        
+        }        
+    }        
+}        
 
-    Spacer(Modifier.height(16.dp))      
+Spacer(Modifier.height(16.dp))        
 
-    Row(      
-        modifier = Modifier.fillMaxWidth(),      
-        verticalAlignment = Alignment.CenterVertically      
-    ) {      
-        Text(      
-            "Stories",      
-            fontSize = 20.sp,      
-            fontWeight = FontWeight.Bold,      
-            color = Color(0xFF171323),      
-            modifier = Modifier.weight(1f)      
-        )      
-        Text(      
-            "See all ›",      
-            fontSize = 14.sp,      
-            fontWeight = FontWeight.SemiBold,      
-            color = Color(0xFF7B2FF7)      
-        )      
-    }      
+Row(        
+    modifier = Modifier.fillMaxWidth(),        
+    verticalAlignment = Alignment.CenterVertically        
+) {        
+    Text(        
+        "Stories",        
+        fontSize = 20.sp,        
+        fontWeight = FontWeight.Bold,        
+        color = Color(0xFF171323),        
+        modifier = Modifier.weight(1f)        
+    )        
+    Text(        
+        "See all ›",        
+        fontSize = 14.sp,        
+        fontWeight = FontWeight.SemiBold,        
+        color = Color(0xFF7B2FF7)        
+    )        
+}        
 
-    Spacer(Modifier.height(10.dp))      
+Spacer(Modifier.height(10.dp))        
 
-    LazyRow(      
-        modifier = Modifier.fillMaxWidth(),      
-        horizontalArrangement = Arrangement.spacedBy(14.dp)      
-    ) {      
-        item {      
-            Column(      
-                modifier = Modifier.width(68.dp).clickable(onClick = onProfileTabClick),      
-                horizontalAlignment = Alignment.CenterHorizontally      
-            ) {      
-                Box(contentAlignment = Alignment.BottomEnd) {      
-                    PeejeeSmallProfileAvatar(      
-                        photoBase64 = currentUserProfilePhotoBase64,      
-                        name = name,      
-                        size = 64,      
-                        purpleRing = false      
-                    )      
-                    Box(      
-                        modifier = Modifier      
-                            .size(21.dp)      
-                            .clip(CircleShape)      
-                            .background(Color(0xFF7B2FF7)),      
-                        contentAlignment = Alignment.Center      
-                    ) {      
-                        Text("+", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)      
-                    }      
-                }      
-                Spacer(Modifier.height(4.dp))      
-                Text("Your story", fontSize = 11.sp, maxLines = 1, color = Color(0xFF282333))      
-            }      
-        }      
-        itemsIndexed(storyPeople) { _, person ->      
-            Column(      
-                modifier = Modifier.width(68.dp).clickable {      
-                    onProfile(person)      
-                },      
-                horizontalAlignment = Alignment.CenterHorizontally      
-            ) {      
-                PeejeeSmallProfileAvatar(      
-                    photoBase64 = person.profilePhoto,      
-                    name = person.name,      
-                    size = 64,      
-                    purpleRing = true      
-                )      
-                Spacer(Modifier.height(4.dp))      
-                Text(      
-                    person.name,      
-                    fontSize = 11.sp,      
-                    maxLines = 1,      
-                    color = Color(0xFF282333)      
-                )      
-            }      
-        }      
-    }      
-}      
+LazyRow(        
+    modifier = Modifier.fillMaxWidth(),        
+    horizontalArrangement = Arrangement.spacedBy(14.dp)        
+) {        
+    item {        
+        Column(        
+            modifier = Modifier.width(68.dp).clickable(onClick = onProfileTabClick),        
+            horizontalAlignment = Alignment.CenterHorizontally        
+        ) {        
+            Box(contentAlignment = Alignment.BottomEnd) {        
+                PeejeeSmallProfileAvatar(        
+                    photoBase64 = currentUserProfilePhotoBase64,        
+                    name = name,        
+                    size = 64,        
+                    purpleRing = false        
+                )        
+                Box(        
+                    modifier = Modifier        
+                        .size(21.dp)        
+                        .clip(CircleShape)        
+                        .background(Color(0xFF7B2FF7)),        
+                    contentAlignment = Alignment.Center        
+                ) {        
+                    Text("+", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)        
+                }        
+            }        
+            Spacer(Modifier.height(4.dp))        
+            Text("Your story", fontSize = 11.sp, maxLines = 1, color = Color(0xFF282333))        
+        }        
+    }        
+    itemsIndexed(storyPeople) { _, person ->        
+        Column(        
+            modifier = Modifier.width(68.dp).clickable {        
+                onProfile(person)        
+            },        
+            horizontalAlignment = Alignment.CenterHorizontally        
+        ) {        
+            PeejeeSmallProfileAvatar(        
+                photoBase64 = person.profilePhoto,        
+                name = person.name,        
+                size = 64,        
+                purpleRing = true        
+            )        
+            Spacer(Modifier.height(4.dp))        
+            Text(        
+                person.name,        
+                fontSize = 11.sp,        
+                maxLines = 1,        
+                color = Color(0xFF282333)        
+            )        
+        }        
+    }        
+}
 
-Spacer(Modifier.height(8.dp))      
+}
 
-if (loadingPosts) {      
+Spacer(Modifier.height(8.dp))
 
-    Row(      
-        modifier = Modifier      
-            .fillMaxWidth()      
-            .padding(20.dp),      
-        horizontalArrangement =      
-            Arrangement.Center      
-    ) {      
-        CircularProgressIndicator()      
-    }      
-}      
+if (loadingPosts) {
 
-if (!loadingPosts && posts.isEmpty()) {      
+Row(        
+    modifier = Modifier        
+        .fillMaxWidth()        
+        .padding(20.dp),        
+    horizontalArrangement =        
+        Arrangement.Center        
+) {        
+    CircularProgressIndicator()        
+}
 
-    Card(      
-        modifier = Modifier      
-            .fillMaxWidth()      
-            .padding(horizontal = 16.dp)      
-    ) {      
+}
 
-        Column(      
-            modifier = Modifier.padding(20.dp),      
-            horizontalAlignment =      
-                Alignment.CenterHorizontally      
-        ) {      
+if (!loadingPosts && posts.isEmpty()) {
 
-            PeejeeLogo(size = 75)      
+Card(        
+    modifier = Modifier        
+        .fillMaxWidth()        
+        .padding(horizontal = 16.dp)        
+) {        
 
-            Spacer(Modifier.height(8.dp))      
+    Column(        
+        modifier = Modifier.padding(20.dp),        
+        horizontalAlignment =        
+            Alignment.CenterHorizontally        
+    ) {        
 
-            Text("No posts yet")      
-        }      
-    }      
+        PeejeeLogo(size = 75)        
 
-    Spacer(Modifier.height(20.dp))      
+        Spacer(Modifier.height(8.dp))        
+
+        Text("No posts yet")        
+    }        
+}        
+
+Spacer(Modifier.height(20.dp))
+
 }
 
 }
@@ -2344,32 +2355,32 @@ posts,
 key = { _, post -> post.id }
 ) { _, post ->
 
-TikTokStylePost(      
-    post = post,      
-    likeCount = post.likeCount,      
-    isLiked =      
-        post.likedBy[currentUserId] == true,      
-    isFollowing =      
-        followedUserIds.contains(post.userId),      
-    currentUserId = currentUserId,      
-    commentCount = post.commentCount,      
-    shareCount = post.shareCount,      
-    isFollowProcessing = processingFollowUserId == post.userId,      
-    onLike = {      
-        onLike(post.id)      
-    },      
-    onFollow = {      
-        onFollow(post.userId)      
-    },      
-    onComment = {      
-        onComment(post.id)      
-    },      
-    onShare = {      
-        onShare(post)      
-    },      
-    onProfile = {      
-        onProfile(PeejeePerson(uid = post.userId, name = post.userName))      
-    }      
+TikTokStylePost(
+post = post,
+likeCount = post.likeCount,
+isLiked =
+post.likedBy[currentUserId] == true,
+isFollowing =
+followedUserIds.contains(post.userId),
+currentUserId = currentUserId,
+commentCount = post.commentCount,
+shareCount = post.shareCount,
+isFollowProcessing = processingFollowUserId == post.userId,
+onLike = {
+onLike(post.id)
+},
+onFollow = {
+onFollow(post.userId)
+},
+onComment = {
+onComment(post.id)
+},
+onShare = {
+onShare(post)
+},
+onProfile = {
+onProfile(PeejeePerson(uid = post.userId, name = post.userName))
+}
 )
 
 }
@@ -2519,259 +2530,261 @@ Box(
 modifier = Modifier.fillMaxWidth()
 ) {
 
-Column(      
-    modifier = Modifier.fillMaxWidth()      
-) {      
+Column(
+modifier = Modifier.fillMaxWidth()
+) {
 
-    if (post.sharedFromPostId.isNotBlank()) {      
+if (post.sharedFromPostId.isNotBlank()) {        
 
-        Text(      
-            "🔁 ${post.userName} shared a post",      
-            fontSize = 14.sp,      
-            fontWeight = FontWeight.Bold,      
-            modifier = Modifier.padding(      
-                start = 14.dp,      
-                top = 12.dp,      
-                end = 14.dp      
-            )      
-        )      
-    }      
+    Text(        
+        "🔁 ${post.userName} shared a post",        
+        fontSize = 14.sp,        
+        fontWeight = FontWeight.Bold,        
+        modifier = Modifier.padding(        
+            start = 14.dp,        
+            top = 12.dp,        
+            end = 14.dp        
+        )        
+    )        
+}        
 
-    Row(      
-        modifier = Modifier      
-            .fillMaxWidth()      
-            .padding(      
-                start = 14.dp,      
-                top = 14.dp,      
-                end = 14.dp      
-            ),      
-        verticalAlignment =      
-            Alignment.CenterVertically      
-    ) {      
+Row(        
+    modifier = Modifier        
+        .fillMaxWidth()        
+        .padding(        
+            start = 14.dp,        
+            top = 14.dp,        
+            end = 14.dp        
+        ),        
+    verticalAlignment =        
+        Alignment.CenterVertically        
+) {        
 
-        DefaultProfileIcon(size = 48)      
+    DefaultProfileIcon(size = 48)        
 
-        Spacer(Modifier.width(10.dp))      
+    Spacer(Modifier.width(10.dp))        
 
-        Column(      
-            modifier = Modifier      
-                .weight(1f)      
-                .clickable { onProfile() }      
-        ) {      
+    Column(        
+        modifier = Modifier        
+            .weight(1f)        
+            .clickable { onProfile() }        
+    ) {        
 
-            Text(      
-                post.userName,      
-                fontSize = 17.sp,      
-                fontWeight = FontWeight.Bold      
-            )      
+        Text(        
+            post.userName,        
+            fontSize = 17.sp,        
+            fontWeight = FontWeight.Bold        
+        )        
 
-            Text(      
-                "@${post.userName      
-                    .replace(" ", "")      
-                    .lowercase()}",      
-                fontSize = 12.sp      
-            )      
-        }      
+        Text(        
+            "@${post.userName        
+                .replace(" ", "")        
+                .lowercase()}",        
+            fontSize = 12.sp        
+        )        
+    }        
 
-        if (      
-            post.userId.isNotEmpty() &&      
-            post.userId != currentUserId      
-        ) {      
+    if (        
+        post.userId.isNotEmpty() &&        
+        post.userId != currentUserId        
+    ) {        
 
-            OutlinedButton(      
-                onClick = onFollow,      
-                enabled = !isFollowProcessing,      
-                contentPadding =      
-                    PaddingValues(      
-                        horizontal = 12.dp,      
-                        vertical = 0.dp      
-                    ),      
-                modifier = Modifier.height(36.dp)      
-            ) {      
+        OutlinedButton(        
+            onClick = onFollow,        
+            enabled = !isFollowProcessing,        
+            contentPadding =        
+                PaddingValues(        
+                    horizontal = 12.dp,        
+                    vertical = 0.dp        
+                ),        
+            modifier = Modifier.height(36.dp)        
+        ) {        
 
-                Text(      
-                    when {      
-                        isFollowProcessing -> "..."      
-                        isFollowing -> "Following"      
-                        else -> "Follow"      
-                    }      
-                )      
-            }      
-        }      
-    }      
+            Text(        
+                when {        
+                    isFollowProcessing -> "..."        
+                    isFollowing -> "Following"        
+                    else -> "Follow"        
+                }        
+            )        
+        }        
+    }        
+}        
 
-    Spacer(Modifier.height(12.dp))      
+Spacer(Modifier.height(12.dp))        
 
-    if (post.sharedFromPostId.isNotBlank()) {      
+if (post.sharedFromPostId.isNotBlank()) {        
 
-        Card(      
-            modifier = Modifier      
-                .fillMaxWidth()      
-                .padding(horizontal = 12.dp),      
-            shape = RoundedCornerShape(14.dp)      
-        ) {      
+    Card(        
+        modifier = Modifier        
+            .fillMaxWidth()        
+            .padding(horizontal = 12.dp),        
+        shape = RoundedCornerShape(14.dp)        
+    ) {        
 
-            Column(      
-                modifier = Modifier.padding(14.dp)      
-            ) {      
+        Column(        
+            modifier = Modifier.padding(14.dp)        
+        ) {        
 
-                Text(      
-                    "Original post by ${post.sharedFromUserName}",      
-                    fontSize = 13.sp,      
-                    fontWeight = FontWeight.Bold      
-                )      
+            Text(        
+                "Original post by ${post.sharedFromUserName}",        
+                fontSize = 13.sp,        
+                fontWeight = FontWeight.Bold        
+            )        
 
-                Spacer(Modifier.height(6.dp))      
+            Spacer(Modifier.height(6.dp))        
 
-                if (      
-                    post.sharedFromText.isNotBlank()      
-                ) {      
+            if (        
+                post.sharedFromText.isNotBlank()        
+            ) {        
 
-                    Text(      
-                        post.sharedFromText,      
-                        fontSize = 15.sp      
-                    )      
-                }      
-            }      
-        }      
+                Text(        
+                    post.sharedFromText,        
+                    fontSize = 15.sp        
+                )        
+            }        
+        }        
+    }        
 
-        Spacer(Modifier.height(10.dp))      
-    }      
+    Spacer(Modifier.height(10.dp))        
+}        
 
-    if (post.mediaUrl.isNotBlank()) {      
+if (post.mediaUrl.isNotBlank()) {        
 
-        Box(      
-            modifier = Modifier      
-                .fillMaxWidth()      
-                .height(420.dp)      
-                .background(      
-                    MaterialTheme      
-                        .colorScheme      
-                        .surfaceVariant      
-                ),      
-            contentAlignment =      
-                Alignment.Center      
-        ) {      
+    Box(        
+        modifier = Modifier        
+            .fillMaxWidth()        
+            .height(420.dp)        
+            .background(        
+                MaterialTheme        
+                    .colorScheme        
+                    .surfaceVariant        
+            ),        
+        contentAlignment =        
+            Alignment.Center        
+    ) {        
 
-            if (      
-                post.mediaType      
-                    .lowercase()      
-                    .contains("image") ||      
-                post.mediaType      
-                    .lowercase() == "photo"      
-            ) {      
+        if (        
+            post.mediaType        
+                .lowercase()        
+                .contains("image") ||        
+            post.mediaType        
+                .lowercase() == "photo"        
+        ) {        
 
-                Text(      
-                    "🖼️",      
-                    fontSize = 70.sp      
-                )      
+            Text(        
+                "🖼️",        
+                fontSize = 70.sp        
+            )        
 
-            } else {      
+        } else {        
 
-                Column(      
-                    horizontalAlignment =      
-                        Alignment.CenterHorizontally      
-                ) {      
+            Column(        
+                horizontalAlignment =        
+                    Alignment.CenterHorizontally        
+            ) {        
 
-                    Text(      
-                        "▶",      
-                        fontSize = 70.sp      
-                    )      
+                Text(        
+                    "▶",        
+                    fontSize = 70.sp        
+                )        
 
-                    Text(      
-                        "Video post",      
-                        fontSize = 18.sp,      
-                        fontWeight = FontWeight.Bold      
-                    )      
-                }      
-            }      
-        }      
+                Text(        
+                    "Video post",        
+                    fontSize = 18.sp,        
+                    fontWeight = FontWeight.Bold        
+                )        
+            }        
+        }        
+    }        
 
-    } else {      
+} else {        
 
-        Box(      
-            modifier = Modifier      
-                .fillMaxWidth()      
-                .height(300.dp)      
-                .background(      
-                    MaterialTheme      
-                        .colorScheme      
-                        .surfaceVariant      
-                ),      
-            contentAlignment =      
-                Alignment.Center      
-        ) {      
+    Box(        
+        modifier = Modifier        
+            .fillMaxWidth()        
+            .height(300.dp)        
+            .background(        
+                MaterialTheme        
+                    .colorScheme        
+                    .surfaceVariant        
+            ),        
+        contentAlignment =        
+            Alignment.Center        
+    ) {        
 
-            Column(      
-                horizontalAlignment =      
-                    Alignment.CenterHorizontally      
-            ) {      
+        Column(        
+            horizontalAlignment =        
+                Alignment.CenterHorizontally        
+        ) {        
 
-                PeejeeLogo(size = 90)      
+            PeejeeLogo(size = 90)        
 
-                Spacer(Modifier.height(8.dp))      
+            Spacer(Modifier.height(8.dp))        
 
-                Text("Post")      
-            }      
-        }      
-    }      
+            Text("Post")        
+        }        
+    }        
+}        
 
-    if (post.text.isNotBlank()) {      
+if (post.text.isNotBlank()) {        
 
-        Spacer(Modifier.height(10.dp))      
+    Spacer(Modifier.height(10.dp))        
 
-        Text(      
-            post.text,      
-            fontSize = 16.sp,      
-            modifier = Modifier.padding(      
-                horizontal = 16.dp      
-            )      
-        )      
-    }      
+    Text(        
+        post.text,        
+        fontSize = 16.sp,        
+        modifier = Modifier.padding(        
+            horizontal = 16.dp        
+        )        
+    )        
+}        
 
-    Spacer(Modifier.height(14.dp))      
-}      
+Spacer(Modifier.height(14.dp))
 
-Column(      
-    modifier = Modifier      
-        .align(Alignment.CenterEnd)      
-        .padding(end = 8.dp),      
-    horizontalAlignment =      
-        Alignment.CenterHorizontally      
-) {      
+}
 
-    ActionCircle(      
-        icon =      
-            if (isLiked) "❤️" else "♡",      
-        label = likeCount.toString(),      
-        onClick = onLike      
-    )      
+Column(
+modifier = Modifier
+.align(Alignment.CenterEnd)
+.padding(end = 8.dp),
+horizontalAlignment =
+Alignment.CenterHorizontally
+) {
 
-    Spacer(Modifier.height(14.dp))      
+ActionCircle(        
+    icon =        
+        if (isLiked) "❤️" else "♡",        
+    label = likeCount.toString(),        
+    onClick = onLike        
+)        
 
-    ActionCircle(      
-        icon = "💬",      
-        label = commentCount.toString(),      
-        onClick = onComment      
-    )      
+Spacer(Modifier.height(14.dp))        
 
-    Spacer(Modifier.height(14.dp))      
+ActionCircle(        
+    icon = "💬",        
+    label = commentCount.toString(),        
+    onClick = onComment        
+)        
 
-    ActionCircle(      
-        icon = "↗️",      
-        label = shareCount.toString(),      
-        onClick = onShare      
-    )      
+Spacer(Modifier.height(14.dp))        
 
-    Spacer(Modifier.height(14.dp))      
+ActionCircle(        
+    icon = "↗️",        
+    label = shareCount.toString(),        
+    onClick = onShare        
+)        
 
-    ActionCircle(      
-        icon = "⋮",      
-        label = "",      
-        onClick = {      
-            showPostMenu = true      
-        }      
-    )      
+Spacer(Modifier.height(14.dp))        
+
+ActionCircle(        
+    icon = "⋮",        
+    label = "",        
+    onClick = {        
+        showPostMenu = true        
+    }        
+)
+
 }
 
 }
@@ -2815,21 +2828,21 @@ Color.Black.copy(alpha = 0.55f)
 contentAlignment = Alignment.Center
 ) {
 
-Text(      
-    icon,      
-    fontSize = 25.sp      
+Text(
+icon,
+fontSize = 25.sp
 )
 
 }
 
 if (label.isNotBlank()) {
 
-Spacer(Modifier.height(3.dp))      
+Spacer(Modifier.height(3.dp))
 
-Text(      
-    label,      
-    fontSize = 10.sp,      
-    fontWeight = FontWeight.Bold      
+Text(
+label,
+fontSize = 10.sp,
+fontWeight = FontWeight.Bold
 )
 
 }
@@ -2900,63 +2913,63 @@ val queryText = searchText.trim()
 
 if (queryText.isBlank()) {
 
-results = emptyList()      
-searching = false      
+results = emptyList()
+searching = false
 errorMessage = ""
 
 } else {
 
-searching = true      
-errorMessage = ""      
+searching = true
+errorMessage = ""
 
-firestore      
-    .collection("users")      
-    .orderBy("name")      
-    .startAt(queryText)      
-    .endAt(queryText + "\uf8ff")      
-    .limit(30)      
-    .get()      
-    .addOnSuccessListener { snapshot ->      
+firestore
+.collection("users")
+.orderBy("name")
+.startAt(queryText)
+.endAt(queryText + "\uf8ff")
+.limit(30)
+.get()
+.addOnSuccessListener { snapshot ->
 
-        val currentId =      
-            auth.currentUser?.uid      
+val currentId =        
+        auth.currentUser?.uid        
 
-        results =      
-            snapshot.documents.mapNotNull { document ->      
+    results =        
+        snapshot.documents.mapNotNull { document ->        
 
-                val uid =      
-                    document.id      
+            val uid =        
+                document.id        
 
-                if (uid == currentId) {      
-                    null      
-                } else {      
+            if (uid == currentId) {        
+                null        
+            } else {        
 
-                    PeejeePerson(      
-                        uid = uid,      
-                        name =      
-                            document.getString("name")      
-                                ?: "Peejee User",      
-                        email =      
-                            document.getString("email")      
-                                ?: "",      
-                        isOnline =      
-                            document.getBoolean("isOnline")      
-                                ?: false,      
-                        profilePhoto = document.getString("profilePhoto") ?: ""      
-                    )      
-                }      
-            }      
+                PeejeePerson(        
+                    uid = uid,        
+                    name =        
+                        document.getString("name")        
+                            ?: "Peejee User",        
+                    email =        
+                        document.getString("email")        
+                            ?: "",        
+                    isOnline =        
+                        document.getBoolean("isOnline")        
+                            ?: false,        
+                    profilePhoto = document.getString("profilePhoto") ?: ""        
+                )        
+            }        
+        }        
 
-        searching = false      
-    }      
-    .addOnFailureListener { exception ->      
+    searching = false        
+}        
+.addOnFailureListener { exception ->        
 
-        searching = false      
+    searching = false        
 
-        errorMessage =      
-            exception.message      
-                ?: "Could not search users."      
-    }
+    errorMessage =        
+        exception.message        
+            ?: "Could not search users."        
+}
 
 }
 
@@ -3036,19 +3049,19 @@ Spacer(Modifier.height(16.dp))
 
 if (searching) {
 
-Row(      
-    modifier = Modifier.fillMaxWidth(),      
-    horizontalArrangement =      
-        Arrangement.Center      
-) {      
-    CircularProgressIndicator()      
+Row(
+modifier = Modifier.fillMaxWidth(),
+horizontalArrangement =
+Arrangement.Center
+) {
+CircularProgressIndicator()
 }
 
 } else if (errorMessage.isNotBlank()) {
 
-Text(      
-    errorMessage,      
-    color = MaterialTheme.colorScheme.error      
+Text(
+errorMessage,
+color = MaterialTheme.colorScheme.error
 )
 
 } else if (
@@ -3056,66 +3069,67 @@ searchText.isNotBlank() &&
 results.isEmpty()
 ) {
 
-Text(      
-    "No Peejee user found."      
+Text(
+"No Peejee user found."
 )
 
 } else {
 
-results.forEach { person ->      
+results.forEach { person ->
 
-    Card(      
-        modifier = Modifier      
-            .fillMaxWidth()      
-            .padding(bottom = 10.dp)      
-    ) {      
+Card(        
+    modifier = Modifier        
+        .fillMaxWidth()        
+        .padding(bottom = 10.dp)        
+) {        
 
-        Row(      
-            modifier = Modifier      
-                .fillMaxWidth()      
-                .padding(14.dp),      
-            verticalAlignment =      
-                Alignment.CenterVertically      
-        ) {      
+    Row(        
+        modifier = Modifier        
+            .fillMaxWidth()        
+            .padding(14.dp),        
+        verticalAlignment =        
+            Alignment.CenterVertically        
+    ) {        
 
-            PeejeeSmallProfileAvatar(      
-                photoBase64 = person.profilePhoto,      
-                name = person.name,      
-                size = 52      
-            )      
+        PeejeeSmallProfileAvatar(        
+            photoBase64 = person.profilePhoto,        
+            name = person.name,        
+            size = 52        
+        )        
 
-            Spacer(Modifier.width(12.dp))      
+        Spacer(Modifier.width(12.dp))        
 
-            Column(      
-                modifier = Modifier      
-                    .weight(1f)      
-                    .clickable { onProfile(person) }      
-            ) {      
+        Column(        
+            modifier = Modifier        
+                .weight(1f)        
+                .clickable { onProfile(person) }        
+        ) {        
 
-                Text(      
-                    person.name,      
-                    fontSize = 18.sp,      
-                    fontWeight = FontWeight.Bold      
-                )      
+            Text(        
+                person.name,        
+                fontSize = 18.sp,        
+                fontWeight = FontWeight.Bold        
+            )        
 
-                if (person.email.isNotBlank()) {      
+            if (person.email.isNotBlank()) {        
 
-                    Text(      
-                        person.email,      
-                        fontSize = 12.sp      
-                    )      
-                }      
-            }      
+                Text(        
+                    person.email,        
+                    fontSize = 12.sp        
+                )        
+            }        
+        }        
 
-            Button(      
-                onClick = {      
-                    onMessage(person)      
-                }      
-            ) {      
-                Text("Message")      
-            }      
-        }      
-    }      
+        Button(        
+            onClick = {        
+                onMessage(person)        
+            }        
+        ) {        
+            Text("Message")        
+        }        
+    }        
+}
+
 }
 
 }
@@ -3177,14 +3191,14 @@ loadingConversations = false
 }
 }
 
-rebuildPeejeeConversations(firestore, currentUserId) { list ->      
-    conversations = list      
-    loadingConversations = false      
-}      
+rebuildPeejeeConversations(firestore, currentUserId) { list ->
+conversations = list
+loadingConversations = false
+}
 
-onDispose {      
-    receivedRegistration.remove()      
-    sentRegistration.remove()      
+onDispose {
+receivedRegistration.remove()
+sentRegistration.remove()
 }
 
 }
@@ -3362,42 +3376,42 @@ val otherIds = allMessages.map {
 if (it.senderId == currentUserId) it.receiverId else it.senderId
 }.filter { it.isNotBlank() }.distinct()
 
-if (otherIds.isEmpty()) {      
-    onResult(emptyList())      
-    return@addOnSuccessListener      
-}      
+if (otherIds.isEmpty()) {
+onResult(emptyList())
+return@addOnSuccessListener
+}
 
-val people = mutableMapOf<String, PeejeePerson>()      
-val remaining = java.util.concurrent.atomic.AtomicInteger(otherIds.size)      
+val people = mutableMapOf<String, PeejeePerson>()
+val remaining = java.util.concurrent.atomic.AtomicInteger(otherIds.size)
 
-otherIds.forEach { uid ->      
-    firestore.collection("users").document(uid).get()      
-        .addOnSuccessListener { document ->      
-            people[uid] = PeejeePerson(      
-                uid = uid,      
-                name = document.getString("name") ?: "Peejee User",      
-                email = document.getString("email") ?: "",      
-                isOnline = document.getBoolean("isOnline") ?: false,      
-                profilePhoto = document.getString("profilePhoto") ?: ""      
-            )      
-        }      
-        .addOnCompleteListener {      
-            if (remaining.decrementAndGet() == 0) {      
-                val conversations = otherIds.mapNotNull { uid ->      
-                    val person = people[uid] ?: return@mapNotNull null      
-                    val personMessages = allMessages.filter {      
-                        (it.senderId == currentUserId && it.receiverId == uid) ||      
-                            (it.senderId == uid && it.receiverId == currentUserId)      
-                    }.sortedByDescending { it.timestamp }      
-                    val latest = personMessages.firstOrNull() ?: return@mapNotNull null      
-                    val unread = personMessages.count {      
-                        it.receiverId == currentUserId && it.read == false      
-                    }      
-                    PeejeeConversation(person, latest.text, latest.timestamp, unread)      
-                }.sortedByDescending { it.timestamp }      
-                onResult(conversations)      
-            }      
-        }      
+otherIds.forEach { uid ->
+firestore.collection("users").document(uid).get()
+.addOnSuccessListener { document ->
+people[uid] = PeejeePerson(
+uid = uid,
+name = document.getString("name") ?: "Peejee User",
+email = document.getString("email") ?: "",
+isOnline = document.getBoolean("isOnline") ?: false,
+profilePhoto = document.getString("profilePhoto") ?: ""
+)
+}
+.addOnCompleteListener {
+if (remaining.decrementAndGet() == 0) {
+val conversations = otherIds.mapNotNull { uid ->
+val person = people[uid] ?: return@mapNotNull null
+val personMessages = allMessages.filter {
+(it.senderId == currentUserId && it.receiverId == uid) ||
+(it.senderId == uid && it.receiverId == currentUserId)
+}.sortedByDescending { it.timestamp }
+val latest = personMessages.firstOrNull() ?: return@mapNotNull null
+val unread = personMessages.count {
+it.receiverId == currentUserId && it.read == false
+}
+PeejeeConversation(person, latest.text, latest.timestamp, unread)
+}.sortedByDescending { it.timestamp }
+onResult(conversations)
+}
+}
 }
 
 }
@@ -3474,123 +3488,123 @@ onDispose { }
 
 } else {
 
-val sentRegistration =      
-    firestore      
-        .collection("messages")      
-        .whereEqualTo(      
-            "senderId",      
-            currentUserId      
-        )      
-        .whereEqualTo(      
-            "receiverId",      
-            person.uid      
-        )      
-        .addSnapshotListener { sentSnapshot, sentError ->      
+val sentRegistration =
+firestore
+.collection("messages")
+.whereEqualTo(
+"senderId",
+currentUserId
+)
+.whereEqualTo(
+"receiverId",
+person.uid
+)
+.addSnapshotListener { sentSnapshot, sentError ->
 
-            if (sentError != null) {      
-                return@addSnapshotListener      
-            }      
+if (sentError != null) {        
+            return@addSnapshotListener        
+        }        
 
-            firestore      
-                .collection("messages")      
-                .whereEqualTo(      
-                    "senderId",      
-                    person.uid      
-                )      
-                .whereEqualTo(      
-                    "receiverId",      
-                    currentUserId      
-                )      
-                .get()      
-                .addOnSuccessListener { receivedSnapshot ->      
+        firestore        
+            .collection("messages")        
+            .whereEqualTo(        
+                "senderId",        
+                person.uid        
+            )        
+            .whereEqualTo(        
+                "receiverId",        
+                currentUserId        
+            )        
+            .get()        
+            .addOnSuccessListener { receivedSnapshot ->        
 
-                    val sentMessages =      
-                        sentSnapshot      
-                            ?.documents      
-                            ?.mapNotNull {      
-                                messageFromDocument(it)      
-                            }      
-                            ?: emptyList()      
+                val sentMessages =        
+                    sentSnapshot        
+                        ?.documents        
+                        ?.mapNotNull {        
+                            messageFromDocument(it)        
+                        }        
+                        ?: emptyList()        
 
-                    val receivedMessages =      
-                        receivedSnapshot      
-                            .documents      
-                            .mapNotNull {      
-                                messageFromDocument(it)      
-                            }      
+                val receivedMessages =        
+                    receivedSnapshot        
+                        .documents        
+                        .mapNotNull {        
+                            messageFromDocument(it)        
+                        }        
 
-                    messages =      
-                        (      
-                            sentMessages +      
-                                receivedMessages      
-                            )      
-                            .distinctBy { it.id }      
-                            .sortedBy {      
-                                it.timestamp      
-                            }      
-                }      
-        }      
+                messages =        
+                    (        
+                        sentMessages +        
+                            receivedMessages        
+                        )        
+                        .distinctBy { it.id }        
+                        .sortedBy {        
+                            it.timestamp        
+                        }        
+            }        
+    }
 
-val receivedRegistration =      
-    firestore      
-        .collection("messages")      
-        .whereEqualTo(      
-            "senderId",      
-            person.uid      
-        )      
-        .whereEqualTo(      
-            "receiverId",      
-            currentUserId      
-        )      
-        .addSnapshotListener { receivedSnapshot, receivedError ->      
+val receivedRegistration =
+firestore
+.collection("messages")
+.whereEqualTo(
+"senderId",
+person.uid
+)
+.whereEqualTo(
+"receiverId",
+currentUserId
+)
+.addSnapshotListener { receivedSnapshot, receivedError ->
 
-            if (receivedError != null) {      
-                return@addSnapshotListener      
-            }      
+if (receivedError != null) {        
+            return@addSnapshotListener        
+        }        
 
-            firestore      
-                .collection("messages")      
-                .whereEqualTo(      
-                    "senderId",      
-                    currentUserId      
-                )      
-                .whereEqualTo(      
-                    "receiverId",      
-                    person.uid      
-                )      
-                .get()      
-                .addOnSuccessListener { sentSnapshot ->      
+        firestore        
+            .collection("messages")        
+            .whereEqualTo(        
+                "senderId",        
+                currentUserId        
+            )        
+            .whereEqualTo(        
+                "receiverId",        
+                person.uid        
+            )        
+            .get()        
+            .addOnSuccessListener { sentSnapshot ->        
 
-                    val sentMessages =      
-                        sentSnapshot      
-                            .documents      
-                            .mapNotNull {      
-                                messageFromDocument(it)      
-                            }      
+                val sentMessages =        
+                    sentSnapshot        
+                        .documents        
+                        .mapNotNull {        
+                            messageFromDocument(it)        
+                        }        
 
-                    val receivedMessages =      
-                        receivedSnapshot      
-                            ?.documents      
-                            ?.mapNotNull {      
-                                messageFromDocument(it)      
-                            }      
-                            ?: emptyList()      
+                val receivedMessages =        
+                    receivedSnapshot        
+                        ?.documents        
+                        ?.mapNotNull {        
+                            messageFromDocument(it)        
+                        }        
+                        ?: emptyList()        
 
-                    messages =      
-                        (      
-                            sentMessages +      
-                                receivedMessages      
-                            )      
-                            .distinctBy { it.id }      
-                            .sortedBy {      
-                                it.timestamp      
-                            }      
-                }      
-        }      
+                messages =        
+                    (        
+                        sentMessages +        
+                            receivedMessages        
+                        )        
+                        .distinctBy { it.id }        
+                        .sortedBy {        
+                            it.timestamp        
+                        }        
+            }        
+    }
 
-onDispose {      
-    sentRegistration.remove()      
-    receivedRegistration.remove()      
+onDispose {
+sentRegistration.remove()
+receivedRegistration.remove()
 }
 
 }
@@ -3614,32 +3628,33 @@ verticalAlignment =
 Alignment.CenterVertically
 ) {
 
-TextButton(      
-    onClick = onBack      
-) {      
-    Text("← Back")      
-}      
+TextButton(
+onClick = onBack
+) {
+Text("← Back")
+}
 
-PeejeeSmallProfileAvatar(      
-    photoBase64 = person.profilePhoto,      
-    name = person.name,      
-    size = 45      
-)      
+PeejeeSmallProfileAvatar(
+photoBase64 = person.profilePhoto,
+name = person.name,
+size = 45
+)
 
-Spacer(Modifier.width(10.dp))      
+Spacer(Modifier.width(10.dp))
 
-Column {      
+Column {
 
-    Text(      
-        person.name,      
-        fontSize = 19.sp,      
-        fontWeight = FontWeight.Bold      
-    )      
+Text(        
+    person.name,        
+    fontSize = 19.sp,        
+    fontWeight = FontWeight.Bold        
+)        
 
-    Text(      
-        "Private chat",      
-        fontSize = 12.sp      
-    )      
+Text(        
+    "Private chat",        
+    fontSize = 12.sp        
+)
+
 }
 
 }
@@ -3654,79 +3669,80 @@ modifier = Modifier
 reverseLayout = false
 ) {
 
-itemsIndexed(      
-    messages,      
-    key = { _, message -> message.id }      
-) { _, message ->      
+itemsIndexed(
+messages,
+key = { _, message -> message.id }
+) { _, message ->
 
-    val mine =      
-        message.senderId == currentUserId      
+val mine =        
+    message.senderId == currentUserId        
 
-    Row(      
-        modifier = Modifier      
-            .fillMaxWidth()      
-            .padding(      
-                vertical = 5.dp      
-            ),      
-        horizontalArrangement =      
-            if (mine) {      
-                Arrangement.End      
-            } else {      
-                Arrangement.Start      
-            }      
-    ) {      
+Row(        
+    modifier = Modifier        
+        .fillMaxWidth()        
+        .padding(        
+            vertical = 5.dp        
+        ),        
+    horizontalArrangement =        
+        if (mine) {        
+            Arrangement.End        
+        } else {        
+            Arrangement.Start        
+        }        
+) {        
 
-        Surface(      
-            shape = RoundedCornerShape(18.dp),      
-            color =      
-                if (mine) {      
-                    MaterialTheme      
-                        .colorScheme      
-                        .primaryContainer      
-                } else {      
-                    MaterialTheme      
-                        .colorScheme      
-                        .surfaceVariant      
-                }      
-        ) {      
+    Surface(        
+        shape = RoundedCornerShape(18.dp),        
+        color =        
+            if (mine) {        
+                MaterialTheme        
+                    .colorScheme        
+                    .primaryContainer        
+            } else {        
+                MaterialTheme        
+                    .colorScheme        
+                    .surfaceVariant        
+            }        
+    ) {        
 
-            Column(      
-                modifier = Modifier      
-                    .widthIn(max = 290.dp)      
-                    .padding(      
-                        horizontal = 14.dp,      
-                        vertical = 9.dp      
-                    )      
-            ) {      
+        Column(        
+            modifier = Modifier        
+                .widthIn(max = 290.dp)        
+                .padding(        
+                    horizontal = 14.dp,        
+                    vertical = 9.dp        
+                )        
+        ) {        
 
-                Text(      
-                    message.text,      
-                    fontSize = 16.sp      
-                )      
+            Text(        
+                message.text,        
+                fontSize = 16.sp        
+            )        
 
-                Spacer(Modifier.height(3.dp))      
+            Spacer(Modifier.height(3.dp))        
 
-                Text(      
-                    formatPostTime(      
-                        message.timestamp      
-                    ),      
-                    fontSize = 9.sp      
-                )      
-            }      
-        }      
-    }      
+            Text(        
+                formatPostTime(        
+                    message.timestamp        
+                ),        
+                fontSize = 9.sp        
+            )        
+        }        
+    }        
+}
+
 }
 
 }
 
 if (errorMessage.isNotBlank()) {
 
-Text(      
-    errorMessage,      
-    color = MaterialTheme.colorScheme.error,      
-    modifier = Modifier.padding(      
-        horizontal = 12.dp      
-    )      
+Text(
+errorMessage,
+color = MaterialTheme.colorScheme.error,
+modifier = Modifier.padding(
+horizontal = 12.dp
+)
 )
 
 }
@@ -3739,106 +3755,107 @@ verticalAlignment =
 Alignment.CenterVertically
 ) {
 
-OutlinedTextField(      
-    value = newMessage,      
-    onValueChange = {      
-        newMessage = it      
-        errorMessage = ""      
-    },      
-    label = {      
-        Text("Message")      
-    },      
-    modifier = Modifier.weight(1f),      
-    enabled = !sending      
-)      
+OutlinedTextField(
+value = newMessage,
+onValueChange = {
+newMessage = it
+errorMessage = ""
+},
+label = {
+Text("Message")
+},
+modifier = Modifier.weight(1f),
+enabled = !sending
+)
 
-Spacer(Modifier.width(8.dp))      
+Spacer(Modifier.width(8.dp))
 
-Button(      
-    onClick = {      
+Button(
+onClick = {
 
-        val text =      
-            newMessage.trim()      
+val text =        
+        newMessage.trim()        
 
-        if (      
-            currentUserId.isBlank() ||      
-            person.uid.isBlank()      
-        ) {      
+    if (        
+        currentUserId.isBlank() ||        
+        person.uid.isBlank()        
+    ) {        
 
-            errorMessage =      
-                "Please log in again."      
+        errorMessage =        
+            "Please log in again."        
 
-            return@Button      
-        }      
+        return@Button        
+    }        
 
-        if (text.isBlank()) {      
-            return@Button      
-        }      
+    if (text.isBlank()) {        
+        return@Button        
+    }        
 
-        sending = true      
-        errorMessage = ""      
+    sending = true        
+    errorMessage = ""        
 
-        val messageReference =      
-            firestore      
-                .collection("messages")      
-                .document()      
+    val messageReference =        
+        firestore        
+            .collection("messages")        
+            .document()        
 
-        val messageData =      
-            hashMapOf<String, Any>(      
-                "messageId" to      
-                    messageReference.id,      
-                "senderId" to      
-                    currentUserId,      
-                "receiverId" to      
-                    person.uid,      
-                "text" to text,      
-                "timestamp" to      
-                    System.currentTimeMillis(),      
-                "read" to false      
-            )      
+    val messageData =        
+        hashMapOf<String, Any>(        
+            "messageId" to        
+                messageReference.id,        
+            "senderId" to        
+                currentUserId,        
+            "receiverId" to        
+                person.uid,        
+            "text" to text,        
+            "timestamp" to        
+                System.currentTimeMillis(),        
+            "read" to false        
+        )        
 
-        messageReference      
-            .set(messageData)      
-            .addOnSuccessListener {      
+    messageReference        
+        .set(messageData)        
+        .addOnSuccessListener {        
 
-                sending = false      
+            sending = false        
 
-                firestore      
-                    .collection("users")      
-                    .document(currentUserId)      
-                    .get()      
-                    .addOnSuccessListener { userDocument ->      
-                        createPeejeeNotification(      
-                            firestore = firestore,      
-                            recipientUserId = person.uid,      
-                            type = "message",      
-                            actorId = currentUserId,      
-                            actorName =      
-                                userDocument.getString("name")      
-                                    ?: "Peejee User",      
-                            text = "sent you a message",      
-                            messageId = messageReference.id      
-                        )      
-                    }      
+            firestore        
+                .collection("users")        
+                .document(currentUserId)        
+                .get()        
+                .addOnSuccessListener { userDocument ->        
+                    createPeejeeNotification(        
+                        firestore = firestore,        
+                        recipientUserId = person.uid,        
+                        type = "message",        
+                        actorId = currentUserId,        
+                        actorName =        
+                            userDocument.getString("name")        
+                                ?: "Peejee User",        
+                        text = "sent you a message",        
+                        messageId = messageReference.id        
+                    )        
+                }        
 
-                newMessage = ""      
-            }      
-            .addOnFailureListener { exception ->      
+            newMessage = ""        
+        }        
+        .addOnFailureListener { exception ->        
 
-                sending = false      
+            sending = false        
 
-                errorMessage =      
-                    exception.message      
-                        ?: "Could not send message."      
-            }      
-    },      
-    enabled =      
-        !sending &&      
-        newMessage.isNotBlank()      
-) {      
-    Text(      
-        if (sending) "..." else "Send"      
-    )      
+            errorMessage =        
+                exception.message        
+                    ?: "Could not send message."        
+        }        
+},        
+enabled =        
+    !sending &&        
+    newMessage.isNotBlank()
+
+) {
+Text(
+if (sending) "..." else "Send"
+)
 }
 
 }
@@ -3943,22 +3960,22 @@ horizontalArrangement =
 Arrangement.spacedBy(10.dp)
 ) {
 
-Button(      
-    onClick = {      
-        photoPicker.launch("image/*")      
-    },      
-    modifier = Modifier.weight(1f)      
-) {      
-    Text("🖼️ Photo")      
-}      
+Button(
+onClick = {
+photoPicker.launch("image/*")
+},
+modifier = Modifier.weight(1f)
+) {
+Text("🖼️ Photo")
+}
 
-Button(      
-    onClick = {      
-        videoPicker.launch("video/*")      
-    },      
-    modifier = Modifier.weight(1f)      
-) {      
-    Text("🎥 Video")      
+Button(
+onClick = {
+videoPicker.launch("video/*")
+},
+modifier = Modifier.weight(1f)
+) {
+Text("🎥 Video")
 }
 
 }
@@ -3967,43 +3984,44 @@ Spacer(Modifier.height(16.dp))
 
 if (selectedMedia != null) {
 
-Card(      
-    modifier = Modifier.fillMaxWidth()      
-) {      
+Card(
+modifier = Modifier.fillMaxWidth()
+) {
 
-    Column(      
-        modifier = Modifier.padding(16.dp)      
-    ) {      
+Column(        
+    modifier = Modifier.padding(16.dp)        
+) {        
 
-        Text(      
-            if (mediaType == "photo") {      
-                "Photo selected"      
-            } else {      
-                "Video selected"      
-            },      
-            fontWeight = FontWeight.Bold,      
-            fontSize = 18.sp      
-        )      
+    Text(        
+        if (mediaType == "photo") {        
+            "Photo selected"        
+        } else {        
+            "Video selected"        
+        },        
+        fontWeight = FontWeight.Bold,        
+        fontSize = 18.sp        
+    )        
 
-        Spacer(Modifier.height(8.dp))      
+    Spacer(Modifier.height(8.dp))        
 
-        Text(      
-            selectedMedia.toString(),      
-            fontSize = 12.sp      
-        )      
+    Text(        
+        selectedMedia.toString(),        
+        fontSize = 12.sp        
+    )        
 
-        Spacer(Modifier.height(12.dp))      
+    Spacer(Modifier.height(12.dp))        
 
-        OutlinedButton(      
-            onClick = {      
-                selectedMedia = null      
-                mediaType = ""      
-            }      
-        ) {      
-            Text("Remove")      
-        }      
-    }      
-}      
+    OutlinedButton(        
+        onClick = {        
+            selectedMedia = null        
+            mediaType = ""        
+        }        
+    ) {        
+        Text("Remove")        
+    }        
+}
+
+}
 
 Spacer(Modifier.height(16.dp))
 
@@ -4026,10 +4044,10 @@ Spacer(Modifier.height(16.dp))
 
 if (errorMessage.isNotEmpty()) {
 
-Text(      
-    errorMessage,      
-    color = MaterialTheme.colorScheme.error      
-)      
+Text(
+errorMessage,
+color = MaterialTheme.colorScheme.error
+)
 
 Spacer(Modifier.height(12.dp))
 
@@ -4038,149 +4056,149 @@ Spacer(Modifier.height(12.dp))
 Button(
 onClick = {
 
-errorMessage = ""      
+errorMessage = ""
 
-    val currentUser =      
-        auth.currentUser      
+val currentUser =        
+    auth.currentUser        
 
-    if (currentUser == null) {      
+if (currentUser == null) {        
 
-        errorMessage =      
-            "Please log in again."      
+    errorMessage =        
+        "Please log in again."        
 
-        return@Button      
-    }      
+    return@Button        
+}        
 
-    if (      
-        postText.isBlank() &&      
-        selectedMedia == null      
-    ) {      
+if (        
+    postText.isBlank() &&        
+    selectedMedia == null        
+) {        
 
-        errorMessage =      
-            "Please write something or select media."      
+    errorMessage =        
+        "Please write something or select media."        
 
-        return@Button      
-    }      
+    return@Button        
+}        
 
-    publishing = true      
+publishing = true        
 
-    val postReference =      
-        firestore      
-            .collection("posts")      
-            .document()      
+val postReference =        
+    firestore        
+        .collection("posts")        
+        .document()        
 
-    val postData =      
-        hashMapOf<String, Any>(      
-            "postId" to postReference.id,      
-            "userId" to currentUser.uid,      
-            "userName" to "Peejee User",      
-            "text" to postText.trim(),      
-            "likes" to 0,      
-            "likedBy" to      
-                emptyMap<String, Boolean>(),      
-            "commentCount" to 0,      
-            "shareCount" to 0,      
-            "timestamp" to      
-                System.currentTimeMillis()      
-        )      
+val postData =        
+    hashMapOf<String, Any>(        
+        "postId" to postReference.id,        
+        "userId" to currentUser.uid,        
+        "userName" to "Peejee User",        
+        "text" to postText.trim(),        
+        "likes" to 0,        
+        "likedBy" to        
+            emptyMap<String, Boolean>(),        
+        "commentCount" to 0,        
+        "shareCount" to 0,        
+        "timestamp" to        
+            System.currentTimeMillis()        
+    )        
 
-    if (mediaType.isNotBlank()) {      
+if (mediaType.isNotBlank()) {        
 
-        postData["mediaType"] =      
-            mediaType      
+    postData["mediaType"] =        
+        mediaType        
 
-        postData["mediaUrl"] =      
-            selectedMedia?.toString() ?: ""      
-    }      
+    postData["mediaUrl"] =        
+        selectedMedia?.toString() ?: ""        
+}        
 
-    firestore      
-        .collection("users")      
-        .document(currentUser.uid)      
-        .get()      
-        .addOnSuccessListener { userDocument ->      
+firestore        
+    .collection("users")        
+    .document(currentUser.uid)        
+    .get()        
+    .addOnSuccessListener { userDocument ->        
 
-            postData["userName"] =      
-                userDocument.getString("name")      
-                    ?: "Peejee User"      
+        postData["userName"] =        
+            userDocument.getString("name")        
+                ?: "Peejee User"        
 
-            postReference      
-                .set(postData)      
-                .addOnSuccessListener {      
+        postReference        
+            .set(postData)        
+            .addOnSuccessListener {        
 
-                    publishing = false      
+                publishing = false        
 
-                    findMentionedUsers(      
-                        firestore = firestore,      
-                        text = postText.trim(),      
-                        currentUserId = currentUser.uid      
-                    ) { mentionedUsers ->      
-                        val actorName =      
-                            userDocument.getString("name")      
-                                ?: "Peejee User"      
+                findMentionedUsers(        
+                    firestore = firestore,        
+                    text = postText.trim(),        
+                    currentUserId = currentUser.uid        
+                ) { mentionedUsers ->        
+                    val actorName =        
+                        userDocument.getString("name")        
+                            ?: "Peejee User"        
 
-                        mentionedUsers.forEach { mentioned ->      
-                            createPeejeeNotification(      
-                                firestore = firestore,      
-                                recipientUserId = mentioned.uid,      
-                                type = "mention",      
-                                actorId = currentUser.uid,      
-                                actorName = actorName,      
-                                text = "mentioned you in a post",      
-                                postId = postReference.id      
-                            )      
-                        }      
-                    }      
+                    mentionedUsers.forEach { mentioned ->        
+                        createPeejeeNotification(        
+                            firestore = firestore,        
+                            recipientUserId = mentioned.uid,        
+                            type = "mention",        
+                            actorId = currentUser.uid,        
+                            actorName = actorName,        
+                            text = "mentioned you in a post",        
+                            postId = postReference.id        
+                        )        
+                    }        
+                }        
 
-                    postText = ""      
-                    selectedMedia = null      
-                    mediaType = ""      
+                postText = ""        
+                selectedMedia = null        
+                mediaType = ""        
 
-                    onPostCreated()      
-                }      
-                .addOnFailureListener { exception ->      
+                onPostCreated()        
+            }        
+            .addOnFailureListener { exception ->        
 
-                    publishing = false      
+                publishing = false        
 
-                    errorMessage =      
-                        exception.message      
-                            ?: "Could not publish post."      
-                }      
-        }      
-        .addOnFailureListener {      
+                errorMessage =        
+                    exception.message        
+                        ?: "Could not publish post."        
+            }        
+    }        
+    .addOnFailureListener {        
 
-            postReference      
-                .set(postData)      
-                .addOnSuccessListener {      
+        postReference        
+            .set(postData)        
+            .addOnSuccessListener {        
 
-                    publishing = false      
-                    postText = ""      
-                    selectedMedia = null      
-                    mediaType = ""      
+                publishing = false        
+                postText = ""        
+                selectedMedia = null        
+                mediaType = ""        
 
-                    onPostCreated()      
-                }      
-                .addOnFailureListener { exception ->      
+                onPostCreated()        
+            }        
+            .addOnFailureListener { exception ->        
 
-                    publishing = false      
+                publishing = false        
 
-                    errorMessage =      
-                        exception.message      
-                            ?: "Could not publish post."      
-                }      
-        }      
+                errorMessage =        
+                    exception.message        
+                        ?: "Could not publish post."        
+            }        
+    }
 
-},      
-enabled = !publishing,      
+},
+enabled = !publishing,
 modifier = Modifier.fillMaxWidth()
 
 ) {
 
-Text(      
-    if (publishing) {      
-        "Publishing..."      
-    } else {      
-        "Publish Post"      
-    }      
+Text(
+if (publishing) {
+"Publishing..."
+} else {
+"Publish Post"
+}
 )
 
 }
@@ -4340,27 +4358,28 @@ selectedProfilePhotoUri
 profileBitmap =
 withContext(Dispatchers.IO) {
 
-if (selectedUri != null) {      
+if (selectedUri != null) {
 
-        try {      
+try {        
 
-            context      
-                .contentResolver      
-                .openInputStream(selectedUri)      
-                ?.use {      
-                    BitmapFactory.decodeStream(it)      
-                }      
+        context        
+            .contentResolver        
+            .openInputStream(selectedUri)        
+            ?.use {        
+                BitmapFactory.decodeStream(it)        
+            }        
 
-        } catch (exception: Exception) {      
-            null      
-        }      
+    } catch (exception: Exception) {        
+        null        
+    }        
 
-    } else {      
+} else {        
 
-        base64ToBitmap(      
-            savedProfilePhoto      
-        )      
-    }      
+    base64ToBitmap(        
+        savedProfilePhoto        
+    )        
+}
+
 }
 
 }
@@ -4393,81 +4412,81 @@ DisposableEffect(userId) {
 
 if (userId == null) {
 
-loading = false      
+loading = false
 
 onDispose { }
 
 } else {
 
-loading = true      
+loading = true
 
-val registration =      
-    firestore      
-        .collection("users")      
-        .document(userId)      
-        .addSnapshotListener { document, error ->      
+val registration =
+firestore
+.collection("users")
+.document(userId)
+.addSnapshotListener { document, error ->
 
-            if (error != null) {      
+if (error != null) {        
 
-                loading = false      
+            loading = false        
 
-                profileError =      
-                    error.message      
-                        ?: "Could not load your profile."      
+            profileError =        
+                error.message        
+                    ?: "Could not load your profile."        
 
-                return@addSnapshotListener      
-            }      
+            return@addSnapshotListener        
+        }        
 
-            if (      
-                document != null &&      
-                document.exists()      
-            ) {      
+        if (        
+            document != null &&        
+            document.exists()        
+        ) {        
 
-                val savedName =      
-                    document.getString("name")      
-                        ?.trim()      
-                        ?.takeIf { it.isNotBlank() }      
-                        ?: name      
+            val savedName =        
+                document.getString("name")        
+                    ?.trim()        
+                    ?.takeIf { it.isNotBlank() }        
+                    ?: name        
 
-                val savedBio =      
-                    document.getString("bio")      
-                        ?: ""      
+            val savedBio =        
+                document.getString("bio")        
+                    ?: ""        
 
-                profileName = savedName      
-                bio = savedBio      
-                editedName = savedName      
-                editedBio = savedBio      
+            profileName = savedName        
+            bio = savedBio        
+            editedName = savedName        
+            editedBio = savedBio        
 
-                savedProfilePhoto =      
-                    document.getString("profilePhoto")      
-                        ?: ""      
+            savedProfilePhoto =        
+                document.getString("profilePhoto")        
+                    ?: ""        
 
-                savedCoverPhoto =      
-                    document.getString("coverPhoto")      
-                        ?: ""      
+            savedCoverPhoto =        
+                document.getString("coverPhoto")        
+                    ?: ""        
 
-                followersCount =      
-                    document      
-                        .getLong("followersCount")      
-                        ?.toInt()      
-                        ?: 0      
+            followersCount =        
+                document        
+                    .getLong("followersCount")        
+                    ?.toInt()        
+                    ?: 0        
 
-                followingCount =      
-                    document      
-                        .getLong("followingCount")      
-                        ?.toInt()      
-                        ?: 0      
+            followingCount =        
+                document        
+                    .getLong("followingCount")        
+                    ?.toInt()        
+                    ?: 0        
 
-                loading = false      
+            loading = false        
 
-            } else {      
+        } else {        
 
-                loading = false      
-            }      
-        }      
+            loading = false        
+        }        
+    }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -4478,109 +4497,109 @@ DisposableEffect(userId) {
 
 if (userId == null) {
 
-profilePosts = emptyList()      
+profilePosts = emptyList()
 
 onDispose { }
 
 } else {
 
-val registration =      
-    firestore      
-        .collection("posts")      
-        .whereEqualTo(      
-            "userId",      
-            userId      
-        )      
-        .addSnapshotListener { snapshot, error ->      
+val registration =
+firestore
+.collection("posts")
+.whereEqualTo(
+"userId",
+userId
+)
+.addSnapshotListener { snapshot, error ->
 
-            if (      
-                error == null &&      
-                snapshot != null      
-            ) {      
+if (        
+            error == null &&        
+            snapshot != null        
+        ) {        
 
-                profilePosts =      
-                    snapshot.documents      
-                        .mapNotNull { document ->      
+            profilePosts =        
+                snapshot.documents        
+                    .mapNotNull { document ->        
 
-                            PeejeePost(      
-                                id = document.id,      
+                        PeejeePost(        
+                            id = document.id,        
 
-                                userId =      
-                                    document.getString(      
-                                        "userId"      
-                                    ) ?: userId,      
+                            userId =        
+                                document.getString(        
+                                    "userId"        
+                                ) ?: userId,        
 
-                                userName =      
-                                    document.getString(      
-                                        "userName"      
-                                    )      
-                                        ?.takeIf {      
-                                            it.isNotBlank()      
-                                        }      
-                                        ?: profileName,      
+                            userName =        
+                                document.getString(        
+                                    "userName"        
+                                )        
+                                    ?.takeIf {        
+                                        it.isNotBlank()        
+                                    }        
+                                    ?: profileName,        
 
-                                text =      
-                                    document.getString(      
-                                        "text"      
-                                    ) ?: "",      
+                            text =        
+                                document.getString(        
+                                    "text"        
+                                ) ?: "",        
 
-                                timestamp =      
-                                    document.getLong(      
-                                        "timestamp"      
-                                    ) ?: 0L,      
+                            timestamp =        
+                                document.getLong(        
+                                    "timestamp"        
+                                ) ?: 0L,        
 
-                                mediaUrl =      
-                                    document.getString(      
-                                        "mediaUrl"      
-                                    ) ?: "",      
+                            mediaUrl =        
+                                document.getString(        
+                                    "mediaUrl"        
+                                ) ?: "",        
 
-                                mediaType =      
-                                    document.getString(      
-                                        "mediaType"      
-                                    ) ?: "",      
+                            mediaType =        
+                                document.getString(        
+                                    "mediaType"        
+                                ) ?: "",        
 
-                                likeCount =      
-                                    document.getLong(      
-                                        "likes"      
-                                    )?.toInt() ?: 0,      
+                            likeCount =        
+                                document.getLong(        
+                                    "likes"        
+                                )?.toInt() ?: 0,        
 
-                                likedBy =      
-                                    getLikedBy(document),      
+                            likedBy =        
+                                getLikedBy(document),        
 
-                                commentCount =      
-                                    document.getLong(      
-                                        "commentCount"      
-                                    )?.toInt() ?: 0,      
+                            commentCount =        
+                                document.getLong(        
+                                    "commentCount"        
+                                )?.toInt() ?: 0,        
 
-                                shareCount =      
-                                    document.getLong(      
-                                        "shareCount"      
-                                    )?.toInt() ?: 0,      
+                            shareCount =        
+                                document.getLong(        
+                                    "shareCount"        
+                                )?.toInt() ?: 0,        
 
-                                sharedFromPostId =      
-                                    document.getString(      
-                                        "sharedFromPostId"      
-                                    ) ?: "",      
+                            sharedFromPostId =        
+                                document.getString(        
+                                    "sharedFromPostId"        
+                                ) ?: "",        
 
-                                sharedFromUserName =      
-                                    document.getString(      
-                                        "sharedFromUserName"      
-                                    ) ?: "",      
+                            sharedFromUserName =        
+                                document.getString(        
+                                    "sharedFromUserName"        
+                                ) ?: "",        
 
-                                sharedFromText =      
-                                    document.getString(      
-                                        "sharedFromText"      
-                                    ) ?: ""      
-                            )      
-                        }      
-                        .sortedByDescending {      
-                            it.timestamp      
-                        }      
-            }      
-        }      
+                            sharedFromText =        
+                                document.getString(        
+                                    "sharedFromText"        
+                                ) ?: ""        
+                        )        
+                    }        
+                    .sortedByDescending {        
+                        it.timestamp        
+                    }        
+        }        
+    }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -4597,53 +4616,53 @@ userId == null ||
 !showFollowersDialog
 ) {
 
-followers = emptyList()      
+followers = emptyList()
 
 onDispose { }
 
 } else {
 
-val registration =      
-    firestore      
-        .collection("users")      
-        .document(userId)      
-        .collection("followers")      
-        .orderBy(      
-            "timestamp",      
-            Query.Direction.DESCENDING      
-        )      
-        .addSnapshotListener { snapshot, error ->      
+val registration =
+firestore
+.collection("users")
+.document(userId)
+.collection("followers")
+.orderBy(
+"timestamp",
+Query.Direction.DESCENDING
+)
+.addSnapshotListener { snapshot, error ->
 
-            if (      
-                error == null &&      
-                snapshot != null      
-            ) {      
+if (        
+            error == null &&        
+            snapshot != null        
+        ) {        
 
-                followers =      
-                    snapshot.documents.mapNotNull { document ->      
+            followers =        
+                snapshot.documents.mapNotNull { document ->        
 
-                        val uid =      
-                            document.getString("uid")      
-                                ?: document.id      
+                    val uid =        
+                        document.getString("uid")        
+                            ?: document.id        
 
-                        val savedName =      
-                            document.getString("name")      
-                                ?.trim()      
-                                ?.takeIf {      
-                                    it.isNotBlank()      
-                                }      
-                                ?: "Peejee User"      
+                    val savedName =        
+                        document.getString("name")        
+                            ?.trim()        
+                            ?.takeIf {        
+                                it.isNotBlank()        
+                            }        
+                            ?: "Peejee User"        
 
-                        PeejeePerson(      
-                            uid = uid,      
-                            name = savedName      
-                        )      
-                    }      
-            }      
-        }      
+                    PeejeePerson(        
+                        uid = uid,        
+                        name = savedName        
+                    )        
+                }        
+        }        
+    }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -4660,53 +4679,53 @@ userId == null ||
 !showFollowingDialog
 ) {
 
-following = emptyList()      
+following = emptyList()
 
 onDispose { }
 
 } else {
 
-val registration =      
-    firestore      
-        .collection("users")      
-        .document(userId)      
-        .collection("following")      
-        .orderBy(      
-            "timestamp",      
-            Query.Direction.DESCENDING      
-        )      
-        .addSnapshotListener { snapshot, error ->      
+val registration =
+firestore
+.collection("users")
+.document(userId)
+.collection("following")
+.orderBy(
+"timestamp",
+Query.Direction.DESCENDING
+)
+.addSnapshotListener { snapshot, error ->
 
-            if (      
-                error == null &&      
-                snapshot != null      
-            ) {      
+if (        
+            error == null &&        
+            snapshot != null        
+        ) {        
 
-                following =      
-                    snapshot.documents.mapNotNull { document ->      
+            following =        
+                snapshot.documents.mapNotNull { document ->        
 
-                        val uid =      
-                            document.getString("uid")      
-                                ?: document.id      
+                    val uid =        
+                        document.getString("uid")        
+                            ?: document.id        
 
-                        val savedName =      
-                            document.getString("name")      
-                                ?.trim()      
-                                ?.takeIf {      
-                                    it.isNotBlank()      
-                                }      
-                                ?: "Peejee User"      
+                    val savedName =        
+                        document.getString("name")        
+                            ?.trim()        
+                            ?.takeIf {        
+                                it.isNotBlank()        
+                            }        
+                            ?: "Peejee User"        
 
-                        PeejeePerson(      
-                            uid = uid,      
-                            name = savedName      
-                        )      
-                    }      
-            }      
-        }      
+                    PeejeePerson(        
+                        uid = uid,        
+                        name = savedName        
+                    )        
+                }        
+        }        
+    }
 
-onDispose {      
-    registration.remove()      
+onDispose {
+registration.remove()
 }
 
 }
@@ -4741,286 +4760,288 @@ horizontalAlignment =
 Alignment.CenterHorizontally
 ) {
 
-item {      
+item {
 
-    Spacer(Modifier.height(20.dp))      
+Spacer(Modifier.height(20.dp))        
 
-    Box(      
-        modifier = Modifier      
-            .fillMaxWidth()      
-            .height(180.dp)      
-            .clip(RoundedCornerShape(20.dp)),      
-        contentAlignment = Alignment.Center      
-    ) {      
-        if (coverBitmap != null) {      
-            Image(      
-                bitmap = coverBitmap!!.asImageBitmap(),      
-                contentDescription = "Cover photo",      
-                modifier = Modifier.fillMaxSize(),      
-                contentScale = ContentScale.Crop      
-            )      
-        } else {      
-            Box(      
-                modifier = Modifier      
-                    .fillMaxSize()      
-                    .background(      
-                        MaterialTheme.colorScheme.surfaceVariant      
-                    ),      
-                contentAlignment = Alignment.Center      
-            ) {      
-                Text(      
-                    "Add a cover photo",      
-                    fontSize = 18.sp,      
-                    fontWeight = FontWeight.Bold      
-                )      
-            }      
-        }      
-    }      
+Box(        
+    modifier = Modifier        
+        .fillMaxWidth()        
+        .height(180.dp)        
+        .clip(RoundedCornerShape(20.dp)),        
+    contentAlignment = Alignment.Center        
+) {        
+    if (coverBitmap != null) {        
+        Image(        
+            bitmap = coverBitmap!!.asImageBitmap(),        
+            contentDescription = "Cover photo",        
+            modifier = Modifier.fillMaxSize(),        
+            contentScale = ContentScale.Crop        
+        )        
+    } else {        
+        Box(        
+            modifier = Modifier        
+                .fillMaxSize()        
+                .background(        
+                    MaterialTheme.colorScheme.surfaceVariant        
+                ),        
+            contentAlignment = Alignment.Center        
+        ) {        
+            Text(        
+                "Add a cover photo",        
+                fontSize = 18.sp,        
+                fontWeight = FontWeight.Bold        
+            )        
+        }        
+    }        
+}        
 
-    Spacer(Modifier.height(16.dp))      
+Spacer(Modifier.height(16.dp))        
 
-    Box(      
-        modifier = Modifier      
-            .size(120.dp)      
-            .clip(CircleShape),      
-        contentAlignment =      
-            Alignment.Center      
-    ) {      
+Box(        
+    modifier = Modifier        
+        .size(120.dp)        
+        .clip(CircleShape),        
+    contentAlignment =        
+        Alignment.Center        
+) {        
 
-        if (profileBitmap != null) {      
+    if (profileBitmap != null) {        
 
-            Image(      
-                bitmap =      
-                    profileBitmap!!      
-                        .asImageBitmap(),      
-                contentDescription =      
-                    "Profile photo",      
-                modifier = Modifier      
-                    .fillMaxSize()      
-                    .clip(CircleShape),      
-                contentScale =      
-                    ContentScale.Crop      
-            )      
+        Image(        
+            bitmap =        
+                profileBitmap!!        
+                    .asImageBitmap(),        
+            contentDescription =        
+                "Profile photo",        
+            modifier = Modifier        
+                .fillMaxSize()        
+                .clip(CircleShape),        
+            contentScale =        
+                ContentScale.Crop        
+        )        
 
-        } else {      
+    } else {        
 
-            DefaultProfileIcon(size = 90)      
-        }      
-    }      
+        DefaultProfileIcon(size = 90)        
+    }        
+}        
 
-    Spacer(Modifier.height(16.dp))      
+Spacer(Modifier.height(16.dp))        
 
-    Text(      
-        profileName,      
-        fontSize = 28.sp,      
-        fontWeight = FontWeight.Bold      
-    )      
+Text(        
+    profileName,        
+    fontSize = 28.sp,        
+    fontWeight = FontWeight.Bold        
+)        
 
-    Spacer(Modifier.height(8.dp))      
+Spacer(Modifier.height(8.dp))        
 
-    Text(      
-        email,      
-        fontSize = 16.sp      
-    )      
+Text(        
+    email,        
+    fontSize = 16.sp        
+)        
 
-    Spacer(Modifier.height(12.dp))      
+Spacer(Modifier.height(12.dp))        
 
-    if (loading) {      
+if (loading) {        
 
-        CircularProgressIndicator()      
+    CircularProgressIndicator()        
 
-    } else if (bio.isBlank()) {      
+} else if (bio.isBlank()) {        
 
-        Text(      
-            "No bio yet.",      
-            fontSize = 16.sp      
-        )      
+    Text(        
+        "No bio yet.",        
+        fontSize = 16.sp        
+    )        
 
-    } else {      
+} else {        
 
-        Text(      
-            bio,      
-            fontSize = 16.sp      
-        )      
-    }      
+    Text(        
+        bio,        
+        fontSize = 16.sp        
+    )        
+}        
 
-    if (profileError.isNotEmpty()) {      
+if (profileError.isNotEmpty()) {        
 
-        Spacer(Modifier.height(8.dp))      
+    Spacer(Modifier.height(8.dp))        
 
-        Text(      
-            profileError,      
-            color = MaterialTheme.colorScheme.error,      
-            fontSize = 13.sp      
-        )      
-    }      
+    Text(        
+        profileError,        
+        color = MaterialTheme.colorScheme.error,        
+        fontSize = 13.sp        
+    )        
+}        
 
-    Spacer(Modifier.height(24.dp))      
+Spacer(Modifier.height(24.dp))        
 
-    Row(      
-        modifier = Modifier.fillMaxWidth(),      
-        horizontalArrangement =      
-            Arrangement.SpaceEvenly      
-    ) {      
+Row(        
+    modifier = Modifier.fillMaxWidth(),        
+    horizontalArrangement =        
+        Arrangement.SpaceEvenly        
+) {        
 
-        ProfileStat(      
-            count = profilePosts.size,      
-            label = "Posts"      
-        )      
+    ProfileStat(        
+        count = profilePosts.size,        
+        label = "Posts"        
+    )        
 
-        ProfileStat(      
-            count = followersCount,      
-            label = "Followers",      
-            onClick = {      
-                showFollowersDialog = true      
-            }      
-        )      
+    ProfileStat(        
+        count = followersCount,        
+        label = "Followers",        
+        onClick = {        
+            showFollowersDialog = true        
+        }        
+    )        
 
-        ProfileStat(      
-            count = followingCount,      
-            label = "Following",      
-            onClick = {      
-                showFollowingDialog = true      
-            }      
-        )      
-    }      
+    ProfileStat(        
+        count = followingCount,        
+        label = "Following",        
+        onClick = {        
+            showFollowingDialog = true        
+        }        
+    )        
+}        
 
-    Spacer(Modifier.height(24.dp))      
+Spacer(Modifier.height(24.dp))        
 
-    Button(      
-        onClick = {      
+Button(        
+    onClick = {        
 
-            editedName = profileName      
-            editedBio = bio      
-            profileError = ""      
-            selectedProfilePhotoUri = null      
-            selectedCoverPhotoUri = null      
-            showEditDialog = true      
+        editedName = profileName        
+        editedBio = bio        
+        profileError = ""        
+        selectedProfilePhotoUri = null        
+        selectedCoverPhotoUri = null        
+        showEditDialog = true        
 
-        },      
-        modifier = Modifier.fillMaxWidth()      
-    ) {      
-        Text("✏️ Edit Profile")      
-    }      
+    },        
+    modifier = Modifier.fillMaxWidth()        
+) {        
+    Text("✏️ Edit Profile")        
+}        
 
-    Spacer(Modifier.height(10.dp))      
+Spacer(Modifier.height(10.dp))        
 
-    OutlinedButton(      
-        onClick = {      
-            showSettings = true      
-        },      
-        modifier = Modifier.fillMaxWidth()      
-    ) {      
-        Text("🔒 Account Settings")      
-    }      
+OutlinedButton(        
+    onClick = {        
+        showSettings = true        
+    },        
+    modifier = Modifier.fillMaxWidth()        
+) {        
+    Text("🔒 Account Settings")        
+}        
 
-    Spacer(Modifier.height(10.dp))      
+Spacer(Modifier.height(10.dp))        
 
-    OutlinedButton(      
-        onClick = {      
+OutlinedButton(        
+    onClick = {        
 
-            val shareText =      
-                "Check out my profile on Peejee: $profileName"      
+        val shareText =        
+            "Check out my profile on Peejee: $profileName"        
 
-            val shareIntent =      
-                Intent(Intent.ACTION_SEND).apply {      
-                    type = "text/plain"      
-                    putExtra(      
-                        Intent.EXTRA_TEXT,      
-                        shareText      
-                    )      
-                }      
+        val shareIntent =        
+            Intent(Intent.ACTION_SEND).apply {        
+                type = "text/plain"        
+                putExtra(        
+                    Intent.EXTRA_TEXT,        
+                    shareText        
+                )        
+            }        
 
-            context.startActivity(      
-                Intent.createChooser(      
-                    shareIntent,      
-                    "Share Profile"      
-                )      
-            )      
-        },      
-        modifier = Modifier.fillMaxWidth()      
-    ) {      
-        Text("↗️ Share Profile")      
-    }      
+        context.startActivity(        
+            Intent.createChooser(        
+                shareIntent,        
+                "Share Profile"        
+            )        
+        )        
+    },        
+    modifier = Modifier.fillMaxWidth()        
+) {        
+    Text("↗️ Share Profile")        
+}        
 
-    Spacer(Modifier.height(10.dp))      
+Spacer(Modifier.height(10.dp))        
 
-    OutlinedButton(      
-        onClick = {      
-            showLogoutDialog = true      
-        },      
-        modifier = Modifier.fillMaxWidth()      
-    ) {      
-        Text("🚪 Log Out")      
-    }      
+OutlinedButton(        
+    onClick = {        
+        showLogoutDialog = true        
+    },        
+    modifier = Modifier.fillMaxWidth()        
+) {        
+    Text("🚪 Log Out")        
+}        
 
-    Spacer(Modifier.height(28.dp))      
+Spacer(Modifier.height(28.dp))        
 
-    Row(      
-        modifier = Modifier.fillMaxWidth(),      
-        verticalAlignment =      
-            Alignment.CenterVertically      
-    ) {      
+Row(        
+    modifier = Modifier.fillMaxWidth(),        
+    verticalAlignment =        
+        Alignment.CenterVertically        
+) {        
 
-        Text(      
-            "My Posts",      
-            fontSize = 24.sp,      
-            fontWeight = FontWeight.Bold      
-        )      
+    Text(        
+        "My Posts",        
+        fontSize = 24.sp,        
+        fontWeight = FontWeight.Bold        
+    )        
 
-        Spacer(Modifier.width(8.dp))      
+    Spacer(Modifier.width(8.dp))        
 
-        Text(      
-            "(${profilePosts.size})",      
-            fontSize = 18.sp      
-        )      
-    }      
+    Text(        
+        "(${profilePosts.size})",        
+        fontSize = 18.sp        
+    )        
+}        
 
-    Spacer(Modifier.height(12.dp))      
-}      
+Spacer(Modifier.height(12.dp))
 
-if (profilePosts.isEmpty()) {      
+}
 
-    item {      
+if (profilePosts.isEmpty()) {
 
-        Card(      
-            modifier = Modifier      
-                .fillMaxWidth()      
-                .padding(vertical = 8.dp)      
-        ) {      
+item {        
 
-            Column(      
-                modifier = Modifier      
-                    .fillMaxWidth()      
-                    .padding(25.dp),      
-                horizontalAlignment =      
-                    Alignment.CenterHorizontally      
-            ) {      
+    Card(        
+        modifier = Modifier        
+            .fillMaxWidth()        
+            .padding(vertical = 8.dp)        
+    ) {        
 
-                PeejeeLogo(size = 70)      
+        Column(        
+            modifier = Modifier        
+                .fillMaxWidth()        
+                .padding(25.dp),        
+            horizontalAlignment =        
+                Alignment.CenterHorizontally        
+        ) {        
 
-                Spacer(Modifier.height(8.dp))      
+            PeejeeLogo(size = 70)        
 
-                Text(      
-                    "You haven't posted yet."      
-                )      
-            }      
-        }      
-    }      
+            Spacer(Modifier.height(8.dp))        
 
-} else {      
+            Text(        
+                "You haven't posted yet."        
+            )        
+        }        
+    }        
+}
 
-    itemsIndexed(      
-        profilePosts,      
-        key = { _, post -> post.id }      
-    ) { _, post ->      
+} else {
 
-        ProfilePostCard(post)      
-    }      
-}      
+itemsIndexed(        
+    profilePosts,        
+    key = { _, post -> post.id }        
+) { _, post ->        
 
-item {      
-    Spacer(Modifier.height(30.dp))      
+    ProfilePostCard(post)        
+}
+
+}
+
+item {
+Spacer(Modifier.height(30.dp))
 }
 
 }
@@ -5031,325 +5052,329 @@ if (showEditDialog) {
 
 AlertDialog(
 
-onDismissRequest = {      
+onDismissRequest = {
 
-    if (!savingProfile) {      
+if (!savingProfile) {        
 
-        selectedProfilePhotoUri = null      
-        selectedCoverPhotoUri = null      
-        profileError = ""      
-        showEditDialog = false      
-    }      
-},      
+    selectedProfilePhotoUri = null        
+    selectedCoverPhotoUri = null        
+    profileError = ""        
+    showEditDialog = false        
+}
 
-title = {      
-    Text("Edit Profile")      
-},      
+},
 
-text = {      
+title = {
+Text("Edit Profile")
+},
 
-    Column {      
+text = {
 
-        OutlinedTextField(      
-            value = editedName,      
-            onValueChange = {      
-                editedName = it      
-                profileError = ""      
-            },      
-            label = {      
-                Text("Name")      
-            },      
-            modifier = Modifier.fillMaxWidth()      
-        )      
+Column {        
 
-        Spacer(Modifier.height(12.dp))      
+    OutlinedTextField(        
+        value = editedName,        
+        onValueChange = {        
+            editedName = it        
+            profileError = ""        
+        },        
+        label = {        
+            Text("Name")        
+        },        
+        modifier = Modifier.fillMaxWidth()        
+    )        
 
-        OutlinedTextField(      
-            value = editedBio,      
-            onValueChange = {      
-                editedBio = it      
-                profileError = ""      
-            },      
-            label = {      
-                Text("Bio")      
-            },      
-            modifier = Modifier.fillMaxWidth()      
-        )      
+    Spacer(Modifier.height(12.dp))        
 
-        Spacer(Modifier.height(16.dp))      
+    OutlinedTextField(        
+        value = editedBio,        
+        onValueChange = {        
+            editedBio = it        
+            profileError = ""        
+        },        
+        label = {        
+            Text("Bio")        
+        },        
+        modifier = Modifier.fillMaxWidth()        
+    )        
 
-        Button(      
-            onClick = {      
-                profilePhotoPicker.launch("image/*")      
-            },      
-            enabled = !savingProfile,      
-            modifier = Modifier.fillMaxWidth()      
-        ) {      
+    Spacer(Modifier.height(16.dp))        
 
-            Text(      
-                if (selectedProfilePhotoUri == null) {      
-                    "🖼️ Choose Profile Photo"      
-                } else {      
-                    "🖼️ Change Profile Photo"      
-                }      
-            )      
-        }      
+    Button(        
+        onClick = {        
+            profilePhotoPicker.launch("image/*")        
+        },        
+        enabled = !savingProfile,        
+        modifier = Modifier.fillMaxWidth()        
+    ) {        
 
-        if (selectedProfilePhotoUri != null) {      
+        Text(        
+            if (selectedProfilePhotoUri == null) {        
+                "🖼️ Choose Profile Photo"        
+            } else {        
+                "🖼️ Change Profile Photo"        
+            }        
+        )        
+    }        
 
-            Spacer(Modifier.height(8.dp))      
+    if (selectedProfilePhotoUri != null) {        
 
-            Text(      
-                "Photo selected",      
-                fontWeight = FontWeight.Bold      
-            )      
-        }      
+        Spacer(Modifier.height(8.dp))        
 
-        Spacer(Modifier.height(10.dp))      
+        Text(        
+            "Photo selected",        
+            fontWeight = FontWeight.Bold        
+        )        
+    }        
 
-        Button(      
-            onClick = {      
-                coverPhotoPicker.launch("image/*")      
-            },      
-            enabled = !savingProfile,      
-            modifier = Modifier.fillMaxWidth()      
-        ) {      
-            Text(      
-                if (selectedCoverPhotoUri == null) {      
-                    "🖼️ Choose Cover Photo"      
-                } else {      
-                    "🖼️ Change Cover Photo"      
-                }      
-            )      
-        }      
+    Spacer(Modifier.height(10.dp))        
 
-        if (selectedCoverPhotoUri != null) {      
+    Button(        
+        onClick = {        
+            coverPhotoPicker.launch("image/*")        
+        },        
+        enabled = !savingProfile,        
+        modifier = Modifier.fillMaxWidth()        
+    ) {        
+        Text(        
+            if (selectedCoverPhotoUri == null) {        
+                "🖼️ Choose Cover Photo"        
+            } else {        
+                "🖼️ Change Cover Photo"        
+            }        
+        )        
+    }        
 
-            Spacer(Modifier.height(8.dp))      
+    if (selectedCoverPhotoUri != null) {        
 
-            Text(      
-                "Cover photo selected",      
-                fontWeight = FontWeight.Bold      
-            )      
-        }      
+        Spacer(Modifier.height(8.dp))        
 
-        if (profileError.isNotEmpty()) {      
+        Text(        
+            "Cover photo selected",        
+            fontWeight = FontWeight.Bold        
+        )        
+    }        
 
-            Spacer(Modifier.height(8.dp))      
+    if (profileError.isNotEmpty()) {        
 
-            Text(      
-                profileError,      
-                color =      
-                    MaterialTheme.colorScheme.error      
-            )      
-        }      
-    }      
-},      
+        Spacer(Modifier.height(8.dp))        
 
-confirmButton = {      
+        Text(        
+            profileError,        
+            color =        
+                MaterialTheme.colorScheme.error        
+        )        
+    }        
+}
 
-    TextButton(      
+},
 
-        enabled =      
-            !savingProfile &&      
-            editedName.isNotBlank(),      
+confirmButton = {
 
-        onClick = {      
+TextButton(        
 
-            if (userId == null) {      
+    enabled =        
+        !savingProfile &&        
+        editedName.isNotBlank(),        
 
-                profileError =      
-                    "Please log in again."      
+    onClick = {        
 
-                return@TextButton      
-            }      
+        if (userId == null) {        
 
-            savingProfile = true      
-            profileError = ""      
+            profileError =        
+                "Please log in again."        
 
-            val selectedUri =      
-                selectedProfilePhotoUri      
+            return@TextButton        
+        }        
 
-            val newName =      
-                editedName.trim()      
+        savingProfile = true        
+        profileError = ""        
 
-            val newBio =      
-                editedBio.trim()      
+        val selectedUri =        
+            selectedProfilePhotoUri        
 
-            scope.launch {      
+        val newName =        
+            editedName.trim()        
 
-                try {      
+        val newBio =        
+            editedBio.trim()        
 
-                    val photoBase64 =      
-                        if (selectedUri != null) {      
+        scope.launch {        
 
-                            withContext(      
-                                Dispatchers.IO      
-                            ) {      
+            try {        
 
-                                try {      
+                val photoBase64 =        
+                    if (selectedUri != null) {        
 
-                                    val bitmap =      
-                                        context      
-                                            .contentResolver      
-                                            .openInputStream(      
-                                                selectedUri      
-                                            )      
-                                            ?.use {      
-                                                BitmapFactory      
-                                                    .decodeStream(it)      
-                                            }      
+                        withContext(        
+                            Dispatchers.IO        
+                        ) {        
 
-                                    if (bitmap != null) {      
-                                        bitmapToBase64(bitmap)      
-                                    } else {      
-                                        ""      
-                                    }      
+                            try {        
 
-                                } catch (      
-                                    exception: Exception      
-                                ) {      
-                                    ""      
-                                }      
-                            }      
+                                val bitmap =        
+                                    context        
+                                        .contentResolver        
+                                        .openInputStream(        
+                                            selectedUri        
+                                        )        
+                                        ?.use {        
+                                            BitmapFactory        
+                                                .decodeStream(it)        
+                                        }        
 
-                        } else {      
-                            savedProfilePhoto      
-                        }      
+                                if (bitmap != null) {        
+                                    bitmapToBase64(bitmap)        
+                                } else {        
+                                    ""        
+                                }        
 
-                    if (      
-                        selectedUri != null &&      
-                        photoBase64.isBlank()      
-                    ) {      
+                            } catch (        
+                                exception: Exception        
+                            ) {        
+                                ""        
+                            }        
+                        }        
 
-                        savingProfile = false      
+                    } else {        
+                        savedProfilePhoto        
+                    }        
 
-                        profileError =      
-                            "Could not read the selected photo."      
+                if (        
+                    selectedUri != null &&        
+                    photoBase64.isBlank()        
+                ) {        
 
-                        return@launch      
-                    }      
+                    savingProfile = false        
 
-                    val coverBase64 =      
-                        if (selectedCoverPhotoUri != null) {      
-                            withContext(Dispatchers.IO) {      
-                                try {      
-                                    val bitmap =      
-                                        context      
-                                            .contentResolver      
-                                            .openInputStream(      
-                                                selectedCoverPhotoUri!!      
-                                            )      
-                                            ?.use {      
-                                                BitmapFactory.decodeStream(it)      
-                                            }      
+                    profileError =        
+                        "Could not read the selected photo."        
 
-                                    if (bitmap != null) {      
-                                        bitmapToBase64(bitmap)      
-                                    } else {      
-                                        ""      
-                                    }      
-                                } catch (exception: Exception) {      
-                                    ""      
-                                }      
-                            }      
-                        } else {      
-                            savedCoverPhoto      
-                        }      
+                    return@launch        
+                }        
 
-                    if (      
-                        selectedCoverPhotoUri != null &&      
-                        coverBase64.isBlank()      
-                    ) {      
-                        savingProfile = false      
-                        profileError =      
-                            "Could not read the selected cover photo."      
-                        return@launch      
-                    }      
+                val coverBase64 =        
+                    if (selectedCoverPhotoUri != null) {        
+                        withContext(Dispatchers.IO) {        
+                            try {        
+                                val bitmap =        
+                                    context        
+                                        .contentResolver        
+                                        .openInputStream(        
+                                            selectedCoverPhotoUri!!        
+                                        )        
+                                        ?.use {        
+                                            BitmapFactory.decodeStream(it)        
+                                        }        
 
-                    val updates =      
-                        hashMapOf<String, Any>(      
-                            "name" to newName,      
-                            "bio" to newBio,      
-                            "profilePhoto" to      
-                                photoBase64,      
-                            "coverPhoto" to      
-                                coverBase64,      
-                            "updatedAt" to      
-                                System.currentTimeMillis()      
-                        )      
+                                if (bitmap != null) {        
+                                    bitmapToBase64(bitmap)        
+                                } else {        
+                                    ""        
+                                }        
+                            } catch (exception: Exception) {        
+                                ""        
+                            }        
+                        }        
+                    } else {        
+                        savedCoverPhoto        
+                    }        
 
-                    firestore      
-                        .collection("users")      
-                        .document(userId)      
-                        .set(      
-                            updates,      
-                            SetOptions.merge()      
-                        )      
-                        .addOnSuccessListener {      
+                if (        
+                    selectedCoverPhotoUri != null &&        
+                    coverBase64.isBlank()        
+                ) {        
+                    savingProfile = false        
+                    profileError =        
+                        "Could not read the selected cover photo."        
+                    return@launch        
+                }        
 
-                            profileName = newName      
-                            bio = newBio      
-                            savedProfilePhoto =      
-                                photoBase64      
-                            savedCoverPhoto =      
-                                coverBase64      
-                            editedName = newName      
-                            editedBio = newBio      
-                            selectedProfilePhotoUri = null      
-                            selectedCoverPhotoUri = null      
-                            savingProfile = false      
-                            showEditDialog = false      
+                val updates =        
+                    hashMapOf<String, Any>(        
+                        "name" to newName,        
+                        "bio" to newBio,        
+                        "profilePhoto" to        
+                            photoBase64,        
+                        "coverPhoto" to        
+                            coverBase64,        
+                        "updatedAt" to        
+                            System.currentTimeMillis()        
+                    )        
 
-                            onProfileNameChanged(      
-                                newName      
-                            )      
-                        }      
-                        .addOnFailureListener { exception ->      
+                firestore        
+                    .collection("users")        
+                    .document(userId)        
+                    .set(        
+                        updates,        
+                        SetOptions.merge()        
+                    )        
+                    .addOnSuccessListener {        
 
-                            savingProfile = false      
+                        profileName = newName        
+                        bio = newBio        
+                        savedProfilePhoto =        
+                            photoBase64        
+                        savedCoverPhoto =        
+                            coverBase64        
+                        editedName = newName        
+                        editedBio = newBio        
+                        selectedProfilePhotoUri = null        
+                        selectedCoverPhotoUri = null        
+                        savingProfile = false        
+                        showEditDialog = false        
 
-                            profileError =      
-                                exception.message      
-                                    ?: "Could not save your profile."      
-                        }      
+                        onProfileNameChanged(        
+                            newName        
+                        )        
+                    }        
+                    .addOnFailureListener { exception ->        
 
-                } catch (exception: Exception) {      
+                        savingProfile = false        
 
-                    savingProfile = false      
+                        profileError =        
+                            exception.message        
+                                ?: "Could not save your profile."        
+                    }        
 
-                    profileError =      
-                        exception.message      
-                            ?: "Could not save your profile."      
-                }      
-            }      
-        }      
-    ) {      
+            } catch (exception: Exception) {        
 
-        Text(      
-            if (savingProfile) {      
-                "Saving..."      
-            } else {      
-                "Save"      
-            }      
-        )      
-    }      
-},      
+                savingProfile = false        
 
-dismissButton = {      
+                profileError =        
+                    exception.message        
+                        ?: "Could not save your profile."        
+            }        
+        }        
+    }        
+) {        
 
-    TextButton(      
-        enabled = !savingProfile,      
-        onClick = {      
+    Text(        
+        if (savingProfile) {        
+            "Saving..."        
+        } else {        
+            "Save"        
+        }        
+    )        
+}
 
-            selectedProfilePhotoUri = null      
-            selectedCoverPhotoUri = null      
-            profileError = ""      
-            showEditDialog = false      
-        }      
-    ) {      
-        Text("Cancel")      
-    }      
+},
+
+dismissButton = {
+
+TextButton(        
+    enabled = !savingProfile,        
+    onClick = {        
+
+        selectedProfilePhotoUri = null        
+        selectedCoverPhotoUri = null        
+        profileError = ""        
+        showEditDialog = false        
+    }        
+) {        
+    Text("Cancel")        
+}
+
 }
 
 )
@@ -5360,45 +5385,47 @@ if (showLogoutDialog) {
 
 AlertDialog(
 
-onDismissRequest = {      
-    showLogoutDialog = false      
-},      
+onDismissRequest = {
+showLogoutDialog = false
+},
 
-title = {      
-    Text("Log Out?")      
-},      
+title = {
+Text("Log Out?")
+},
 
-text = {      
-    Text(      
-        "Are you sure you want to log out of Peejee?"      
-    )      
-},      
+text = {
+Text(
+"Are you sure you want to log out of Peejee?"
+)
+},
 
-confirmButton = {      
+confirmButton = {
 
-    TextButton(      
-        onClick = {      
+TextButton(        
+    onClick = {        
 
-            showLogoutDialog = false      
+        showLogoutDialog = false        
 
-            auth.signOut()      
+        auth.signOut()        
 
-            onLoggedOut()      
-        }      
-    ) {      
-        Text("Log Out")      
-    }      
-},      
+        onLoggedOut()        
+    }        
+) {        
+    Text("Log Out")        
+}
 
-dismissButton = {      
+},
 
-    TextButton(      
-        onClick = {      
-            showLogoutDialog = false      
-        }      
-    ) {      
-        Text("Cancel")      
-    }      
+dismissButton = {
+
+TextButton(        
+    onClick = {        
+        showLogoutDialog = false        
+    }        
+) {        
+    Text("Cancel")        
+}
+
 }
 
 )
@@ -5477,67 +5504,70 @@ Column(
 modifier = Modifier.padding(16.dp)
 ) {
 
-if (post.sharedFromPostId.isNotBlank()) {      
+if (post.sharedFromPostId.isNotBlank()) {
 
-    Text(      
-        "🔁 Shared from ${post.sharedFromUserName}",      
-        fontSize = 13.sp,      
-        fontWeight = FontWeight.Bold      
-    )      
+Text(        
+    "🔁 Shared from ${post.sharedFromUserName}",        
+    fontSize = 13.sp,        
+    fontWeight = FontWeight.Bold        
+)        
 
-    Spacer(Modifier.height(6.dp))      
-}      
+Spacer(Modifier.height(6.dp))
 
-if (post.text.isNotBlank()) {      
+}
 
-    Text(      
-        post.text,      
-        fontSize = 17.sp      
-    )      
-}      
+if (post.text.isNotBlank()) {
 
-if (post.mediaType.isNotBlank()) {      
+Text(        
+    post.text,        
+    fontSize = 17.sp        
+)
 
-    Spacer(Modifier.height(10.dp))      
+}
 
-    Text(      
-        if (      
-            post.mediaType      
-                .lowercase()      
-                .contains("image") ||      
-            post.mediaType      
-                .lowercase() == "photo"      
-        ) {      
-            "🖼️ Photo post"      
-        } else {      
-            "🎥 Video post"      
-        },      
-        fontWeight = FontWeight.Bold      
-    )      
-}      
+if (post.mediaType.isNotBlank()) {
 
-Spacer(Modifier.height(8.dp))      
+Spacer(Modifier.height(10.dp))        
 
-Text(      
-    formatPostTime(post.timestamp),      
-    fontSize = 12.sp      
-)      
+Text(        
+    if (        
+        post.mediaType        
+            .lowercase()        
+            .contains("image") ||        
+        post.mediaType        
+            .lowercase() == "photo"        
+    ) {        
+        "🖼️ Photo post"        
+    } else {        
+        "🎥 Video post"        
+    },        
+    fontWeight = FontWeight.Bold        
+)
 
-Spacer(Modifier.height(8.dp))      
+}
 
-Text(      
-    "❤️ ${post.likeCount} likes",      
-    fontSize = 13.sp      
-)      
+Spacer(Modifier.height(8.dp))
 
-Text(      
-    "💬 ${post.commentCount} comments",      
-    fontSize = 13.sp      
-)      
+Text(
+formatPostTime(post.timestamp),
+fontSize = 12.sp
+)
 
-Text(      
-    "↗️ ${post.shareCount} shares",      
-    fontSize = 13.sp      
+Spacer(Modifier.height(8.dp))
+
+Text(
+"❤️ ${post.likeCount} likes",
+fontSize = 13.sp
+)
+
+Text(
+"💬 ${post.commentCount} comments",
+fontSize = 13.sp
+)
+
+Text(
+"↗️ ${post.shareCount} shares",
+fontSize = 13.sp
 )
 
 }
@@ -5563,54 +5593,55 @@ Text(title)
 
 text = {
 
-if (people.isEmpty()) {      
+if (people.isEmpty()) {
 
-    Text(      
-        if (title == "Followers") {      
-            "No followers yet."      
-        } else {      
-            "You are not following anyone yet."      
-        }      
-    )      
+Text(        
+    if (title == "Followers") {        
+        "No followers yet."        
+    } else {        
+        "You are not following anyone yet."        
+    }        
+)
 
-} else {      
+} else {
 
-    LazyColumn(      
-        modifier = Modifier      
-            .fillMaxWidth()      
-            .heightIn(max = 350.dp)      
-    ) {      
+LazyColumn(        
+    modifier = Modifier        
+        .fillMaxWidth()        
+        .heightIn(max = 350.dp)        
+) {        
 
-        itemsIndexed(people) { _, person ->      
+    itemsIndexed(people) { _, person ->        
 
-            Row(      
-                modifier = Modifier      
-                    .fillMaxWidth()      
-                    .padding(vertical = 8.dp),      
-                verticalAlignment =      
-                    Alignment.CenterVertically      
-            ) {      
+        Row(        
+            modifier = Modifier        
+                .fillMaxWidth()        
+                .padding(vertical = 8.dp),        
+            verticalAlignment =        
+                Alignment.CenterVertically        
+        ) {        
 
-                DefaultProfileIcon(size = 45)      
+            DefaultProfileIcon(size = 45)        
 
-                Spacer(Modifier.width(12.dp))      
+            Spacer(Modifier.width(12.dp))        
 
-                Text(      
-                    person.name,      
-                    fontSize = 17.sp,      
-                    fontWeight = FontWeight.Bold      
-                )      
-            }      
-        }      
-    }      
+            Text(        
+                person.name,        
+                fontSize = 17.sp,        
+                fontWeight = FontWeight.Bold        
+            )        
+        }        
+    }        
+}
+
 }
 
 },
 
 confirmButton = {
 
-TextButton(onClick = onDismiss) {      
-    Text("Close")      
+TextButton(onClick = onDismiss) {
+Text("Close")
 }
 
 }
