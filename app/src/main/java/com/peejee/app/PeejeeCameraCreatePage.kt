@@ -54,7 +54,6 @@ import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import com.google.common.util.concurrent.ListenableFuture
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -188,14 +187,13 @@ val soundPicker =
 fun bindCamera() {  
     if (!cameraPermission) return  
 
-    val providerFuture: ListenableFuture<ProcessCameraProvider> =  
-        ProcessCameraProvider.getInstance(context)  
+    val providerFuture = ProcessCameraProvider.getInstance(context)  
 
     providerFuture.addListener(  
-        Runnable {  
+        {  
             try {  
                 val provider = providerFuture.get()  
-                val pv = previewView ?: return@Runnable  
+                val pv = previewView ?: return@addListener  
 
                 val preview = Preview.Builder()  
                     .build()  
@@ -863,10 +861,13 @@ Column(
             }  
         }  
 
+        // Keep the camera preview compact enough that the controls below it  
+        // remain visible above Peejee's main bottom navigation.  
         Box(  
             Modifier  
-                .weight(1f)  
                 .fillMaxWidth()  
+                .heightIn(max = 340.dp)  
+                .weight(1f, fill = true)  
                 .padding(horizontal = 10.dp)  
                 .clip(RoundedCornerShape(26.dp))  
                 .background(Color(0xFF17131F))  
