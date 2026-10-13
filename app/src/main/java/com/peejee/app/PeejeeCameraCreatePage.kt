@@ -5,6 +5,16 @@ import android.app.Activity
 import android.content.Intent
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Matrix
+import android.graphics.Rect
+import android.graphics.RectF
+import java.io.ByteArrayOutputStream
 import android.net.Uri
 import android.provider.MediaStore
 import android.view.ViewGroup
@@ -59,6 +69,7 @@ import com.google.firebase.storage.FirebaseStorage
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val PeejeePurple = Color(0xFF7138D8)
 private val PeejeeDark = Color(0xFF08070C)
@@ -89,6 +100,8 @@ var timerRunning by remember { mutableStateOf(false) }
 
 var selectedEffect by remember { mutableStateOf("Original") }
 var selectedFilter by remember { mutableStateOf("Natural") }
+var showEffects by remember { mutableStateOf(true) }
+val peejeeFilters = listOf("Natural", "B&W", "Warm", "Cool", "Vintage", "Bright")
 
 var selectedMedia by remember { mutableStateOf<Uri?>(null) }
 var selectedMediaType by remember { mutableStateOf("") }
@@ -195,48 +208,49 @@ val preview = Preview.Builder()
 it.surfaceProvider = pv.surfaceProvider
 }
 
-val capture = ImageCapture.Builder()        
-        .setCaptureMode(        
-            ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY        
-        )        
-        .build()        
+val capture = ImageCapture.Builder()
+.setCaptureMode(
+ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+)
+.build()
 
-    val recorder = Recorder.Builder()        
-        .setQualitySelector(        
-            QualitySelector.from(Quality.HD)        
-        )        
-        .build()        
+val recorder = Recorder.Builder()          
+    .setQualitySelector(          
+        QualitySelector.from(Quality.HD)          
+    )          
+    .build()          
 
-    val video = VideoCapture.withOutput(recorder)        
+val video = VideoCapture.withOutput(recorder)          
 
-    val selector = CameraSelector.Builder()        
-        .requireLensFacing(lensFacing)        
-        .build()        
+val selector = CameraSelector.Builder()          
+    .requireLensFacing(lensFacing)          
+    .build()          
 
-    provider.unbindAll()        
+provider.unbindAll()          
 
-    boundCamera = provider.bindToLifecycle(        
-        lifecycleOwner,        
-        selector,        
-        preview,        
-        capture,        
-        video        
-    )        
+boundCamera = provider.bindToLifecycle(          
+    lifecycleOwner,          
+    selector,          
+    preview,          
+    capture,          
+    video          
+)          
 
-    imageCapture = capture        
-    videoCapture = video        
+imageCapture = capture          
+videoCapture = video          
 
-    if (        
-        flashOn &&        
-        boundCamera?.cameraInfo?.hasFlashUnit() == true        
-    ) {        
-        boundCamera?.cameraControl?.enableTorch(true)        
-    }        
-} catch (e: Exception) {        
-    error =        
-        "Camera could not start: ${        
-            e.localizedMessage ?: "Please try again."        
-        }"        
+if (          
+    flashOn &&          
+    boundCamera?.cameraInfo?.hasFlashUnit() == true          
+) {          
+    boundCamera?.cameraControl?.enableTorch(true)          
+}
+
+} catch (e: Exception) {
+error =
+"Camera could not start: ${
+e.localizedMessage ?: "Please try again."
+}"
 }
 
 },
@@ -342,23 +356,84 @@ is VideoRecordEvent.Finalize -> {
 recording = false
 activeRecording = null
 
-if (        
-        !event.hasError() &&        
-        event.outputResults.outputUri != Uri.EMPTY        
-    ) {        
-        selectedMedia = event.outputResults.outputUri        
-        selectedMediaType = "video"        
-        page = "PREVIEW"        
-        error = ""        
-    } else {        
-        error = "Video recording failed. Please try again."        
-    }        
+if (
+!event.hasError() &&
+event.outputResults.outputUri != Uri.EMPTY
+) {
+selectedMedia = event.outputResults.outputUri
+selectedMediaType = "video"
+page = "PREVIEW"
+error = ""
+} else {
+error = "Video recording failed. Please try again."
+}
 }
 
 }
 
 }
 
+}
+
+fun applyPhotoFilter(uri: Uri, filterName: String) {
+if (filterName == "Natural") return
+scope.launch {
+try {
+val resolver = context.contentResolver
+val bitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
+resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+} ?: throw IllegalStateException("Could not read the captured photo.")
+val matrix = ColorMatrix()
+when (filterName) {
+"B&W" -> matrix.setSaturation(0f)
+"Warm" -> matrix.set(floatArrayOf(
+1.12f, 0f, 0f, 0f, 8f,
+0f, 1.02f, 0f, 0f, 2f,
+0f, 0f, 0.88f, 0f, 0f,
+0f, 0f, 0f, 1f, 0f
+))
+"Cool" -> matrix.set(floatArrayOf(
+0.92f, 0f, 0f, 0f, 0f,
+0f, 1.02f, 0f, 0f, 0f,
+0f, 0f, 1.14f, 0f, 8f,
+0f, 0f, 0f, 1f, 0f
+))
+"Vintage" -> {
+matrix.setSaturation(0.72f)
+val warm = ColorMatrix(floatArrayOf(
+1.08f, 0f, 0f, 0f, 10f,
+0f, 0.96f, 0f, 0f, 4f,
+0f, 0f, 0.82f, 0f, 0f,
+0f, 0f, 0f, 1f, 0f
+))
+matrix.postConcat(warm)
+}
+"Bright" -> matrix.set(floatArrayOf(
+1.08f, 0f, 0f, 0f, 12f,
+0f, 1.08f, 0f, 0f, 12f,
+0f, 0f, 1.08f, 0f, 12f,
+0f, 0f, 0f, 1f, 0f
+))
+}
+val filtered = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+val canvas = Canvas(filtered)
+val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+colorFilter = ColorMatrixColorFilter(matrix)
+}
+canvas.drawBitmap(bitmap, 0f, 0f, paint)
+withContext(kotlinx.coroutines.Dispatchers.IO) {
+resolver.openOutputStream(uri, "w")?.use { output ->
+if (!filtered.compress(Bitmap.CompressFormat.JPEG, 94, output)) {
+throw IllegalStateException("Could not save the filtered photo.")
+}
+} ?: throw IllegalStateException("Could not save the filtered photo.")
+}
+if (filtered !== bitmap) filtered.recycle()
+bitmap.recycle()
+} catch (e: Exception) {
+error = "Could not apply $filterName filter: ${e.localizedMessage ?: "Please try again."}"
+}
+}
 }
 
 fun takePhoto() {
@@ -396,6 +471,7 @@ selectedMedia = result.savedUri
 selectedMediaType = "photo"
 page = "PREVIEW"
 error = ""
+result.savedUri?.let { applyPhotoFilter(it, selectedFilter) }
 }
 
 override fun onError(exception: ImageCaptureException) {
@@ -441,84 +517,86 @@ userDoc.getString("name")
 ?: userDoc.getString("username")
 ?: "Peejee User"
 
-fun savePost(mediaUrl: String, mediaType: String) {        
-    val postRef = firestore.collection("posts").document()        
+fun savePost(mediaUrl: String, mediaType: String) {
+val postRef = firestore.collection("posts").document()
 
-    val post = hashMapOf<String, Any>(        
-        "postId" to postRef.id,        
-        "userId" to user.uid,        
-        "userName" to name,        
-        "text" to (        
-            if (textPost.isNotBlank()) {        
-                textPost.trim()        
-            } else {        
-                caption.trim()        
-            }        
-        ),        
-        "likes" to 0,        
-        "likedBy" to emptyMap<String, Boolean>(),        
-        "commentCount" to 0,        
-        "shareCount" to 0,        
-        "timestamp" to System.currentTimeMillis()        
-    )        
+val post = hashMapOf<String, Any>(          
+    "postId" to postRef.id,          
+    "userId" to user.uid,          
+    "userName" to name,          
+    "text" to (          
+        if (textPost.isNotBlank()) {          
+            textPost.trim()          
+        } else {          
+            caption.trim()          
+        }          
+    ),          
+    "likes" to 0,          
+    "likedBy" to emptyMap<String, Boolean>(),          
+    "commentCount" to 0,          
+    "shareCount" to 0,          
+    "timestamp" to System.currentTimeMillis()          
+)          
 
-    if (mediaUrl.isNotBlank()) {        
-        post["mediaType"] = mediaType        
-        post["mediaUrl"] = mediaUrl        
-    }        
+if (mediaUrl.isNotBlank()) {          
+    post["mediaType"] = mediaType          
+    post["mediaUrl"] = mediaUrl          
+}          
 
-    postRef.set(post)        
-        .addOnSuccessListener {        
-            publishing = false        
-            onPostCreated()        
-        }        
-        .addOnFailureListener { e ->        
-            publishing = false        
-            error =        
-                e.localizedMessage ?: "Could not publish post."        
-        }        
-}        
+postRef.set(post)          
+    .addOnSuccessListener {          
+        publishing = false          
+        onPostCreated()          
+    }          
+    .addOnFailureListener { e ->          
+        publishing = false          
+        error =          
+            e.localizedMessage ?: "Could not publish post."          
+    }
 
-val uri = selectedMedia        
+}
 
-if (uri == null) {        
-    savePost("", "")        
-} else {        
-    val extension =        
-        if (selectedMediaType == "video") {        
-            "video.mp4"        
-        } else {        
-            "photo.jpg"        
-        }        
+val uri = selectedMedia
 
-    val path =        
-        "posts/${user.uid}/${System.currentTimeMillis()}_$extension"        
+if (uri == null) {
+savePost("", "")
+} else {
+val extension =
+if (selectedMediaType == "video") {
+"video.mp4"
+} else {
+"photo.jpg"
+}
 
-    storage.reference.child(path)        
-        .putFile(uri)        
-        .continueWithTask { task ->        
-            if (!task.isSuccessful) {        
-                throw (        
-                    task.exception        
-                        ?: Exception("Upload failed")        
-                )        
-            }        
+val path =          
+    "posts/${user.uid}/${System.currentTimeMillis()}_$extension"          
 
-            storage.reference.child(path).downloadUrl        
-        }        
-        .addOnSuccessListener { downloadUri ->        
-            savePost(        
-                downloadUri.toString(),        
-                selectedMediaType        
-            )        
-        }        
-        .addOnFailureListener { e ->        
-            publishing = false        
-            error =        
-                "Media upload failed: ${        
-                    e.localizedMessage ?: "Please try again."        
-                }"        
-        }        
+storage.reference.child(path)          
+    .putFile(uri)          
+    .continueWithTask { task ->          
+        if (!task.isSuccessful) {          
+            throw (          
+                task.exception          
+                    ?: Exception("Upload failed")          
+            )          
+        }          
+
+        storage.reference.child(path).downloadUrl          
+    }          
+    .addOnSuccessListener { downloadUri ->          
+        savePost(          
+            downloadUri.toString(),          
+            selectedMediaType          
+        )          
+    }          
+    .addOnFailureListener { e ->          
+        publishing = false          
+        error =          
+            "Media upload failed: ${          
+                e.localizedMessage ?: "Please try again."          
+            }"          
+    }
+
 }
 
 }
@@ -567,13 +645,13 @@ error = ""
 }
 )
 
-Spacer(Modifier.width(18.dp))        
+Spacer(Modifier.width(18.dp))
 
-Text(        
-    "Preview your post",        
-    color = Color.White,        
-    fontSize = 20.sp,        
-    fontWeight = FontWeight.Bold        
+Text(
+"Preview your post",
+color = Color.White,
+fontSize = 20.sp,
+fontWeight = FontWeight.Bold
 )
 
 }
@@ -671,13 +749,13 @@ page = "CAMERA"
 }
 )
 
-Spacer(Modifier.width(14.dp))        
+Spacer(Modifier.width(14.dp))
 
-Text(        
-    "Create a text post",        
-    color = Color.White,        
-    fontSize = 22.sp,        
-    fontWeight = FontWeight.Bold        
+Text(
+"Create a text post",
+color = Color.White,
+fontSize = 22.sp,
+fontWeight = FontWeight.Bold
 )
 
 }
@@ -752,13 +830,13 @@ page = "CAMERA"
 }
 )
 
-Spacer(Modifier.width(14.dp))        
+Spacer(Modifier.width(14.dp))
 
-Text(        
-    "Create",        
-    color = Color.White,        
-    fontSize = 22.sp,        
-    fontWeight = FontWeight.Bold        
+Text(
+"Create",
+color = Color.White,
+fontSize = 22.sp,
+fontWeight = FontWeight.Bold
 )
 
 }
@@ -778,33 +856,33 @@ fontSize = 28.sp,
 fontWeight = FontWeight.Bold
 )
 
-Text(        
-    "Choose a photo or video to start creating a post.",        
-    color = Color.LightGray,        
-    textAlign = TextAlign.Center,        
-    modifier = Modifier.padding(        
-        top = 12.dp,        
-        bottom = 24.dp        
-    )        
-)        
+Text(
+"Choose a photo or video to start creating a post.",
+color = Color.LightGray,
+textAlign = TextAlign.Center,
+modifier = Modifier.padding(
+top = 12.dp,
+bottom = 24.dp
+)
+)
 
-Button(        
-    onClick = {    
-        openMediaPicker()    
-    },        
-    colors = ButtonDefaults.buttonColors(        
-        containerColor = PeejeePurple        
-    )        
-) {        
-    Text("Choose photo or video")        
-}        
+Button(
+onClick = {
+openMediaPicker()
+},
+colors = ButtonDefaults.buttonColors(
+containerColor = PeejeePurple
+)
+) {
+Text("Choose photo or video")
+}
 
-OutlinedButton(        
-    onClick = {        
-        page = "TEXT"        
-    }        
-) {        
-    Text("Create text post", color = Color.White)        
+OutlinedButton(
+onClick = {
+page = "TEXT"
+}
+) {
+Text("Create text post", color = Color.White)
 }
 
 }
@@ -828,128 +906,194 @@ PreviewView(ctx).apply {
 scaleType =
 PreviewView.ScaleType.FILL_CENTER
 
-layoutParams = ViewGroup.LayoutParams(        
-                    ViewGroup.LayoutParams.MATCH_PARENT,        
-                    ViewGroup.LayoutParams.MATCH_PARENT        
-                )        
+layoutParams = ViewGroup.LayoutParams(
+ViewGroup.LayoutParams.MATCH_PARENT,
+ViewGroup.LayoutParams.MATCH_PARENT
+)
 
-                previewView = this        
-            }        
-        },        
-        modifier = Modifier.fillMaxSize()        
-    )        
-} else {        
-    Column(        
-        Modifier        
-            .align(Alignment.Center)        
-            .padding(20.dp),        
-        horizontalAlignment = Alignment.CenterHorizontally        
-    ) {        
-        Text(        
-            "Peejee needs camera access",        
-            color = Color.White,        
-            fontSize = 20.sp,        
-            fontWeight = FontWeight.Bold        
-        )        
+previewView = this          
+        }          
+    },          
+    modifier = Modifier.fillMaxSize()          
+)
 
-        Button(        
-            onClick = {        
-                permissionLauncher.launch(        
-                    arrayOf(        
-                        Manifest.permission.CAMERA,        
-                        Manifest.permission.RECORD_AUDIO        
-                    )        
-                )        
-            },        
-            colors = ButtonDefaults.buttonColors(        
-                containerColor = PeejeePurple        
-            )        
-        ) {        
-            Text("Allow camera")        
-        }        
-    }        
-}        
+} else {
+Column(
+Modifier
+.align(Alignment.Center)
+.padding(20.dp),
+horizontalAlignment = Alignment.CenterHorizontally
+) {
+Text(
+"Peejee needs camera access",
+color = Color.White,
+fontSize = 20.sp,
+fontWeight = FontWeight.Bold
+)
 
-Column(    
-    Modifier    
-        .align(Alignment.CenterEnd)    
-        .padding(end = 8.dp),    
-    verticalArrangement = Arrangement.spacedBy(5.dp),    
-    horizontalAlignment = Alignment.CenterHorizontally    
-) {    
-    CameraTool("↻", "Flip") {    
-        if (!recording) {    
-            lensFacing =    
-                if (lensFacing == CameraSelector.LENS_FACING_FRONT) {    
-                    CameraSelector.LENS_FACING_BACK    
-                } else {    
-                    CameraSelector.LENS_FACING_FRONT    
-                }    
-        }    
-    }    
-
-    CameraTool("♫", "Music") {    
-        soundPicker.launch("audio/*")    
-    }    
-
-    CameraTool(if (flashOn) "⚡" else "ϟ", "Flash") {    
-        flashOn = !flashOn    
-    }    
-
-    CameraTool("◷", "Timer") {    
-        timerSeconds = when (timerSeconds) {    
-            0 -> 3    
-            3 -> 10    
-            else -> 0    
-        }    
-        error = if (timerSeconds == 0) {    
-            "Timer off"    
-        } else {    
-            "Photo timer set to ${timerSeconds}s"    
-        }    
-    }    
-
-    CameraTool("▦", "Layout") {    
-        error = "Layout controls are not implemented yet."    
-    }    
-
-    CameraTool("✦", "Effects") {    
-        selectedEffect =    
-            if (selectedEffect == "Original") "Glow" else "Original"    
-        error = "Effect selection changes the label only; applying visual effects is not implemented yet."    
-    }    
-
-    CameraTool("◉", "Filters") {    
-        selectedFilter =    
-            if (selectedFilter == "Natural") "Warm" else "Natural"    
-        error = "Filter selection changes the label only; applying visual filters are not implemented yet."    
-    }    
-
-    CameraTool("✧", "Beauty") {    
-        error = "Beauty controls are not implemented yet."    
-    }    
-}    
-
-if (recording) {        
-    Box(        
-        Modifier        
-            .align(Alignment.TopCenter)        
-            .padding(top = 12.dp)        
-            .clip(CircleShape)        
-            .background(Color.Red)        
-            .padding(        
-                horizontal = 14.dp,        
-                vertical = 6.dp        
-            )        
-    ) {        
-        Text(        
-            "● REC ${recordingSeconds}s",        
-            color = Color.White,        
-            fontWeight = FontWeight.Bold        
-        )        
-    }        
+Button(          
+        onClick = {          
+            permissionLauncher.launch(          
+                arrayOf(          
+                    Manifest.permission.CAMERA,          
+                    Manifest.permission.RECORD_AUDIO          
+                )          
+            )          
+        },          
+        colors = ButtonDefaults.buttonColors(          
+            containerColor = PeejeePurple          
+        )          
+    ) {          
+        Text("Allow camera")          
+    }          
 }
 
+}
+
+Column(
+Modifier
+.align(Alignment.CenterEnd)
+.padding(end = 8.dp),
+verticalArrangement = Arrangement.spacedBy(5.dp),
+horizontalAlignment = Alignment.CenterHorizontally
+) {
+CameraTool("↻", "Flip") {
+if (!recording) {
+lensFacing =
+if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+CameraSelector.LENS_FACING_BACK
+} else {
+CameraSelector.LENS_FACING_FRONT
+}
+}
+}
+
+CameraTool("♫", "Music") {      
+    soundPicker.launch("audio/*")      
+}      
+
+CameraTool(if (flashOn) "⚡" else "ϟ", "Flash") {      
+    flashOn = !flashOn      
+}      
+
+CameraTool("◷", "Timer") {      
+    timerSeconds = when (timerSeconds) {      
+        0 -> 3      
+        3 -> 10      
+        else -> 0      
+    }      
+    error = if (timerSeconds == 0) {      
+        "Timer off"      
+    } else {      
+        "Photo timer set to ${timerSeconds}s"      
+    }      
+}      
+
+CameraTool("▦", "Layout") {      
+    error = "Layout controls are not implemented yet."      
+}      
+
+CameraTool("✦", "Effects") {  
+    showEffects = !showEffects  
+    error = ""  
+}      
+
+CameraTool("◉", "Filters") {  
+    showEffects = !showEffects  
+    error = ""  
+}      
+
+CameraTool("✧", "Beauty") {  
+    showEffects = true  
+    error = "Beauty and background replacement require a separate real-time image-processing pipeline."  
+}
+
+}
+
+if (recording) {
+Box(
+Modifier
+.align(Alignment.TopCenter)
+.padding(top = 12.dp)
+.clip(CircleShape)
+.background(Color.Red)
+.padding(
+horizontal = 14.dp,
+vertical = 6.dp
+)
+) {
+Text(
+"● REC ${recordingSeconds}s",
+color = Color.White,
+fontWeight = FontWeight.Bold
+)
+}
+}
+
+}
+
+// Peejee sliding filter strip. Filters are applied to captured photos.
+if (showEffects) {
+Column(
+Modifier.fillMaxWidth().background(Color(0xFF100D16)).padding(vertical = 8.dp)
+) {
+Text(
+"Peejee Effects",
+color = Color.White,
+fontWeight = FontWeight.Bold,
+modifier = Modifier.padding(start = 16.dp, bottom = 6.dp)
+)
+LazyRow(
+contentPadding = PaddingValues(horizontal = 12.dp),
+horizontalArrangement = Arrangement.spacedBy(10.dp)
+) {
+items(peejeeFilters) { filter ->
+Column(
+horizontalAlignment = Alignment.CenterHorizontally,
+modifier = Modifier
+.width(66.dp)
+.clip(RoundedCornerShape(14.dp))
+.background(if (selectedFilter == filter) PeejeePurple else Color(0xFF292431))
+.clickable {
+selectedFilter = filter
+selectedEffect = filter
+error = if (filter == "Natural") "" else "$filter selected. It will be applied to the next photo."
+}
+.padding(vertical = 9.dp, horizontal = 4.dp)
+) {
+Box(
+Modifier.size(38.dp).clip(CircleShape)
+.background(
+when (filter) {
+"B&W" -> Color.LightGray
+"Warm" -> Color(0xFFFFB15E)
+"Cool" -> Color(0xFF7BC7FF)
+"Vintage" -> Color(0xFFC8A77A)
+"Bright" -> Color.White
+else -> Color(0xFFB9A1E8)
+}
+),
+contentAlignment = Alignment.Center
+) {
+Text(
+when (filter) {
+"B&W" -> "◐"
+"Warm" -> "☀"
+"Cool" -> "❄"
+"Vintage" -> "◉"
+"Bright" -> "✦"
+else -> "○"
+},
+color = Color(0xFF201A2B),
+fontSize = 20.sp
+)
+}
+Spacer(Modifier.height(5.dp))
+Text(filter, color = Color.White, fontSize = 11.sp, textAlign = TextAlign.Center)
+}
+}
+}
+}
 }
 
 // RECORDING MODES
@@ -963,40 +1107,40 @@ verticalAlignment = Alignment.CenterVertically
 listOf("10m", "60s", "15s", "PHOTO", "TEXT")
 .forEach { mode ->
 
-val chosen = captureMode == mode        
+val chosen = captureMode == mode
 
-        Text(        
-            mode,        
-            color = if (chosen) PeejeeDark else Color.White,        
-            fontWeight = if (chosen) {        
-                FontWeight.Bold        
-            } else {        
-                FontWeight.Medium        
-            },        
-            modifier = Modifier        
-                .padding(horizontal = 4.dp)        
-                .clip(CircleShape)        
-                .background(        
-                    if (chosen) {        
-                        Color.White        
-                    } else {        
-                        Color.Transparent        
-                    }        
-                )        
-                .clickable {        
-                    captureMode = mode        
+Text(          
+        mode,          
+        color = if (chosen) PeejeeDark else Color.White,          
+        fontWeight = if (chosen) {          
+            FontWeight.Bold          
+        } else {          
+            FontWeight.Medium          
+        },          
+        modifier = Modifier          
+            .padding(horizontal = 4.dp)          
+            .clip(CircleShape)          
+            .background(          
+                if (chosen) {          
+                    Color.White          
+                } else {          
+                    Color.Transparent          
+                }          
+            )          
+            .clickable {          
+                captureMode = mode          
 
-                    if (mode == "TEXT") {        
-                        page = "TEXT"        
-                    }        
-                }        
-                .padding(        
-                    horizontal = 9.dp,        
-                    vertical = 7.dp        
-                ),        
-            fontSize = 13.sp        
-        )        
-    }
+                if (mode == "TEXT") {          
+                    page = "TEXT"          
+                }          
+            }          
+            .padding(          
+                horizontal = 9.dp,          
+                vertical = 7.dp          
+            ),          
+        fontSize = 13.sp          
+    )          
+}
 
 }
 
@@ -1022,59 +1166,60 @@ fontSize = 32.sp
 )
 }
 
-Spacer(Modifier.weight(1f))    
+Spacer(Modifier.weight(1f))
 
-Box(    
-    Modifier    
-        .size(82.dp)    
-        .clip(CircleShape)    
-        .background(Color.White)    
-        .padding(5.dp)    
-        .clip(CircleShape)    
-        .background(if (recording) Color(0xFF8B1538) else PeejeePurple)    
-        .clickable {    
-            if (timerRunning) {    
-                return@clickable    
-            }    
+Box(
+Modifier
+.size(82.dp)
+.clip(CircleShape)
+.background(Color.White)
+.padding(5.dp)
+.clip(CircleShape)
+.background(if (recording) Color(0xFF8B1538) else PeejeePurple)
+.clickable {
+if (timerRunning) {
+return@clickable
+}
 
-            if (captureMode == "TEXT") {    
-                page = "TEXT"    
-            } else if (captureMode == "PHOTO") {    
-                if (timerSeconds > 0) {    
-                    timerRunning = true    
-                    scope.launch {    
-                        val delayTime = timerSeconds * 1000L    
-                        error = "Taking photo in ${timerSeconds}s…"    
-                        delay(delayTime)    
-                        takePhoto()    
-                        timerRunning = false    
-                    }    
-                } else {    
-                    takePhoto()    
-                }    
-            } else {    
-                if (recording) {    
-                    activeRecording?.stop()    
-                } else {    
-                    startRecording()    
-                }    
-            }    
-        },    
-    contentAlignment = Alignment.Center    
-) {    
-    if (recording) {    
-        Box(    
-            Modifier    
-                .size(28.dp)    
-                .clip(RoundedCornerShape(6.dp))    
-                .background(Color.White)    
-        )    
-    }    
-}    
+if (captureMode == "TEXT") {      
+            page = "TEXT"      
+        } else if (captureMode == "PHOTO") {      
+            if (timerSeconds > 0) {      
+                timerRunning = true      
+                scope.launch {      
+                    val delayTime = timerSeconds * 1000L      
+                    error = "Taking photo in ${timerSeconds}s…"      
+                    delay(delayTime)      
+                    takePhoto()      
+                    timerRunning = false      
+                }      
+            } else {      
+                takePhoto()      
+            }      
+        } else {      
+            if (recording) {      
+                activeRecording?.stop()      
+            } else {      
+                startRecording()      
+            }      
+        }      
+    },      
+contentAlignment = Alignment.Center
 
-Spacer(Modifier.weight(1f))    
+) {
+if (recording) {
+Box(
+Modifier
+.size(28.dp)
+.clip(RoundedCornerShape(6.dp))
+.background(Color.White)
+)
+}
+}
 
-// Keeps the shutter centered; no extra thumbnail or effects strip.    
+Spacer(Modifier.weight(1f))
+
+// Keeps the shutter centered.
 Spacer(Modifier.size(58.dp))
 
 }
@@ -1097,13 +1242,13 @@ page = "CAMERA"
 }
 )
 
-Text(        
-    "CREATE",        
-    color = Color.Gray,        
-    fontWeight = FontWeight.Bold,        
-    modifier = Modifier.clickable {        
-        page = "CREATE"        
-    }        
+Text(
+"CREATE",
+color = Color.Gray,
+fontWeight = FontWeight.Bold,
+modifier = Modifier.clickable {
+page = "CREATE"
+}
 )
 
 }
