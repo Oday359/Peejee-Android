@@ -63,6 +63,9 @@ import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.net.HttpURLConnection
+import java.net.URL
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
 
@@ -865,16 +868,6 @@ confirmButton = {
 TextButton(onClick = onDismiss) { Text("Close") }
 }
 )
-}
-
-enabled = !loading,
-modifier = Modifier.fillMaxWidth()
-) {
-Text("Back")
-}
-
-}
-
 }
 
 @Composable
