@@ -1371,7 +1371,7 @@ NavigationBar {
 
 }
 
-) { paddingValues ->
+) { paddingValues: PaddingValues ->
 
 if (showActivity) {
 ActivityPage(
@@ -4173,68 +4173,6 @@ Text(
 
 }
 
-}
-
-}
-
-@Composable
-fun OtherUserProfilePage(
-person: PeejeePerson,
-paddingValues: PaddingValues,
-onBack: () -> Unit,
-onMessage: (PeejeePerson) -> Unit
-) {
-val firestore = remember { FirebaseFirestore.getInstance() }
-var displayName by remember(person.uid) { mutableStateOf(person.name) }
-var bio by remember(person.uid) { mutableStateOf("") }
-var photo by remember(person.uid) { mutableStateOf(person.profilePhoto) }
-var followersCount by remember(person.uid) { mutableIntStateOf(0) }
-var followingCount by remember(person.uid) { mutableIntStateOf(0) }
-
-LaunchedEffect(person.uid) {
-if (person.uid.isNotBlank()) {
-firestore.collection("users").document(person.uid).get()
-.addOnSuccessListener { document ->
-displayName = document.getString("name")?.takeIf { it.isNotBlank() } ?: person.name
-bio = document.getString("bio") ?: ""
-photo = document.getString("profilePhoto") ?: person.profilePhoto
-followersCount = (document.getLong("followersCount") ?: 0L).toInt()
-followingCount = (document.getLong("followingCount") ?: 0L).toInt()
-}
-}
-}
-
-Column(
-modifier = Modifier.fillMaxSize().padding(paddingValues).padding(20.dp),
-horizontalAlignment = Alignment.CenterHorizontally
-) {
-Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-TextButton(onClick = onBack) { Text("← Back") }
-Text("Profile", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-}
-Spacer(Modifier.height(20.dp))
-PeejeeSmallProfileAvatar(photoBase64 = photo, name = displayName, size = 110)
-Spacer(Modifier.height(12.dp))
-Text(displayName, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-if (bio.isNotBlank()) {
-Spacer(Modifier.height(8.dp))
-Text(bio, fontSize = 15.sp)
-}
-Spacer(Modifier.height(18.dp))
-Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-Column(horizontalAlignment = Alignment.CenterHorizontally) {
-Text(followersCount.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-Text("Followers", fontSize = 12.sp)
-}
-Column(horizontalAlignment = Alignment.CenterHorizontally) {
-Text(followingCount.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-Text("Following", fontSize = 12.sp)
-}
-}
-Spacer(Modifier.height(20.dp))
-Button(onClick = { onMessage(person.copy(name = displayName, profilePhoto = photo)) }, modifier = Modifier.fillMaxWidth()) {
-Text("Message")
-}
 }
 
 }
