@@ -541,237 +541,238 @@ var regions by remember { mutableStateOf<List<String>>(emptyList()) }
 var cities by remember { mutableStateOf<List<String>>(emptyList()) }
 var locationError by remember { mutableStateOf("") }
 
-val scope = rememberCoroutineScope()  
-val auth = remember { FirebaseAuth.getInstance() }  
-val firestore = remember { FirebaseFirestore.getInstance() }  
-val countries = remember {  
-    Locale.getISOCountries().map { code ->  
-        Locale("", code).getDisplayCountry(Locale.ENGLISH)  
-    }.filter { it.isNotBlank() }.distinct().sorted()  
-}  
+val scope = rememberCoroutineScope()
+val auth = remember { FirebaseAuth.getInstance() }
+val firestore = remember { FirebaseFirestore.getInstance() }
+val countries = remember {
+Locale.getISOCountries().map { code ->
+Locale("", code).getDisplayCountry(Locale.ENGLISH)
+}.filter { it.isNotBlank() }.distinct().sorted()
+}
 
-fun loadRegions(selectedCountry: String) {  
-    region = ""  
-    city = ""  
-    regions = emptyList()  
-    cities = emptyList()  
-    locationError = ""  
-    locationLoading = true  
-    scope.launch {  
-        try {  
-            val result = withContext(Dispatchers.IO) {  
-                fetchPeejeeLocationOptions(  
-                    "https://countriesnow.space/api/v0.1/countries/states",  
-                    JSONObject().put("country", selectedCountry)  
-                )  
-            }  
-            regions = result  
-            if (result.isEmpty()) locationError = "No regions were returned for this country. Please try again."  
-        } catch (e: Exception) {  
-            locationError = "Could not load regions. Check your internet connection and try again."  
-        } finally {  
-            locationLoading = false  
-        }  
-    }  
-}  
+fun loadRegions(selectedCountry: String) {
+region = ""
+city = ""
+regions = emptyList()
+cities = emptyList()
+locationError = ""
+locationLoading = true
+scope.launch {
+try {
+val result = withContext(Dispatchers.IO) {
+fetchPeejeeLocationOptions(
+"https://countriesnow.space/api/v0.1/countries/states",
+JSONObject().put("country", selectedCountry)
+)
+}
+regions = result
+if (result.isEmpty()) locationError = "No regions were returned for this country. Please try again."
+} catch (e: Exception) {
+locationError = "Could not load regions. Check your internet connection and try again."
+} finally {
+locationLoading = false
+}
+}
+}
 
-fun loadCities(selectedRegion: String) {  
-    city = ""  
-    cities = emptyList()  
-    locationError = ""  
-    locationLoading = true  
-    scope.launch {  
-        try {  
-            val result = withContext(Dispatchers.IO) {  
-                fetchPeejeeLocationOptions(  
-                    "https://countriesnow.space/api/v0.1/countries/state/cities",  
-                    JSONObject().put("country", country).put("state", selectedRegion)  
-                )  
-            }  
-            cities = result  
-            if (result.isEmpty()) locationError = "No cities were returned for this region. Please try another region."  
-        } catch (e: Exception) {  
-            locationError = "Could not load cities. Check your internet connection and try again."  
-        } finally {  
-            locationLoading = false  
-        }  
-    }  
-}  
+fun loadCities(selectedRegion: String) {
+city = ""
+cities = emptyList()
+locationError = ""
+locationLoading = true
+scope.launch {
+try {
+val result = withContext(Dispatchers.IO) {
+fetchPeejeeLocationOptions(
+"https://countriesnow.space/api/v0.1/countries/state/cities",
+JSONObject().put("country", country).put("state", selectedRegion)
+)
+}
+cities = result
+if (result.isEmpty()) locationError = "No cities were returned for this region. Please try another region."
+} catch (e: Exception) {
+locationError = "Could not load cities. Check your internet connection and try again."
+} finally {
+locationLoading = false
+}
+}
+}
 
-Column(  
-    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),  
-    horizontalAlignment = Alignment.CenterHorizontally,  
-    verticalArrangement = Arrangement.Center  
-) {  
-    PeejeeLogo(size = 90)  
-    Spacer(Modifier.height(10.dp))  
-    Text("Create Account", fontSize = 30.sp, fontWeight = FontWeight.Bold)  
-    Spacer(Modifier.height(24.dp))  
+Column(
+modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+horizontalAlignment = Alignment.CenterHorizontally,
+verticalArrangement = Arrangement.Center
+) {
+PeejeeLogo(size = 90)
+Spacer(Modifier.height(10.dp))
+Text("Create Account", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+Spacer(Modifier.height(24.dp))
 
-    OutlinedTextField(  
-        value = name, onValueChange = { name = it },  
-        label = { Text("Full Name") }, singleLine = true,  
-        modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(12.dp))  
-    OutlinedTextField(  
-        value = email, onValueChange = { email = it },  
-        label = { Text("Email") }, singleLine = true,  
-        modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(12.dp))  
+OutlinedTextField(    
+    value = name, onValueChange = { name = it },    
+    label = { Text("Full Name") }, singleLine = true,    
+    modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(12.dp))    
+OutlinedTextField(    
+    value = email, onValueChange = { email = it },    
+    label = { Text("Email") }, singleLine = true,    
+    modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(12.dp))    
 
-    OutlinedButton(  
-        onClick = { showCountryPicker = true },  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text(if (country.isBlank()) "Select Country (Required)" else country)  
-    }  
-    Spacer(Modifier.height(10.dp))  
-    OutlinedButton(  
-        onClick = { if (country.isNotBlank() && !locationLoading) showRegionPicker = true },  
-        enabled = country.isNotBlank() && !locationLoading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text(if (region.isBlank()) "Select State / Region (Required)" else region)  
-    }  
-    Spacer(Modifier.height(10.dp))  
-    OutlinedButton(  
-        onClick = { if (region.isNotBlank() && !locationLoading) showCityPicker = true },  
-        enabled = region.isNotBlank() && !locationLoading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text(if (city.isBlank()) "Select City / Town (Required)" else city)  
-    }  
-    if (locationLoading) {  
-        Spacer(Modifier.height(8.dp))  
-        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)  
-    }  
-    if (locationError.isNotBlank()) {  
-        Spacer(Modifier.height(6.dp))  
-        Text(locationError, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)  
-        TextButton(onClick = {  
-            if (country.isBlank()) return@TextButton  
-            if (region.isBlank()) loadRegions(country) else loadCities(region)  
-        }) { Text("Retry") }  
-    }  
+OutlinedButton(    
+    onClick = { showCountryPicker = true },    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text(if (country.isBlank()) "Select Country (Required)" else country)    
+}    
+Spacer(Modifier.height(10.dp))    
+OutlinedButton(    
+    onClick = { if (country.isNotBlank() && !locationLoading) showRegionPicker = true },    
+    enabled = country.isNotBlank() && !locationLoading,    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text(if (region.isBlank()) "Select State / Region (Required)" else region)    
+}    
+Spacer(Modifier.height(10.dp))    
+OutlinedButton(    
+    onClick = { if (region.isNotBlank() && !locationLoading) showCityPicker = true },    
+    enabled = region.isNotBlank() && !locationLoading,    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text(if (city.isBlank()) "Select City / Town (Required)" else city)    
+}    
+if (locationLoading) {    
+    Spacer(Modifier.height(8.dp))    
+    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)    
+}    
+if (locationError.isNotBlank()) {    
+    Spacer(Modifier.height(6.dp))    
+    Text(locationError, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)    
+    TextButton(onClick = {    
+        if (country.isBlank()) return@TextButton    
+        if (region.isBlank()) loadRegions(country) else loadCities(region)    
+    }) { Text("Retry") }    
+}    
 
-    Spacer(Modifier.height(12.dp))  
-    OutlinedTextField(  
-        value = password, onValueChange = { password = it },  
-        label = { Text("Password") },  
-        visualTransformation = PasswordVisualTransformation(),  
-        singleLine = true, modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(12.dp))  
-    OutlinedTextField(  
-        value = confirmPassword, onValueChange = { confirmPassword = it },  
-        label = { Text("Confirm Password") },  
-        visualTransformation = PasswordVisualTransformation(),  
-        singleLine = true, modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(16.dp))  
-    if (errorMessage.isNotEmpty()) {  
-        Text(errorMessage, color = MaterialTheme.colorScheme.error)  
-        Spacer(Modifier.height(12.dp))  
-    }  
-    Button(  
-        onClick = {  
-            errorMessage = ""  
-            when {  
-                name.isBlank() -> errorMessage = "Please enter your full name."  
-                email.isBlank() -> errorMessage = "Please enter your email."  
-                country.isBlank() -> errorMessage = "Please select your country."  
-                region.isBlank() -> errorMessage = "Please select your state or region."  
-                city.isBlank() -> errorMessage = "Please select your city or town."  
-                password.length < 6 -> errorMessage = "Password must be at least 6 characters."  
-                password != confirmPassword -> errorMessage = "Passwords do not match."  
-                else -> {  
-                    loading = true  
-                    auth.createUserWithEmailAndPassword(email.trim(), password)  
-                        .addOnCompleteListener { task ->  
-                            if (task.isSuccessful) {  
-                                val user = auth.currentUser  
-                                if (user != null) {  
-                                    val registrationTime = System.currentTimeMillis()  
-                                    val profile = hashMapOf<String, Any>(  
-                                        "uid" to user.uid,  
-                                        "name" to name.trim(),  
-                                        "email" to email.trim(),  
-                                        "country" to country,  
-                                        "state" to region,  
-                                        "city" to city,  
-                                        "bio" to "",  
-                                        "profilePhoto" to "",  
-                                        "followersCount" to 0,  
-                                        "followingCount" to 0,  
-                                        "createdAt" to registrationTime,  
-                                        "updatedAt" to registrationTime  
-                                    )  
-                                    firestore.collection("users").document(user.uid).set(profile)  
-                                        .addOnSuccessListener {  
-                                            loading = false  
-                                            onAccountCreated(name.trim())  
-                                        }  
-                                        .addOnFailureListener { exception ->  
-                                            loading = false  
-                                            errorMessage = exception.message ?: "Could not save your profile."  
-                                        }  
-                                } else {  
-                                    loading = false  
-                                    errorMessage = "Account creation failed."  
-                                }  
-                            } else {  
-                                loading = false  
-                                errorMessage = task.exception?.message ?: "Could not create account."  
-                            }  
-                        }  
-                }  
-            }  
-        },  
-        enabled = !loading && !locationLoading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) { Text(if (loading) "Creating Account..." else "Create Account") }  
-    Spacer(Modifier.height(12.dp))  
-    OutlinedButton(onClick = onBack, enabled = !loading, modifier = Modifier.fillMaxWidth()) {  
-        Text("Back")  
-    }  
-}  
+Spacer(Modifier.height(12.dp))    
+OutlinedTextField(    
+    value = password, onValueChange = { password = it },    
+    label = { Text("Password") },    
+    visualTransformation = PasswordVisualTransformation(),    
+    singleLine = true, modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(12.dp))    
+OutlinedTextField(    
+    value = confirmPassword, onValueChange = { confirmPassword = it },    
+    label = { Text("Confirm Password") },    
+    visualTransformation = PasswordVisualTransformation(),    
+    singleLine = true, modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(16.dp))    
+if (errorMessage.isNotEmpty()) {    
+    Text(errorMessage, color = MaterialTheme.colorScheme.error)    
+    Spacer(Modifier.height(12.dp))    
+}    
+Button(    
+    onClick = {    
+        errorMessage = ""    
+        when {    
+            name.isBlank() -> errorMessage = "Please enter your full name."    
+            email.isBlank() -> errorMessage = "Please enter your email."    
+            country.isBlank() -> errorMessage = "Please select your country."    
+            region.isBlank() -> errorMessage = "Please select your state or region."    
+            city.isBlank() -> errorMessage = "Please select your city or town."    
+            password.length < 6 -> errorMessage = "Password must be at least 6 characters."    
+            password != confirmPassword -> errorMessage = "Passwords do not match."    
+            else -> {    
+                loading = true    
+                auth.createUserWithEmailAndPassword(email.trim(), password)    
+                    .addOnCompleteListener { task ->    
+                        if (task.isSuccessful) {    
+                            val user = auth.currentUser    
+                            if (user != null) {    
+                                val registrationTime = System.currentTimeMillis()    
+                                val profile = hashMapOf<String, Any>(    
+                                    "uid" to user.uid,    
+                                    "name" to name.trim(),    
+                                    "email" to email.trim(),    
+                                    "country" to country,    
+                                    "state" to region,    
+                                    "city" to city,    
+                                    "bio" to "",    
+                                    "profilePhoto" to "",    
+                                    "followersCount" to 0,    
+                                    "followingCount" to 0,    
+                                    "createdAt" to registrationTime,    
+                                    "updatedAt" to registrationTime    
+                                )    
+                                firestore.collection("users").document(user.uid).set(profile)    
+                                    .addOnSuccessListener {    
+                                        loading = false    
+                                        onAccountCreated(name.trim())    
+                                    }    
+                                    .addOnFailureListener { exception ->    
+                                        loading = false    
+                                        errorMessage = exception.message ?: "Could not save your profile."    
+                                    }    
+                            } else {    
+                                loading = false    
+                                errorMessage = "Account creation failed."    
+                            }    
+                        } else {    
+                            loading = false    
+                            errorMessage = task.exception?.message ?: "Could not create account."    
+                        }    
+                    }    
+            }    
+        }    
+    },    
+    enabled = !loading && !locationLoading,    
+    modifier = Modifier.fillMaxWidth()    
+) { Text(if (loading) "Creating Account..." else "Create Account") }    
+Spacer(Modifier.height(12.dp))    
+OutlinedButton(onClick = onBack, enabled = !loading, modifier = Modifier.fillMaxWidth()) {    
+    Text("Back")    
+}
 
-if (showCountryPicker) {  
-    PeejeeSearchSelectionDialog(  
-        title = "Select Country",  
-        options = countries,  
-        onDismiss = { showCountryPicker = false },  
-        onSelect = { selected ->  
-            country = selected  
-            showCountryPicker = false  
-            loadRegions(selected)  
-        }  
-    )  
-}  
-if (showRegionPicker) {  
-    PeejeeSearchSelectionDialog(  
-        title = "Select State / Region",  
-        options = regions,  
-        onDismiss = { showRegionPicker = false },  
-        onSelect = { selected ->  
-            region = selected  
-            showRegionPicker = false  
-            loadCities(selected)  
-        }  
-    )  
-}  
-if (showCityPicker) {  
-    PeejeeSearchSelectionDialog(  
-        title = "Select City / Town",  
-        options = cities,  
-        onDismiss = { showCityPicker = false },  
-        onSelect = { selected ->  
-            city = selected  
-            showCityPicker = false  
-        }  
-    )  
+}
+
+if (showCountryPicker) {
+PeejeeSearchSelectionDialog(
+title = "Select Country",
+options = countries,
+onDismiss = { showCountryPicker = false },
+onSelect = { selected ->
+country = selected
+showCountryPicker = false
+loadRegions(selected)
+}
+)
+}
+if (showRegionPicker) {
+PeejeeSearchSelectionDialog(
+title = "Select State / Region",
+options = regions,
+onDismiss = { showRegionPicker = false },
+onSelect = { selected ->
+region = selected
+showRegionPicker = false
+loadCities(selected)
+}
+)
+}
+if (showCityPicker) {
+PeejeeSearchSelectionDialog(
+title = "Select City / Town",
+options = cities,
+onDismiss = { showCityPicker = false },
+onSelect = { selected ->
+city = selected
+showCityPicker = false
+}
+)
 }
 
 }
