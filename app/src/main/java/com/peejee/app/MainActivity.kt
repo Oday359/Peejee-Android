@@ -549,247 +549,250 @@ var showCityPicker by remember { mutableStateOf(false) }
 var regions by remember { mutableStateOf<List<String>>(emptyList()) }
 var cities by remember { mutableStateOf<List<String>>(emptyList()) }
 
-val scope = rememberCoroutineScope()  
-val auth = remember { FirebaseAuth.getInstance() }  
-val firestore = remember { FirebaseFirestore.getInstance() }  
-val countries = remember {  
-    Locale.getISOCountries().map { code ->  
-        Locale("", code).getDisplayCountry(Locale.ENGLISH)  
-    }.filter { it.isNotBlank() }.distinct().sorted()  
-}  
+val scope = rememberCoroutineScope()
+val auth = remember { FirebaseAuth.getInstance() }
+val firestore = remember { FirebaseFirestore.getInstance() }
+val countries = remember {
+Locale.getISOCountries().map { code ->
+Locale("", code).getDisplayCountry(Locale.ENGLISH)
+}.filter { it.isNotBlank() }.distinct().sorted()
+}
 
-fun loadRegions(selectedCountry: String) {  
-    region = ""  
-    city = ""  
-    regions = emptyList()  
-    cities = emptyList()  
-    locationError = ""  
-    locationLoading = true  
-    scope.launch {  
-        try {  
-            val result = withContext(Dispatchers.IO) {  
-                fetchPeejeeLocationOptions(  
-                    "https://countriesnow.space/api/v0.1/countries/states",  
-                    JSONObject().put("country", selectedCountry),  
-                    "states"  
-                )  
-            }  
-            regions = result  
-            if (result.isEmpty()) locationError = "No regions were returned for this country. Please try another country."  
-        } catch (_: Exception) {  
-            locationError = "Could not load regions. Check your internet connection and try again."  
-        } finally {  
-            locationLoading = false  
-        }  
-    }  
-}  
+fun loadRegions(selectedCountry: String) {
+region = ""
+city = ""
+regions = emptyList()
+cities = emptyList()
+locationError = ""
+locationLoading = true
+scope.launch {
+try {
+val result = withContext(Dispatchers.IO) {
+fetchPeejeeLocationOptions(
+"https://countriesnow.space/api/v0.1/countries/states",
+JSONObject().put("country", selectedCountry),
+"states"
+)
+}
+regions = result
+if (result.isEmpty()) locationError = "No regions were returned for this country. Please try another country."
+} catch (_: Exception) {
+locationError = "Could not load regions. Check your internet connection and try again."
+} finally {
+locationLoading = false
+}
+}
+}
 
-fun loadCities(selectedRegion: String) {  
-    city = ""  
-    cities = emptyList()  
-    locationError = ""  
-    locationLoading = true  
-    scope.launch {  
-        try {  
-            val result = withContext(Dispatchers.IO) {  
-                fetchPeejeeLocationOptions(  
-                    "https://countriesnow.space/api/v0.1/countries/state/cities",  
-                    JSONObject().put("country", country).put("state", selectedRegion),  
-                    "cities"  
-                )  
-            }  
-            cities = result  
-            if (result.isEmpty()) locationError = "No cities were returned for this region. Please try another region."  
-        } catch (_: Exception) {  
-            locationError = "Could not load cities. Check your internet connection and try again."  
-        } finally {  
-            locationLoading = false  
-        }  
-    }  
-}  
+fun loadCities(selectedRegion: String) {
+city = ""
+cities = emptyList()
+locationError = ""
+locationLoading = true
+scope.launch {
+try {
+val result = withContext(Dispatchers.IO) {
+fetchPeejeeLocationOptions(
+"https://countriesnow.space/api/v0.1/countries/state/cities",
+JSONObject().put("country", country).put("state", selectedRegion),
+"cities"
+)
+}
+cities = result
+if (result.isEmpty()) locationError = "No cities were returned for this region. Please try another region."
+} catch (_: Exception) {
+locationError = "Could not load cities. Check your internet connection and try again."
+} finally {
+locationLoading = false
+}
+}
+}
 
-Column(  
-    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),  
-    horizontalAlignment = Alignment.CenterHorizontally,  
-    verticalArrangement = Arrangement.Center  
-) {  
-    PeejeeLogo(size = 90)  
-    Spacer(Modifier.height(10.dp))  
-    Text("Create Account", fontSize = 30.sp, fontWeight = FontWeight.Bold)  
-    Spacer(Modifier.height(24.dp))  
+Column(
+modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+horizontalAlignment = Alignment.CenterHorizontally,
+verticalArrangement = Arrangement.Center
+) {
+PeejeeLogo(size = 90)
+Spacer(Modifier.height(10.dp))
+Text("Create Account", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+Spacer(Modifier.height(24.dp))
 
-    OutlinedTextField(  
-        value = name,  
-        onValueChange = { name = it },  
-        label = { Text("Full Name") },  
-        modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(12.dp))  
-    OutlinedTextField(  
-        value = email,  
-        onValueChange = { email = it },  
-        label = { Text("Email") },  
-        modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(12.dp))  
+OutlinedTextField(    
+    value = name,    
+    onValueChange = { name = it },    
+    label = { Text("Full Name") },    
+    modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(12.dp))    
+OutlinedTextField(    
+    value = email,    
+    onValueChange = { email = it },    
+    label = { Text("Email") },    
+    modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(12.dp))    
 
-    OutlinedButton(  
-        onClick = { showCountryPicker = true },  
-        enabled = !loading && !locationLoading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text(if (country.isBlank()) "Select Country (Required)" else country)  
-    }  
-    Spacer(Modifier.height(10.dp))  
-    OutlinedButton(  
-        onClick = { if (country.isNotBlank() && !locationLoading) showRegionPicker = true },  
-        enabled = country.isNotBlank() && !loading && !locationLoading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text(if (region.isBlank()) "Select State / Region (Required)" else region)  
-    }  
-    Spacer(Modifier.height(10.dp))  
-    OutlinedButton(  
-        onClick = { if (region.isNotBlank() && !locationLoading) showCityPicker = true },  
-        enabled = region.isNotBlank() && !loading && !locationLoading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text(if (city.isBlank()) "Select City / Town (Required)" else city)  
-    }  
-    if (locationLoading) {  
-        Spacer(Modifier.height(8.dp))  
-        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)  
-        Text("Loading location options...", fontSize = 12.sp)  
-    }  
-    if (locationError.isNotBlank()) {  
-        Spacer(Modifier.height(6.dp))  
-        Text(locationError, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)  
-    }  
+OutlinedButton(    
+    onClick = { showCountryPicker = true },    
+    enabled = !loading && !locationLoading,    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text(if (country.isBlank()) "Select Country (Required)" else country)    
+}    
+Spacer(Modifier.height(10.dp))    
+OutlinedButton(    
+    onClick = { if (country.isNotBlank() && !locationLoading) showRegionPicker = true },    
+    enabled = country.isNotBlank() && !loading && !locationLoading,    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text(if (region.isBlank()) "Select State / Region (Required)" else region)    
+}    
+Spacer(Modifier.height(10.dp))    
+OutlinedButton(    
+    onClick = { if (region.isNotBlank() && !locationLoading) showCityPicker = true },    
+    enabled = region.isNotBlank() && !loading && !locationLoading,    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text(if (city.isBlank()) "Select City / Town (Required)" else city)    
+}    
+if (locationLoading) {    
+    Spacer(Modifier.height(8.dp))    
+    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)    
+    Text("Loading location options...", fontSize = 12.sp)    
+}    
+if (locationError.isNotBlank()) {    
+    Spacer(Modifier.height(6.dp))    
+    Text(locationError, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)    
+}    
 
-    Spacer(Modifier.height(12.dp))  
-    OutlinedTextField(  
-        value = password,  
-        onValueChange = { password = it },  
-        label = { Text("Password") },  
-        visualTransformation = PasswordVisualTransformation(),  
-        modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(12.dp))  
-    OutlinedTextField(  
-        value = confirmPassword,  
-        onValueChange = { confirmPassword = it },  
-        label = { Text("Confirm Password") },  
-        visualTransformation = PasswordVisualTransformation(),  
-        modifier = Modifier.fillMaxWidth()  
-    )  
-    Spacer(Modifier.height(16.dp))  
+Spacer(Modifier.height(12.dp))    
+OutlinedTextField(    
+    value = password,    
+    onValueChange = { password = it },    
+    label = { Text("Password") },    
+    visualTransformation = PasswordVisualTransformation(),    
+    modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(12.dp))    
+OutlinedTextField(    
+    value = confirmPassword,    
+    onValueChange = { confirmPassword = it },    
+    label = { Text("Confirm Password") },    
+    visualTransformation = PasswordVisualTransformation(),    
+    modifier = Modifier.fillMaxWidth()    
+)    
+Spacer(Modifier.height(16.dp))    
 
-    if (errorMessage.isNotEmpty()) {  
-        Text(errorMessage, color = MaterialTheme.colorScheme.error)  
-        Spacer(Modifier.height(12.dp))  
-    }  
+if (errorMessage.isNotEmpty()) {    
+    Text(errorMessage, color = MaterialTheme.colorScheme.error)    
+    Spacer(Modifier.height(12.dp))    
+}    
 
-    Button(  
-        onClick = {  
-            errorMessage = ""  
-            when {  
-                name.isBlank() -> errorMessage = "Please enter your full name."  
-                email.isBlank() -> errorMessage = "Please enter your email."  
-                country.isBlank() -> errorMessage = "Please select your country."  
-                region.isBlank() -> errorMessage = "Please select your state / region."  
-                city.isBlank() -> errorMessage = "Please select your city / town."  
-                password.length < 6 -> errorMessage = "Password must be at least 6 characters."  
-                password != confirmPassword -> errorMessage = "Passwords do not match."  
-                else -> {  
-                    loading = true  
-                    auth.createUserWithEmailAndPassword(email.trim(), password)  
-                        .addOnCompleteListener { task ->  
-                            if (task.isSuccessful) {  
-                                val user = auth.currentUser  
-                                if (user != null) {  
-                                    val profile = hashMapOf<String, Any>(  
-                                        "uid" to user.uid,  
-                                        "name" to name.trim(),  
-                                        "email" to email.trim(),  
-                                        "country" to country,  
-                                        "state" to region,  
-                                        "city" to city,  
-                                        "bio" to "",  
-                                        "profilePhoto" to "",  
-                                        "followersCount" to 0,  
-                                        "followingCount" to 0,  
-                                        "updatedAt" to System.currentTimeMillis()  
-                                    )  
-                                    firestore.collection("users").document(user.uid).set(profile)  
-                                        .addOnSuccessListener {  
-                                            loading = false  
-                                            onAccountCreated(name.trim())  
-                                        }  
-                                        .addOnFailureListener { exception ->  
-                                            loading = false  
-                                            errorMessage = exception.message ?: "Could not save your profile."  
-                                        }  
-                                } else {  
-                                    loading = false  
-                                    errorMessage = "Account creation failed."  
-                                }  
-                            } else {  
-                                loading = false  
-                                errorMessage = task.exception?.message ?: "Could not create account."  
-                            }  
-                        }  
-                }  
-            }  
-        },  
-        enabled = !loading && !locationLoading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text(if (loading) "Creating Account..." else "Create Account")  
-    }  
-    Spacer(Modifier.height(12.dp))  
-    OutlinedButton(  
-        onClick = onBack,  
-        enabled = !loading,  
-        modifier = Modifier.fillMaxWidth()  
-    ) {  
-        Text("Back")  
-    }  
-}  
+Button(    
+    onClick = {    
+        errorMessage = ""    
+        when {    
+            name.isBlank() -> errorMessage = "Please enter your full name."    
+            email.isBlank() -> errorMessage = "Please enter your email."    
+            country.isBlank() -> errorMessage = "Please select your country."    
+            region.isBlank() -> errorMessage = "Please select your state / region."    
+            city.isBlank() -> errorMessage = "Please select your city / town."    
+            password.length < 6 -> errorMessage = "Password must be at least 6 characters."    
+            password != confirmPassword -> errorMessage = "Passwords do not match."    
+            else -> {    
+                loading = true    
+                auth.createUserWithEmailAndPassword(email.trim(), password)    
+                    .addOnCompleteListener { task ->    
+                        if (task.isSuccessful) {    
+                            val user = auth.currentUser    
+                            if (user != null) {    
+                                val profile = hashMapOf<String, Any>(    
+                                    "uid" to user.uid,    
+                                    "name" to name.trim(),    
+                                    "email" to email.trim(),    
+                                    "country" to country,    
+                                    "state" to region,    
+                                    "city" to city,    
+                                    "bio" to "",    
+                                    "profilePhoto" to "",    
+                                    "followersCount" to 0,    
+                                    "followingCount" to 0,    
+                                    "updatedAt" to System.currentTimeMillis()    
+                                )    
+                                firestore.collection("users").document(user.uid).set(profile)    
+                                    .addOnSuccessListener {    
+                                        loading = false    
+                                        onAccountCreated(name.trim())    
+                                    }    
+                                    .addOnFailureListener { exception ->    
+                                        loading = false    
+                                        errorMessage = exception.message ?: "Could not save your profile."    
+                                    }    
+                            } else {    
+                                loading = false    
+                                errorMessage = "Account creation failed."    
+                            }    
+                        } else {    
+                            loading = false    
+                            errorMessage = task.exception?.message ?: "Could not create account."    
+                        }    
+                    }    
+            }    
+        }    
+    },    
+    enabled = !loading && !locationLoading,    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text(if (loading) "Creating Account..." else "Create Account")    
+}    
+Spacer(Modifier.height(12.dp))    
+OutlinedButton(    
+    onClick = onBack,    
+    enabled = !loading,    
+    modifier = Modifier.fillMaxWidth()    
+) {    
+    Text("Back")    
+}
 
-if (showCountryPicker) {  
-    PeejeeLocationSelectionDialog(  
-        title = "Select Country",  
-        options = countries,  
-        onDismiss = { showCountryPicker = false },  
-        onSelect = { selected ->  
-            country = selected  
-            showCountryPicker = false  
-            loadRegions(selected)  
-        }  
-    )  
-}  
-if (showRegionPicker) {  
-    PeejeeLocationSelectionDialog(  
-        title = "Select State / Region",  
-        options = regions,  
-        onDismiss = { showRegionPicker = false },  
-        onSelect = { selected ->  
-            region = selected  
-            showRegionPicker = false  
-            loadCities(selected)  
-        }  
-    )  
-}  
-if (showCityPicker) {  
-    PeejeeLocationSelectionDialog(  
-        title = "Select City / Town",  
-        options = cities,  
-        onDismiss = { showCityPicker = false },  
-        onSelect = { selected ->  
-            city = selected  
-            showCityPicker = false  
-        }  
-    )  
+}
+
+if (showCountryPicker) {
+PeejeeLocationSelectionDialog(
+title = "Select Country",
+options = countries,
+onDismiss = { showCountryPicker = false },
+onSelect = { selected ->
+country = selected
+showCountryPicker = false
+loadRegions(selected)
+}
+)
+}
+if (showRegionPicker) {
+PeejeeLocationSelectionDialog(
+title = "Select State / Region",
+options = regions,
+onDismiss = { showRegionPicker = false },
+onSelect = { selected ->
+region = selected
+showRegionPicker = false
+loadCities(selected)
+}
+)
+}
+if (showCityPicker) {
+PeejeeLocationSelectionDialog(
+title = "Select City / Town",
+options = cities,
+allowManualEntry = true,
+onDismiss = { showCityPicker = false },
+onSelect = { selected ->
+city = selected.trim()
+locationError = ""
+showCityPicker = false
+}
+)
 }
 
 }
@@ -798,10 +801,12 @@ if (showCityPicker) {
 private fun PeejeeLocationSelectionDialog(
 title: String,
 options: List<String>,
+allowManualEntry: Boolean = false,
 onDismiss: () -> Unit,
 onSelect: (String) -> Unit
 ) {
 var search by remember(title) { mutableStateOf("") }
+var manualCity by remember(title) { mutableStateOf("") }
 val filteredOptions = remember(options, search) {
 options.filter { it.contains(search.trim(), ignoreCase = true) }
 }
@@ -819,7 +824,15 @@ modifier = Modifier.fillMaxWidth()
 )
 Spacer(Modifier.height(8.dp))
 if (filteredOptions.isEmpty()) {
+if (allowManualEntry) {
+Text(if (options.isEmpty()) "The city list could not be loaded. Enter your city or town below." else "No matching city found. You can enter it manually below.", fontSize = 13.sp)
+Spacer(Modifier.height(8.dp))
+OutlinedTextField(value = manualCity, onValueChange = { manualCity = it }, label = { Text("Enter City / Town") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+Spacer(Modifier.height(8.dp))
+Button(onClick = { if (manualCity.trim().isNotBlank()) onSelect(manualCity.trim()) }, enabled = manualCity.trim().isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Use This City / Town") }
+} else {
 Text(if (options.isEmpty()) "No options available. Check your connection and try again." else "No matches found.")
+}
 } else {
 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
 itemsIndexed(filteredOptions) { _, option ->
@@ -829,6 +842,13 @@ modifier = Modifier.fillMaxWidth()
 ) {
 Text(option, modifier = Modifier.fillMaxWidth())
 }
+}
+}
+if (allowManualEntry) {
+Spacer(Modifier.height(8.dp))
+OutlinedTextField(value = manualCity, onValueChange = { manualCity = it }, label = { Text("Or enter another city / town") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+if (manualCity.trim().isNotBlank()) {
+TextButton(onClick = { onSelect(manualCity.trim()) }, modifier = Modifier.fillMaxWidth()) { Text("Use ${manualCity.trim()}") }
 }
 }
 }
@@ -978,28 +998,28 @@ val user = auth.currentUser
 
 if (user != null) {
 
-firestore                  
-    .collection("users")                  
-    .document(user.uid)                  
-    .get()                  
-    .addOnSuccessListener { document ->                  
+firestore
+.collection("users")
+.document(user.uid)
+.get()
+.addOnSuccessListener { document ->
 
-        loading = false                  
+loading = false                    
 
-        onLoginSuccess(                  
-            document.getString("name")                  
-                ?: "Peejee User"                  
-        )                  
-    }                  
-    .addOnFailureListener {                  
+    onLoginSuccess(                    
+        document.getString("name")                    
+            ?: "Peejee User"                    
+    )                    
+}                    
+.addOnFailureListener {                    
 
-        loading = false                  
-        onLoginSuccess("Peejee User")                  
-    }
+    loading = false                    
+    onLoginSuccess("Peejee User")                    
+}
 
 } else {
 
-loading = false                  
+loading = false
 errorMessage = "Login failed."
 
 }
@@ -1379,24 +1399,24 @@ val text =
 document.getString("text")
 ?: ""
 
-if (text.isBlank()) {                  
-    null                  
-} else {                  
-    PeejeeComment(                  
-        id = document.id,                  
-        userId =                  
-            document.getString("userId")                  
-                ?: "",                  
-        userName =                  
-            document.getString("userName")                  
-                ?: "Peejee User",                  
-        text = text,                  
-        timestamp =                  
-            document.getLong("timestamp")                  
-                ?: 0L,          
-        parentCommentId = document.getString("parentCommentId") ?: "",          
-        parentUserName = document.getString("parentUserName") ?: ""          
-    )                  
+if (text.isBlank()) {
+null
+} else {
+PeejeeComment(
+id = document.id,
+userId =
+document.getString("userId")
+?: "",
+userName =
+document.getString("userName")
+?: "Peejee User",
+text = text,
+timestamp =
+document.getLong("timestamp")
+?: 0L,
+parentCommentId = document.getString("parentCommentId") ?: "",
+parentUserName = document.getString("parentUserName") ?: ""
+)
 }
 
 }
@@ -1652,23 +1672,23 @@ snapshot.getString("userName")
 
 if (alreadyLiked) {
 
-currentLikedBy.remove(userId)                  
+currentLikedBy.remove(userId)
 
-transaction.update(                  
-    postRef,                  
-    "likes",                  
-    (currentLikes - 1)                  
-        .coerceAtLeast(0)                  
+transaction.update(
+postRef,
+"likes",
+(currentLikes - 1)
+.coerceAtLeast(0)
 )
 
 } else {
 
-currentLikedBy[userId] = true                  
+currentLikedBy[userId] = true
 
-transaction.update(                  
-    postRef,                  
-    "likes",                  
-    currentLikes + 1                  
+transaction.update(
+postRef,
+"likes",
+currentLikes + 1
 )
 
 }
@@ -2165,76 +2185,76 @@ System.currentTimeMillis(),
 
 firestore.runTransaction { transaction ->
 
-val postSnapshot =                  
-    transaction.get(postReference)                  
+val postSnapshot =
+transaction.get(postReference)
 
-val currentCommentCount =                  
-    postSnapshot                  
-        .getLong("commentCount")                  
-        ?.toInt()                  
-        ?: 0                  
+val currentCommentCount =
+postSnapshot
+.getLong("commentCount")
+?.toInt()
+?: 0
 
-transaction.set(                  
-    commentReference,                  
-    commentData                  
-)                  
+transaction.set(
+commentReference,
+commentData
+)
 
-transaction.update(                  
-    postReference,                  
-    "commentCount",                  
-    currentCommentCount + 1                  
-)                  
+transaction.update(
+postReference,
+"commentCount",
+currentCommentCount + 1
+)
 
 null
 
 }.addOnSuccessListener {
 
-sendingComment = false                  
+sendingComment = false
 
-val postOwnerId =                  
-    posts                  
-        .firstOrNull { it.id == selectedPostId }                  
-        ?.userId                  
-        ?: ""                  
+val postOwnerId =
+posts
+.firstOrNull { it.id == selectedPostId }
+?.userId
+?: ""
 
-createPeejeeNotification(                  
-    firestore = firestore,                  
-    recipientUserId = postOwnerId,                  
-    type = "comment",                  
-    actorId = currentUser.uid,                  
-    actorName = savedUserName,                  
-    text = if (replyToComment == null) "commented on your post" else "replied to a comment on your post",          
-    postId = selectedPostId                  
-)                  
+createPeejeeNotification(
+firestore = firestore,
+recipientUserId = postOwnerId,
+type = "comment",
+actorId = currentUser.uid,
+actorName = savedUserName,
+text = if (replyToComment == null) "commented on your post" else "replied to a comment on your post",
+postId = selectedPostId
+)
 
-findMentionedUsers(                  
-    firestore = firestore,                  
-    text = newComment.trim(),                  
-    currentUserId = currentUser.uid                  
-) { mentionedUsers ->                  
-    mentionedUsers.forEach { mentioned ->                  
-        createPeejeeNotification(                  
-            firestore = firestore,                  
-            recipientUserId = mentioned.uid,                  
-            type = "mention",                  
-            actorId = currentUser.uid,                  
-            actorName = savedUserName,                  
-            text = "mentioned you in a comment",                  
-            postId = selectedPostId                  
-        )                  
-    }                  
-}                  
+findMentionedUsers(
+firestore = firestore,
+text = newComment.trim(),
+currentUserId = currentUser.uid
+) { mentionedUsers ->
+mentionedUsers.forEach { mentioned ->
+createPeejeeNotification(
+firestore = firestore,
+recipientUserId = mentioned.uid,
+type = "mention",
+actorId = currentUser.uid,
+actorName = savedUserName,
+text = "mentioned you in a comment",
+postId = selectedPostId
+)
+}
+}
 
-newComment = ""          
+newComment = ""
 replyToComment = null
 
 }.addOnFailureListener { exception ->
 
-sendingComment = false                  
+sendingComment = false
 
-commentError =                  
-    exception.message                  
-        ?: "Could not post comment."
+commentError =
+exception.message
+?: "Could not post comment."
 
 }
 
@@ -2909,45 +2929,45 @@ val isImage = normalizedMediaType.contains("image") ||
 normalizedMediaType == "photo" ||
 normalizedMediaType == "image"
 
-if (isImage) {    
-    AsyncImage(    
-        model = post.mediaUrl,    
-        contentDescription = "Photo posted by ${post.userName}",    
-        modifier = Modifier.fillMaxWidth().height(420.dp),    
-        contentScale = ContentScale.Fit    
-    )    
-} else if (    
-    normalizedMediaType.contains("video") ||    
-    normalizedMediaType == "clip"    
-) {    
-    AndroidView(    
-        factory = { ctx ->    
-            VideoView(ctx).apply {    
-                val controller = android.widget.MediaController(ctx)    
-                controller.setAnchorView(this)    
-                setMediaController(controller)    
-                setVideoPath(post.mediaUrl)    
-                setOnPreparedListener { player ->    
-                    player.isLooping = false    
-                }    
-            }    
-        },    
-        modifier = Modifier.fillMaxWidth().height(420.dp),    
-        update = { view ->    
-            if (view.tag != post.mediaUrl) {    
-                view.tag = post.mediaUrl    
-                view.setVideoPath(post.mediaUrl)    
-            }    
-        }    
-    )    
-} else {    
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {    
-        Text("Media format not recognized", fontSize = 16.sp)    
-        Text(    
-            "Type: ${post.mediaType.ifBlank { "unknown" }}",    
-            fontSize = 12.sp    
-        )    
-    }    
+if (isImage) {
+AsyncImage(
+model = post.mediaUrl,
+contentDescription = "Photo posted by ${post.userName}",
+modifier = Modifier.fillMaxWidth().height(420.dp),
+contentScale = ContentScale.Fit
+)
+} else if (
+normalizedMediaType.contains("video") ||
+normalizedMediaType == "clip"
+) {
+AndroidView(
+factory = { ctx ->
+VideoView(ctx).apply {
+val controller = android.widget.MediaController(ctx)
+controller.setAnchorView(this)
+setMediaController(controller)
+setVideoPath(post.mediaUrl)
+setOnPreparedListener { player ->
+player.isLooping = false
+}
+}
+},
+modifier = Modifier.fillMaxWidth().height(420.dp),
+update = { view ->
+if (view.tag != post.mediaUrl) {
+view.tag = post.mediaUrl
+view.setVideoPath(post.mediaUrl)
+}
+}
+)
+} else {
+Column(horizontalAlignment = Alignment.CenterHorizontally) {
+Text("Media format not recognized", fontSize = 16.sp)
+Text(
+"Type: ${post.mediaType.ifBlank { "unknown" }}",
+fontSize = 12.sp
+)
+}
 }
 
 }
@@ -4005,23 +4025,23 @@ val storageRef = com.google.firebase.storage.FirebaseStorage
 .reference
 .child("posts/${currentUser.uid}/${System.currentTimeMillis()}_$extension")
 
-storageRef.putFile(mediaUri)    
-        .continueWithTask { task ->    
-            if (!task.isSuccessful) {    
-                throw (task.exception ?: Exception("Media upload failed"))    
-            }    
-            storageRef.downloadUrl    
-        }    
-        .addOnSuccessListener { downloadUri ->    
-            postData["mediaUrl"] = downloadUri.toString()    
-            finishCreatePostUpload(    
-                postReference, postData, currentUser, postText.trim(), userDocument    
-            )    
-        }    
-        .addOnFailureListener { exception ->    
-            publishing = false    
-            errorMessage = "Media upload failed: ${exception.message ?: "Please try again."}"    
-        }    
+storageRef.putFile(mediaUri)
+.continueWithTask { task ->
+if (!task.isSuccessful) {
+throw (task.exception ?: Exception("Media upload failed"))
+}
+storageRef.downloadUrl
+}
+.addOnSuccessListener { downloadUri ->
+postData["mediaUrl"] = downloadUri.toString()
+finishCreatePostUpload(
+postReference, postData, currentUser, postText.trim(), userDocument
+)
+}
+.addOnFailureListener { exception ->
+publishing = false
+errorMessage = "Media upload failed: ${exception.message ?: "Please try again."}"
+}
 }
 
 }
@@ -4385,62 +4405,63 @@ it.isNotBlank()
 }
 ?: profileName,
 
-text =                  
-            document.getString(                  
-                "text"                  
-            ) ?: "",                  
+text =
+document.getString(
+"text"
+) ?: "",
 
-        timestamp =                  
-            document.getLong(                  
-                "timestamp"                  
-            ) ?: 0L,                  
+timestamp =                    
+        document.getLong(                    
+            "timestamp"                    
+        ) ?: 0L,                    
 
-        mediaUrl =                  
-            document.getString(                  
-                "mediaUrl"                  
-            ) ?: "",                  
+    mediaUrl =                    
+        document.getString(                    
+            "mediaUrl"                    
+        ) ?: "",                    
 
-        mediaType =                  
-            document.getString(                  
-                "mediaType"                  
-            ) ?: "",                  
+    mediaType =                    
+        document.getString(                    
+            "mediaType"                    
+        ) ?: "",                    
 
-        likeCount =                  
-            document.getLong(                  
-                "likes"                  
-            )?.toInt() ?: 0,                  
+    likeCount =                    
+        document.getLong(                    
+            "likes"                    
+        )?.toInt() ?: 0,                    
 
-        likedBy =                  
-            getLikedBy(document),                  
+    likedBy =                    
+        getLikedBy(document),                    
 
-        commentCount =                  
-            document.getLong(                  
-                "commentCount"                  
-            )?.toInt() ?: 0,                  
+    commentCount =                    
+        document.getLong(                    
+            "commentCount"                    
+        )?.toInt() ?: 0,                    
 
-        shareCount =                  
-            document.getLong(                  
-                "shareCount"                  
-            )?.toInt() ?: 0,                  
+    shareCount =                    
+        document.getLong(                    
+            "shareCount"                    
+        )?.toInt() ?: 0,                    
 
-        sharedFromPostId =                  
-            document.getString(                  
-                "sharedFromPostId"                  
-            ) ?: "",                  
+    sharedFromPostId =                    
+        document.getString(                    
+            "sharedFromPostId"                    
+        ) ?: "",                    
 
-        sharedFromUserName =                  
-            document.getString(                  
-                "sharedFromUserName"                  
-            ) ?: "",                  
+    sharedFromUserName =                    
+        document.getString(                    
+            "sharedFromUserName"                    
+        ) ?: "",                    
 
-        sharedFromText =                  
-            document.getString(                  
-                "sharedFromText"                  
-            ) ?: ""                  
-    )                  
-}                  
-.sortedByDescending {                  
-    it.timestamp                  
+    sharedFromText =                    
+        document.getString(                    
+            "sharedFromText"                    
+        ) ?: ""                    
+)
+
+}
+.sortedByDescending {
+it.timestamp
 }
 
 }
@@ -5079,38 +5100,38 @@ try {
 val photoBase64 =
 if (selectedUri != null) {
 
-withContext(                  
-        Dispatchers.IO                  
-    ) {                  
+withContext(
+Dispatchers.IO
+) {
 
-        try {                  
+try {                    
 
-            val bitmap =                  
-                context                  
-                    .contentResolver                  
-                    .openInputStream(                  
-                        selectedUri                  
-                    )                  
-                    ?.use {                  
-                        BitmapFactory                  
-                            .decodeStream(it)                  
-                    }                  
+        val bitmap =                    
+            context                    
+                .contentResolver                    
+                .openInputStream(                    
+                    selectedUri                    
+                )                    
+                ?.use {                    
+                    BitmapFactory                    
+                        .decodeStream(it)                    
+                }                    
 
-            if (bitmap != null) {                  
-                bitmapToBase64(bitmap)                  
-            } else {                  
-                ""                  
-            }                  
+        if (bitmap != null) {                    
+            bitmapToBase64(bitmap)                    
+        } else {                    
+            ""                    
+        }                    
 
-        } catch (                  
-            exception: Exception                  
-        ) {                  
-            ""                  
-        }                  
-    }                  
+    } catch (                    
+        exception: Exception                    
+    ) {                    
+        ""                    
+    }                    
+}
 
-} else {                  
-    savedProfilePhoto                  
+} else {
+savedProfilePhoto
 }
 
 if (
@@ -5118,10 +5139,10 @@ selectedUri != null &&
 photoBase64.isBlank()
 ) {
 
-savingProfile = false                  
+savingProfile = false
 
-profileError =                  
-    "Could not read the selected photo."                  
+profileError =
+"Could not read the selected photo."
 
 return@launch
 
@@ -5141,17 +5162,17 @@ selectedCoverPhotoUri!!
 BitmapFactory.decodeStream(it)
 }
 
-if (bitmap != null) {                  
-                bitmapToBase64(bitmap)                  
-            } else {                  
-                ""                  
-            }                  
-        } catch (exception: Exception) {                  
-            ""                  
-        }                  
-    }                  
-} else {                  
-    savedCoverPhoto                  
+if (bitmap != null) {
+bitmapToBase64(bitmap)
+} else {
+""
+}
+} catch (exception: Exception) {
+""
+}
+}
+} else {
+savedCoverPhoto
 }
 
 if (
@@ -5185,30 +5206,32 @@ SetOptions.merge()
 )
 .addOnSuccessListener {
 
-profileName = newName                  
-    bio = newBio                  
-    savedProfilePhoto =                  
-        photoBase64                  
-    savedCoverPhoto =                  
-        coverBase64                  
-    editedName = newName                  
-    editedBio = newBio                  
-    selectedProfilePhotoUri = null                  
-    selectedCoverPhotoUri = null                  
-    savingProfile = false                  
-    showEditDialog = false                  
+profileName = newName
+bio = newBio
+savedProfilePhoto =
+photoBase64
+savedCoverPhoto =
+coverBase64
+editedName = newName
+editedBio = newBio
+selectedProfilePhotoUri = null
+selectedCoverPhotoUri = null
+savingProfile = false
+showEditDialog = false
 
-    onProfileNameChanged(                  
-        newName                  
-    )                  
-}                  
-.addOnFailureListener { exception ->                  
+onProfileNameChanged(                    
+    newName                    
+)
 
-    savingProfile = false                  
+}
+.addOnFailureListener { exception ->
 
-    profileError =                  
-        exception.message                  
-            ?: "Could not save your profile."                  
+savingProfile = false                    
+
+profileError =                    
+    exception.message                    
+        ?: "Could not save your profile."
+
 }
 
 } catch (exception: Exception) {
